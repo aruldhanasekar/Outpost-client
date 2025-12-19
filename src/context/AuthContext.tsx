@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Demo mode configuration
   const DEMO_USER = {
-    uid: 'AVS5YObxtBXgyIcGmSCewqiT0623',
+    uid: 'Hib1lTkAUpbIRN4wEU3ddyOURoj1',
     email: 'arul@useoutpostmail.com',
     emailVerified: true,
   } as User;
