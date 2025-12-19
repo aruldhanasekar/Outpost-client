@@ -1,0 +1,381 @@
+// services/emailApi.ts - API calls for email actions
+
+import { auth } from '../firebase.config';
+
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
+
+// Helper to get auth token
+async function getAuthToken(): Promise<string> {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+  return user.getIdToken();
+}
+
+// Helper for API calls
+async function apiCall(endpoint: string, options: RequestInit = {}) {
+  const token = await getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || `API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+// ======================================================
+// EMAIL API FUNCTIONS
+// ======================================================
+
+/**
+ * Mark email as read
+ * - Updates Firestore: is_read = true
+ * - Updates Gmail: removes UNREAD label
+ */
+export async function markEmailAsRead(emailId: string): Promise<{
+  status: string;
+  message: string;
+  email_id: string;
+  gmail_synced: boolean;
+  already_read?: boolean;
+}> {
+  return apiCall(`/api/emails/${emailId}/read`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Mark email as unread
+ * - Updates Firestore: is_read = false
+ * - Updates Gmail: adds UNREAD label
+ */
+export async function markEmailAsUnread(emailId: string): Promise<{
+  status: string;
+  message: string;
+  email_id: string;
+  gmail_synced: boolean;
+  already_unread?: boolean;
+}> {
+  return apiCall(`/api/emails/${emailId}/unread`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Mark email as done
+ * - Removes from inbox categories
+ * - Adds to Done page
+ */
+export async function markEmailAsDone(emailId: string): Promise<{
+  status: string;
+  message: string;
+  email_id: string;
+  original_category: string;
+  already_done?: boolean;
+}> {
+  return apiCall(`/api/emails/${emailId}/done`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Mark email as undone (restore to inbox)
+ * - Restores to original category
+ * - Removes from Done page
+ */
+export async function markEmailAsUndone(emailId: string): Promise<{
+  status: string;
+  message: string;
+  email_id: string;
+  restored_category: string;
+  already_undone?: boolean;
+}> {
+  return apiCall(`/api/emails/${emailId}/undone`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Delete email
+ * - Moves to Gmail Trash
+ * - Marks as deleted in Firestore
+ */
+export async function deleteEmail(emailId: string): Promise<{
+  status: string;
+  message: string;
+  email_id: string;
+  gmail_trashed: boolean;
+  already_deleted?: boolean;
+  original_category?: string;
+}> {
+  return apiCall(`/api/emails/${emailId}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Restore email from trash
+ * - Restores in Gmail
+ * - Restores to original category in Firestore
+ */
+export async function restoreEmail(emailId: string): Promise<{
+  status: string;
+  message: string;
+  email_id: string;
+  gmail_restored: boolean;
+  restored_category: string;
+  already_restored?: boolean;
+}> {
+  return apiCall(`/api/emails/${emailId}/restore`, {
+    method: 'POST',
+  });
+}
+
+// ======================================================
+// BATCH API FUNCTIONS
+// ======================================================
+
+/**
+ * Batch mark emails as read
+ */
+export async function batchMarkAsRead(emailIds: string[]): Promise<{
+  status: string;
+  message: string;
+  success_count: number;
+  failed_count: number;
+  failed_ids: string[];
+}> {
+  return apiCall('/api/emails/batch/read', {
+    method: 'POST',
+    body: JSON.stringify({ email_ids: emailIds }),
+  });
+}
+
+/**
+ * Batch mark emails as unread
+ */
+export async function batchMarkAsUnread(emailIds: string[]): Promise<{
+  status: string;
+  message: string;
+  success_count: number;
+  failed_count: number;
+  failed_ids: string[];
+}> {
+  return apiCall('/api/emails/batch/unread', {
+    method: 'POST',
+    body: JSON.stringify({ email_ids: emailIds }),
+  });
+}
+
+/**
+ * Batch mark emails as done
+ */
+export async function batchMarkAsDone(emailIds: string[]): Promise<{
+  status: string;
+  message: string;
+  success_count: number;
+  failed_count: number;
+  failed_ids: string[];
+}> {
+  return apiCall('/api/emails/batch/done', {
+    method: 'POST',
+    body: JSON.stringify({ email_ids: emailIds }),
+  });
+}
+
+/**
+ * Batch delete emails
+ */
+export async function batchDelete(emailIds: string[]): Promise<{
+  status: string;
+  message: string;
+  success_count: number;
+  failed_count: number;
+  failed_ids: string[];
+}> {
+  return apiCall('/api/emails/batch', {
+    method: 'DELETE',
+    body: JSON.stringify({ email_ids: emailIds }),
+  });
+}
+
+export interface SendEmailRequest {
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject: string;
+  body_html: string;
+  body_text?: string;
+  scheduled_at?: string | null;  // ISO string for Send Later
+  tracking_enabled?: boolean;
+  attachment_ids?: string[];  // S3 attachment IDs
+}
+
+export interface SendEmailResponse {
+  status: 'queued' | 'scheduled';
+  email_id: string;
+  can_undo: boolean;
+  undo_until: string | null;
+  tracking_id: string | null;
+}
+
+export interface CancelEmailResponse {
+  status: 'success';
+  message: string;
+  email_id: string;
+}
+
+export interface EmailStatus {
+  id: string;
+  status: 'queued' | 'scheduled' | 'sending' | 'sent' | 'failed' | 'cancelled';
+  to: string[];
+  subject: string;
+  created_at: string;
+  sent_at: string | null;
+  scheduled_at: string | null;
+  gmail_message_id: string | null;
+  gmail_thread_id: string | null;
+  attempt_count: number;
+  last_error: {
+    type: string;
+    message: string;
+    timestamp: string;
+  } | null;
+  opened: boolean;
+  open_count: number;
+  first_opened_at: string | null;
+  tracking_enabled: boolean;
+}
+
+export interface OutboxEmail {
+  id: string;
+  to: string[];
+  subject: string;
+  status: string;
+  created_at: string;
+  sent_at: string | null;
+  scheduled_at: string | null;
+  opened: boolean;
+  open_count: number;
+}
+
+export interface OutboxResponse {
+  emails: OutboxEmail[];
+  count: number;
+}
+
+export interface TrackingStats {
+  tracking_enabled: boolean;
+  opened: boolean;
+  open_count: number;
+  first_opened_at: string | null;
+  opens: Array<{
+    timestamp: string;
+    country: string;
+    device_type: string;
+    device: string;
+    os: string;
+    email_client: string;
+  }>;
+  clicks: Array<{
+    timestamp: string;
+    url: string;
+    country: string;
+    device_type: string;
+    email_client: string;
+  }>;
+  likely_read: boolean;
+  accuracy_note: string;
+}
+
+// ======================================================
+// EMAIL SEND FUNCTIONS
+// ======================================================
+
+/**
+ * Send/Queue an email
+ * - Saves to Firestore outbox
+ * - Returns email_id for undo
+ * - 8 second undo window
+ */
+export async function sendEmail(data: SendEmailRequest): Promise<SendEmailResponse> {
+  return apiCall('/api/emails/send', {
+    method: 'POST',
+    body: JSON.stringify({
+      to: data.to,
+      cc: data.cc || [],
+      bcc: data.bcc || [],
+      subject: data.subject,
+      body_html: data.body_html,
+      body_text: data.body_text || '',
+      scheduled_at: data.scheduled_at || null,
+      tracking_enabled: data.tracking_enabled ?? true,
+      attachment_ids: data.attachment_ids || []
+    }),
+  });
+}
+
+/**
+ * Cancel/Undo an email before it's sent
+ * - Only works within 8 second undo window
+ */
+export async function cancelEmail(emailId: string): Promise<CancelEmailResponse> {
+  return apiCall(`/api/emails/${emailId}/cancel`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Retry a failed email
+ */
+export async function retryEmail(emailId: string): Promise<{
+  status: string;
+  message: string;
+  email_id: string;
+}> {
+  return apiCall(`/api/emails/${emailId}/retry`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Get outbox (sent/queued/failed emails)
+ */
+export async function getOutbox(status?: string, limit: number = 50): Promise<OutboxResponse> {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  params.append('limit', limit.toString());
+  
+  return apiCall(`/api/emails/outbox?${params}`, {
+    method: 'GET',
+  });
+}
+
+/**
+ * Get email status
+ */
+export async function getEmailStatus(emailId: string): Promise<EmailStatus> {
+  return apiCall(`/api/emails/${emailId}/status`, {
+    method: 'GET',
+  });
+}
+
+/**
+ * Get email tracking stats
+ */
+export async function getEmailTracking(emailId: string): Promise<TrackingStats> {
+  return apiCall(`/api/emails/${emailId}/tracking`, {
+    method: 'GET',
+  });
+}
