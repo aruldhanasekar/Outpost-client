@@ -15,11 +15,6 @@ const Index = () => {
   const [showModal, setShowModal] = useState(false);
   const [currentSentence, setCurrentSentence] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  
-  // Demo mode state
-  const [showDemoInput, setShowDemoInput] = useState(false);
-  const [emailInput, setEmailInput] = useState("");
-  const demoEmail = "arul@useoutpostmail.com";
 
   const sentences = [
     "Outpost is an AI inbox that helps you focus on what matters most and keeps track of promises you've made and replies you're waiting for.",
@@ -119,16 +114,6 @@ const Index = () => {
     }
   };
 
-  // Demo sign-in handler
-  const handleDemoSignIn = () => {
-    if (emailInput === demoEmail) {
-      // Set demo mode flag
-      localStorage.setItem('demo_mode', 'true');
-      // Force page reload to trigger AuthContext demo mode
-      window.location.href = '/inbox';
-    }
-  };
-
   // Loading state
   if (loading) {
     return (
@@ -185,100 +170,36 @@ const Index = () => {
               </span>
             </div>
 
-            {/* Buttons - Right */}
-            <div className="flex items-center gap-3">
-              {/* Demo Input Section - Shows when "See Demo" is clicked */}
-              {showDemoInput && (
-                <div className="flex items-center gap-2 animate-fadeIn">
-                  <div className="relative">
-                    <input
-                      type="email"
-                      value={emailInput}
-                      onChange={(e) => {
-                        // Only allow typing if it matches the demo email pattern
-                        const newValue = e.target.value;
-                        if (demoEmail.startsWith(newValue)) {
-                          setEmailInput(newValue);
-                        }
-                      }}
-                      onKeyDown={(e) => e.key === 'Enter' && handleDemoSignIn()}
-                      
-                      className="w-72 px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-sm outline-none focus:border-gray-400 transition-colors text-transparent caret-black selection:bg-transparent"
-                      style={{ fontFamily: "'Poppins', sans-serif" }}
-                      autoFocus
-                    />
-                    {/* Ghost typing overlay */}
-                    <div 
-                      className="absolute inset-0 flex items-center px-4 pointer-events-none text-sm"
-                      style={{ fontFamily: "'Poppins', sans-serif" }}
-                    >
-                      <span className="text-black">{emailInput}</span>
-                      <span className="text-gray-400">{demoEmail.slice(emailInput.length)}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleDemoSignIn}
-                    disabled={emailInput !== demoEmail}
-                    className="px-5 py-2.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Start Now
-                  </button>
-                  {/* Close demo input */}
-                  <button
-                    onClick={() => {
-                      setShowDemoInput(false);
-                      setEmailInput("");
-                    }}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <X className="w-4 h-4 text-gray-500" />
-                  </button>
-                </div>
+            {/* Google Button - Right */}
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+              className="flex items-center gap-2.5 px-5 py-2.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
+                </svg>
               )}
-
-              {/* See Demo Button */}
-              {!showDemoInput && (
-                <button
-                  onClick={() => setShowDemoInput(true)}
-                  className="px-5 py-2.5 bg-gray-100 text-black rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-                >
-                  See Demo
-                </button>
-              )}
-
-              {/* Google Sign-in Button */}
-              {!showDemoInput && (
-                <button
-                  onClick={handleGoogleSignIn}
-                  disabled={isLoading}
-                  className="flex items-center gap-2.5 px-5 py-2.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <svg className="w-4 h-4" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                      />
-                    </svg>
-                  )}
-                  <span>{isLoading ? "Connecting..." : "Start Now"}</span>
-                </button>
-              )}
-            </div>
+              <span>{isLoading ? "Connecting..." : "Start Now"}</span>
+            </button>
           </div>
         </div>
       </header>

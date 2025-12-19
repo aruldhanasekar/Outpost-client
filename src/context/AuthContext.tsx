@@ -36,13 +36,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [backendUserData, setBackendUserData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Demo mode configuration
-  const DEMO_USER = {
-    uid: 'l8OvK3FbphUWUXnYoPjV3yT1tdU2',
-    email: 'arul@useoutpostmail.com',
-    emailVerified: true,
-  } as User;
-
   // Capture and save user's timezone to Firestore (ONCE per session)
   const captureAndSaveTimezone = async (uid: string) => {
     if (!uid) return;
@@ -111,24 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // ==================== EFFECT 1: Demo Mode Check ====================
-  // Check for demo mode on mount
-  useEffect(() => {
-    const isDemoMode = localStorage.getItem('demo_mode') === 'true';
-    
-    if (isDemoMode) {
-      console.log('🎭 Demo mode detected - using demo user');
-      setCurrentUser(DEMO_USER);
-      setUserProfile({
-        firstName: 'Arul',
-        lastName: 'Dhanasekar',
-        email: 'arul@useoutpostmail.com',
-      } as UserProfile);
-      setLoading(false);
-    }
-  }, []);
-
-  // ==================== EFFECT 2: OAuth Message Listener ====================
+  // ==================== EFFECT 1: OAuth Message Listener ====================
   // ✅ CRITICAL: Empty dependency - mount ONCE
   useEffect(() => {
     console.log('🔌 Setting up OAuth message listener (ONCE)');
@@ -154,16 +130,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []); // ✅ Empty array - mount once, never re-attach
 
-  // ==================== EFFECT 3: Auth State Listener ====================
+  // ==================== EFFECT 2: Auth State Listener ====================
   // ✅ Sets up Firebase auth listener ONCE
   // NO backend calls here!
   useEffect(() => {
-    // Skip if demo mode
-    if (localStorage.getItem('demo_mode') === 'true') {
-      console.log('🎭 Demo mode - skipping Firebase auth listener');
-      return;
-    }
-
     console.log('🔐 Setting up auth state listener (ONCE)');
     
     const unsubscribe = onAuthStateChange(async (user) => {
@@ -204,16 +174,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []); // ✅ Empty array - setup once
 
-  // ==================== EFFECT 4: Backend User Data Loader ====================
+  // ==================== EFFECT 3: Backend User Data Loader ====================
   // ✅ SEPARATED from auth listener - runs when currentUser changes
   useEffect(() => {
     const loadBackendUser = async () => {
-      // Skip in demo mode
-      if (localStorage.getItem('demo_mode') === 'true') {
-        console.log('🎭 Demo mode - skipping backend data fetch');
-        return;
-      }
-
       if (!currentUser) {
         setBackendUserData(null);
         return;

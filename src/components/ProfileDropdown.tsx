@@ -37,24 +37,10 @@ const ProfileDropdown = ({ userEmail, userName, avatarLetter }: ProfileDropdownP
 
   const handleSignOut = async () => {
     try {
-      // Check if in demo mode
-      const isDemoMode = localStorage.getItem('demo_mode') === 'true';
-      
-      // Clear demo mode flag
-      localStorage.removeItem('demo_mode');
-      
-      // In demo mode, force full page reload to reset AuthContext
-      if (isDemoMode) {
-        window.location.href = '/';
-        return;
-      }
-      
       await logOut();
       navigate("/");
     } catch (error) {
       console.error("Error signing out:", error);
-      // Still redirect even if error
-      navigate("/");
     }
   };
 
