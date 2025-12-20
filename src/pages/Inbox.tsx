@@ -32,6 +32,7 @@ import { UndoToast } from "@/components/ui/UndoToast";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
 import { Sidebar } from "@/components/layout";
 import ComposioConnectionOverlay from "@/components/ComposioConnectionOverlay";
+import SyncLoadingOverlay from "@/components/SyncLoadingOverlay";
 
 const InboxPage = () => {
   const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
@@ -60,6 +61,9 @@ const InboxPage = () => {
   // Checked threads state (for bulk selection)
   const [checkedThreads, setCheckedThreads] = useState<Set<string>>(new Set());
   
+  const [showSyncLoading, setShowSyncLoading] = useState(false);
+
+
   // Toast state for undo functionality
   const [toast, setToast] = useState<{
     show: boolean;
@@ -249,6 +253,21 @@ const InboxPage = () => {
       navigate("/");
     }
   }, [currentUser, authLoading, navigate]);
+
+  // ==================== SYNC LOADING DETECTION ====================
+  
+  // Show sync loading overlay when sync starts
+  useEffect(() => {
+    if (!backendUserData) return;
+    
+    const syncStatus = backendUserData.sync_status;
+    
+    // Check if sync just started
+    if (syncStatus === 'starting' || syncStatus === 'syncing_inbox') {
+      console.log('🔄 Sync started - showing loading overlay');
+      setShowSyncLoading(true);
+    }
+  }, [backendUserData?.sync_status]);
 
   // ==================== THREAD CLICK HANDLERS ====================
 
@@ -806,6 +825,11 @@ const InboxPage = () => {
       {/* Composio Connection Overlay */}
       {needsComposioConnection && (
         <ComposioConnectionOverlay userEmail={currentUser?.email || ""} />
+      )}
+
+      {/* Sync Loading Overlay - Shows for 10 seconds after auth */}
+      {showSyncLoading && (
+        <SyncLoadingOverlay onHide={() => setShowSyncLoading(false)} />
       )}
 
       {/* Global styles */}
