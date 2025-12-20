@@ -110,18 +110,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('🔌 Setting up OAuth message listener (ONCE)');
     
     const handleMessage = async (event: MessageEvent) => {
-      if (event.data?.type === 'OAUTH_SUCCESS') {
-        console.log('📨 Received OAuth success message');
-        const { token } = event.data;
+    if (event.data?.type === 'OAUTH_SUCCESS') {
+      console.log('📨 Received OAuth success message');
+      const { token, flow } = event.data;  // ✅ Also get flow type
+      
+      try {
+        await handleOAuthSuccess(token);
         
-        try {
-          await handleOAuthSuccess(token);
-          console.log('🎉 OAuth flow completed successfully');
-        } catch (error) {
-          console.error('❌ Failed to complete OAuth flow:', error);
+        if (flow === 'composio') {
+          console.log('🔵 Composio Step 1 complete - user should connect Gmail');
+          // Don't redirect - Index.tsx will show "Connect Gmail" button
+        } else {
+          console.log('🎉 Direct OAuth flow completed successfully');
+          // Direct flow - will redirect via useEffect
         }
+      } catch (error) {
+        console.error('❌ Failed to complete OAuth flow:', error);
       }
-    };
+    }
+  };
 
     window.addEventListener('message', handleMessage);
     return () => {

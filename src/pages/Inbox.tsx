@@ -31,10 +31,17 @@ import {
 import { UndoToast } from "@/components/ui/UndoToast";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
 import { Sidebar } from "@/components/layout";
+import ComposioConnectionOverlay from "@/components/ComposioConnectionOverlay";
 
 const InboxPage = () => {
-  const { currentUser, userProfile, loading: authLoading } = useAuth();
+  const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
   const navigate = useNavigate();
+  
+  // Check if Composio user needs to connect Gmail
+  const needsComposioConnection = 
+    currentUser && 
+    backendUserData?.auth_method === 'composio' && 
+    !backendUserData?.composio_connection_id;
   const [activeCategory, setActiveCategory] = useState<Category>("urgent");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
@@ -796,10 +803,15 @@ const InboxPage = () => {
 
   return (
     <>
+      {/* Composio Connection Overlay */}
+      {needsComposioConnection && (
+        <ComposioConnectionOverlay userEmail={currentUser?.email || ""} />
+      )}
+
       {/* Global styles */}
 
       <div 
-        className="fixed inset-0 bg-[#1a1a1a]" 
+        className={`fixed inset-0 bg-[#1a1a1a] ${needsComposioConnection ? 'blur-sm pointer-events-none' : ''}`} 
       >
       <Sidebar 
           activePage="inbox"
