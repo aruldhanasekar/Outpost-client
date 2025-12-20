@@ -269,6 +269,62 @@ const InboxPage = () => {
     }
   }, [backendUserData?.sync_status]);
 
+  // ==================== COMPOSIO CALLBACK HANDLER ====================
+  
+  // Handle Composio redirect callback
+  useEffect(() => {
+    const handleComposioCallback = async () => {
+      // Only run if user is logged in
+      if (!currentUser) return;
+      
+      // Check URL parameters
+      const params = new URLSearchParams(window.location.search);
+      const composioConnected = params.get('composio_connected');
+      const connectionId = params.get('connected_account_id');
+      const status = params.get('status');
+      
+      // If Composio redirect detected
+      if (composioConnected === 'true' && connectionId && status === 'success') {
+        console.log('🔵 Composio callback detected');
+        console.log('   Connection ID:', connectionId);
+        
+        try {
+          // Get auth token
+          const idToken = await currentUser.getIdToken();
+          
+          // Call backend to finalize connection
+          console.log('📡 Calling backend to finalize connection...');
+          const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/composio/finalize?connection_id=${connectionId}`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${idToken}`,
+              'Content-Type': 'application/json',
+              'ngrok-skip-browser-warning': 'true'
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Backend finalization failed: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          console.log('✅ Composio connection finalized:', data);
+          
+          // Clean URL (remove parameters)
+          window.history.replaceState({}, '', '/inbox');
+          
+          // Show sync overlay will appear automatically when backend updates sync_status
+          
+        } catch (error) {
+          console.error('❌ Error finalizing Composio connection:', error);
+          // TODO: Show error toast to user
+        }
+      }
+    };
+    
+    handleComposioCallback();
+  }, [currentUser]); // Run when user changes
+
   // ==================== THREAD CLICK HANDLERS ====================
 
   // Handle thread click - select thread, mark as read
