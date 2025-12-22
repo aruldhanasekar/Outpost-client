@@ -1,6 +1,8 @@
 // services/replyForwardApi.ts
 // API service for Reply and Forward email endpoints
-// Supports proper Gmail threading with threadId and message headers
+// ✅ Automatic endpoint routing based on auth_method (like emailApi.ts)
+
+import { auth } from '../firebase.config';
 
 const API_BASE = import.meta.env.VITE_BACKEND_URL;
 
@@ -45,24 +47,66 @@ export interface EmailSendResponse {
 
 
 // ======================================================
-// HELPER: Get Auth Headers
+// HELPER: Get Auth Token
 // ======================================================
-async function getAuthHeaders(): Promise<HeadersInit> {
-  const { getAuth } = await import('firebase/auth');
-  
-  const auth = getAuth();
+async function getAuthToken(): Promise<string> {
   const user = auth.currentUser;
-  
   if (!user) {
     throw new Error('User not authenticated');
   }
+  return user.getIdToken();
+}
+
+
+// ======================================================
+// HELPER: Get Auth Method from Firebase Custom Claims
+// ======================================================
+async function getAuthMethod(): Promise<'direct' | 'composio'> {
+  const user = auth.currentUser;
+  if (!user) return 'direct';
   
-  const token = await user.getIdToken();
+  try {
+    const idTokenResult = await user.getIdTokenResult();
+    const authMethod = idTokenResult.claims.auth_method as string;
+    
+    // Default to 'direct' if not set
+    return authMethod === 'composio' ? 'composio' : 'direct';
+  } catch (error) {
+    console.error('Failed to get auth method from claims:', error);
+    return 'direct';
+  }
+}
+
+
+// ======================================================
+// HELPER: API Call with Automatic Routing
+// ======================================================
+async function apiCall(endpoint: string, options: RequestInit = {}) {
+  const token = await getAuthToken();
+  const authMethod = await getAuthMethod();
   
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  };
+  // Route: Replace /api/emails with correct prefix based on auth method
+  let routedEndpoint = endpoint;
+  if (authMethod === 'composio' && endpoint.startsWith('/api/emails')) {
+    routedEndpoint = endpoint.replace('/api/emails', '/api/composio/emails');
+    console.log(`🔀 Routing to Composio: ${endpoint} → ${routedEndpoint}`);
+  }
+  
+  const response = await fetch(`${API_BASE}${routedEndpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || `API error: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 
@@ -77,6 +121,10 @@ async function getAuthHeaders(): Promise<HeadersInit> {
  * - in_reply_to: Message-ID header of the email being replied to
  * - references: Chain of all Message-IDs in the thread
  * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/reply
+ * - Composio: /api/composio/emails/reply
+ * 
  * @example
  * ```ts
  * await replyEmail({
@@ -89,11 +137,8 @@ async function getAuthHeaders(): Promise<HeadersInit> {
  * ```
  */
 export async function replyEmail(request: ReplyEmailRequest): Promise<EmailSendResponse> {
-  const headers = await getAuthHeaders();
-  
-  const response = await fetch(`${API_BASE}/api/emails/reply`, {
+  return apiCall('/api/emails/reply', {
     method: 'POST',
-    headers,
     body: JSON.stringify({
       to: request.to,
       cc: request.cc || [],
@@ -109,13 +154,6 @@ export async function replyEmail(request: ReplyEmailRequest): Promise<EmailSendR
       attachment_ids: request.attachment_ids || []
     })
   });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Failed to send reply' }));
-    throw new Error(error.detail || 'Failed to send reply');
-  }
-  
-  return response.json();
 }
 
 
@@ -128,6 +166,10 @@ export async function replyEmail(request: ReplyEmailRequest): Promise<EmailSendR
  * Note: Forwards create a NEW thread, they don't use thread_id.
  * The forwarded content should be included in body_html/body_text.
  * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/forward
+ * - Composio: /api/composio/emails/forward
+ * 
  * @example
  * ```ts
  * await forwardEmail({
@@ -138,11 +180,8 @@ export async function replyEmail(request: ReplyEmailRequest): Promise<EmailSendR
  * ```
  */
 export async function forwardEmail(request: ForwardEmailRequest): Promise<EmailSendResponse> {
-  const headers = await getAuthHeaders();
-  
-  const response = await fetch(`${API_BASE}/api/emails/forward`, {
+  return apiCall('/api/emails/forward', {
     method: 'POST',
-    headers,
     body: JSON.stringify({
       to: request.to,
       cc: request.cc || [],
@@ -155,13 +194,6 @@ export async function forwardEmail(request: ForwardEmailRequest): Promise<EmailS
       attachment_ids: request.attachment_ids || []
     })
   });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Failed to forward email' }));
-    throw new Error(error.detail || 'Failed to forward email');
-  }
-  
-  return response.json();
 }
 
 
@@ -171,19 +203,13 @@ export async function forwardEmail(request: ForwardEmailRequest): Promise<EmailS
 /**
  * Cancel a queued reply/forward email (undo).
  * Must be called within the undo window (8 seconds).
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/{emailId}/cancel
+ * - Composio: /api/composio/emails/{emailId}/cancel
  */
 export async function cancelEmail(emailId: string): Promise<{ status: string; message: string }> {
-  const headers = await getAuthHeaders();
-  
-  const response = await fetch(`${API_BASE}/api/emails/${emailId}/cancel`, {
-    method: 'POST',
-    headers
+  return apiCall(`/api/emails/${emailId}/cancel`, {
+    method: 'DELETE',
   });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Failed to cancel email' }));
-    throw new Error(error.detail || 'Failed to cancel email');
-  }
-  
-  return response.json();
 }
