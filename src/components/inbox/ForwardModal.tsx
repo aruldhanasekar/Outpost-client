@@ -42,6 +42,14 @@ function getForwardSubject(subject: string): string {
 
 // Helper: Generate forwarded content HTML
 function generateForwardQuote(email: Email): string {
+  // DEBUG: Log email.to to find the issue
+  console.log('🔍 DEBUG generateForwardQuote:');
+  console.log('   email.to =', email.to);
+  console.log('   typeof email.to =', typeof email.to);
+  console.log('   Array.isArray(email.to) =', Array.isArray(email.to));
+  console.log('   email.senderEmail =', email.senderEmail);
+  console.log('   Full email object =', email);
+  
   return `
 <br><br>
 <div style="color: #666;">
@@ -67,6 +75,13 @@ export function ForwardModal({
   onEmailScheduled,
   originalAttachments = []
 }: ForwardModalProps) {
+  // DEBUG: Log originalEmail when modal renders
+  console.log('🔍 DEBUG ForwardModal render:');
+  console.log('   isOpen =', isOpen);
+  console.log('   originalEmail =', originalEmail);
+  console.log('   originalEmail.to =', originalEmail?.to);
+  console.log('   typeof originalEmail.to =', typeof originalEmail?.to);
+  
   // Get initial values
   const initialSubject = originalEmail ? getForwardSubject(threadSubject) : '';
   const initialQuote = originalEmail ? generateForwardQuote(originalEmail) : '';
