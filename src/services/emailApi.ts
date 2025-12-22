@@ -109,8 +109,12 @@ export async function markEmailAsUnread(emailId: string): Promise<{
 
 /**
  * Mark email as done
- * - Removes from inbox categories
- * - Adds to Done page
+ * - Updates Firestore: user_marked_done = true, visibility flags = false
+ * - Updates Gmail: removes INBOX label (archives email)
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/{emailId}/done
+ * - Composio: /api/composio/emails/{emailId}/done
  */
 export async function markEmailAsDone(emailId: string): Promise<{
   status: string;
@@ -126,8 +130,12 @@ export async function markEmailAsDone(emailId: string): Promise<{
 
 /**
  * Mark email as undone (restore to inbox)
- * - Restores to original category
- * - Removes from Done page
+ * - Updates Firestore: user_marked_done = false, restores visibility flags
+ * - Updates Gmail: adds INBOX label (unarchives email)
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/{emailId}/undone
+ * - Composio: /api/composio/emails/{emailId}/undone
  */
 export async function markEmailAsUndone(emailId: string): Promise<{
   status: string;
@@ -143,8 +151,12 @@ export async function markEmailAsUndone(emailId: string): Promise<{
 
 /**
  * Delete email
- * - Moves to Gmail Trash
- * - Marks as deleted in Firestore
+ * - Updates Firestore: deleted = true, visibility flags = false
+ * - Updates Gmail: adds TRASH label (moves to trash)
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/{emailId}
+ * - Composio: /api/composio/emails/{emailId}
  */
 export async function deleteEmail(emailId: string): Promise<{
   status: string;
@@ -161,8 +173,12 @@ export async function deleteEmail(emailId: string): Promise<{
 
 /**
  * Restore email from trash
- * - Restores in Gmail
- * - Restores to original category in Firestore
+ * - Updates Firestore: deleted = false, restores visibility flags
+ * - Updates Gmail: removes TRASH label (restores from trash)
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/{emailId}/restore
+ * - Composio: /api/composio/emails/{emailId}/restore
  */
 export async function restoreEmail(emailId: string): Promise<{
   status: string;
@@ -184,6 +200,8 @@ export async function restoreEmail(emailId: string): Promise<{
 
 /**
  * Batch mark emails as read
+ * - Updates Firestore: is_read = true for all emails
+ * - Updates Gmail: removes UNREAD label from all emails
  * 
  * Automatically routes to:
  * - Direct Auth: /api/emails/batch/read
@@ -205,6 +223,8 @@ export async function batchMarkAsRead(emailIds: string[]): Promise<{
 
 /**
  * Batch mark emails as unread
+ * - Updates Firestore: is_read = false for all emails
+ * - Updates Gmail: adds UNREAD label to all emails
  * 
  * Automatically routes to:
  * - Direct Auth: /api/emails/batch/unread
@@ -226,6 +246,12 @@ export async function batchMarkAsUnread(emailIds: string[]): Promise<{
 
 /**
  * Batch mark emails as done
+ * - Updates Firestore: user_marked_done = true, visibility flags = false
+ * - Updates Gmail: removes INBOX label (archives emails)
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/batch/done
+ * - Composio: /api/composio/emails/batch/done
  */
 export async function batchMarkAsDone(emailIds: string[]): Promise<{
   status: string;
@@ -242,6 +268,12 @@ export async function batchMarkAsDone(emailIds: string[]): Promise<{
 
 /**
  * Batch delete emails
+ * - Updates Firestore: deleted = true, visibility flags = false
+ * - Updates Gmail: adds TRASH label (moves to trash)
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/batch
+ * - Composio: /api/composio/emails/batch
  */
 export async function batchDelete(emailIds: string[]): Promise<{
   status: string;
@@ -347,6 +379,7 @@ export interface TrackingStats {
 
 // ======================================================
 // EMAIL SEND FUNCTIONS
+// ⚠️ TODO: Implement Composio backend endpoints for these
 // ======================================================
 
 /**
@@ -354,6 +387,8 @@ export interface TrackingStats {
  * - Saves to Firestore outbox
  * - Returns email_id for undo
  * - 8 second undo window
+ * 
+ * ⚠️ TODO: Composio endpoint not yet implemented
  */
 export async function sendEmail(data: SendEmailRequest): Promise<SendEmailResponse> {
   return apiCall('/api/emails/send', {
@@ -375,6 +410,8 @@ export async function sendEmail(data: SendEmailRequest): Promise<SendEmailRespon
 /**
  * Cancel/Undo an email before it's sent
  * - Only works within 8 second undo window
+ * 
+ * ⚠️ TODO: Composio endpoint not yet implemented
  */
 export async function cancelEmail(emailId: string): Promise<CancelEmailResponse> {
   return apiCall(`/api/emails/${emailId}/cancel`, {
@@ -384,6 +421,8 @@ export async function cancelEmail(emailId: string): Promise<CancelEmailResponse>
 
 /**
  * Retry a failed email
+ * 
+ * ⚠️ TODO: Composio endpoint not yet implemented
  */
 export async function retryEmail(emailId: string): Promise<{
   status: string;
@@ -397,6 +436,8 @@ export async function retryEmail(emailId: string): Promise<{
 
 /**
  * Get outbox (sent/queued/failed emails)
+ * 
+ * ⚠️ TODO: Composio endpoint not yet implemented
  */
 export async function getOutbox(status?: string, limit: number = 50): Promise<OutboxResponse> {
   const params = new URLSearchParams();
@@ -410,6 +451,8 @@ export async function getOutbox(status?: string, limit: number = 50): Promise<Ou
 
 /**
  * Get email status
+ * 
+ * ⚠️ TODO: Composio endpoint not yet implemented
  */
 export async function getEmailStatus(emailId: string): Promise<EmailStatus> {
   return apiCall(`/api/emails/${emailId}/status`, {
@@ -419,6 +462,8 @@ export async function getEmailStatus(emailId: string): Promise<EmailStatus> {
 
 /**
  * Get email tracking stats
+ * 
+ * ⚠️ TODO: Composio endpoint not yet implemented
  */
 export async function getEmailTracking(emailId: string): Promise<TrackingStats> {
   return apiCall(`/api/emails/${emailId}/tracking`, {
