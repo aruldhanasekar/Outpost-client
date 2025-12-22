@@ -3,6 +3,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { getIdToken } from "@/services/auth.service";
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/firebase.config";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -24,6 +26,12 @@ const Index = () => {
   const [composioUserEmail, setComposioUserEmail] = useState<string>("");
   const [isLoadingDirect, setIsLoadingDirect] = useState(false);
   const [isLoadingComposio, setIsLoadingComposio] = useState(false);
+
+  // Waitlist States
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [isSubmittingWaitlist, setIsSubmittingWaitlist] = useState(false);
+  const [waitlistSuccess, setWaitlistSuccess] = useState(false);
+  const [waitlistError, setWaitlistError] = useState<string | null>(null);
 
   const sentences = [
     "Outpost is an AI inbox that helps you focus on what matters most and keeps track of promises you've made and replies you're waiting for.",
@@ -88,7 +96,71 @@ const Index = () => {
     }
   }, [currentUser, loading, navigate]);
 
-  // Open auth modal
+  // Validate email format
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Handle Waitlist Submission
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const trimmedEmail = waitlistEmail.trim().toLowerCase();
+    
+    // Validate email
+    if (!trimmedEmail) {
+      setWaitlistError("Please enter your email address.");
+      return;
+    }
+    
+    if (!isValidEmail(trimmedEmail)) {
+      setWaitlistError("Please enter a valid email address.");
+      return;
+    }
+
+    // Secret backdoor for admin
+    if (trimmedEmail === "arul@useoutpostmail.com") {
+      console.log("🔐 Admin access detected - opening auth modal");
+      setShowAuthModal(true);
+      setComposioStep1Complete(false);
+      return;
+    }
+
+    setIsSubmittingWaitlist(true);
+    setWaitlistError(null);
+
+    try {
+      // Check for duplicate email
+      const waitlistRef = collection(db, "waitlist");
+      const q = query(waitlistRef, where("email", "==", trimmedEmail));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        setWaitlistError("This email is already registered in the waitlist.");
+        setIsSubmittingWaitlist(false);
+        return;
+      }
+
+      // Add to waitlist
+      await addDoc(waitlistRef, {
+        email: trimmedEmail,
+        createdAt: serverTimestamp(),
+      });
+
+      console.log("✅ Email added to waitlist:", trimmedEmail);
+      setWaitlistSuccess(true);
+      setWaitlistEmail("");
+      
+    } catch (error: any) {
+      console.error("❌ Waitlist submission failed:", error);
+      setWaitlistError("Something went wrong. Please try again.");
+    } finally {
+      setIsSubmittingWaitlist(false);
+    }
+  };
+
+  // Open auth modal (for secret backdoor)
   const handleOpenAuthModal = () => {
     setShowAuthModal(true);
     setComposioStep1Complete(false);
@@ -281,7 +353,7 @@ const Index = () => {
         </div>
       )}
 
-      {/* Floating Header */}
+      {/* Floating Header - Logo Only */}
       <header className="fixed top-0 left-0 right-0 z-40">
         <div className="px-6 lg:px-12 py-5">
           <div className="flex items-center justify-between">
@@ -294,37 +366,6 @@ const Index = () => {
                 Outpost
               </span>
             </div>
-
-            {/* Start Now Button - Right */}
-            <button
-              onClick={handleOpenAuthModal}
-              disabled={isLoading}
-              className="flex items-center gap-2.5 px-5 py-2.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  />
-                </svg>
-              )}
-              <span>{isLoading ? "Connecting..." : "Start Now"}</span>
-            </button>
           </div>
         </div>
       </header>
@@ -346,7 +387,7 @@ const Index = () => {
       </h1>
 
       {/* Animated Sentences */}
-      <div className="max-w-3xl mx-auto mb-16 h-[120px] flex items-start justify-center">
+      <div className="max-w-3xl mx-auto mb-12 h-[120px] flex items-start justify-center">
         <p
           className={`text-xl md:text-2xl lg:text-3xl text-gray-500 text-center transition-opacity duration-500 ${
             isTransitioning ? "opacity-0" : "opacity-100"
@@ -363,6 +404,75 @@ const Index = () => {
             </span>
           ))}
         </p>
+      </div>
+
+      {/* Waitlist Section */}
+      <div className="w-full max-w-md mx-auto">
+        {waitlistSuccess ? (
+          // Success Message
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 text-green-600 mb-2">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span 
+                className="font-medium text-lg"
+                style={{ fontFamily: "'Poppins', sans-serif" }}
+              >
+                Thanks for registering!
+              </span>
+            </div>
+            <p 
+              className="text-green-600"
+              style={{ fontFamily: "'Poppins', sans-serif" }}
+            >
+              You've joined the waitlist for early access.
+            </p>
+          </div>
+        ) : (
+          // Waitlist Form
+          <form onSubmit={handleWaitlistSubmit} className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="email"
+                value={waitlistEmail}
+                onChange={(e) => {
+                  setWaitlistEmail(e.target.value);
+                  setWaitlistError(null);
+                }}
+                placeholder="Enter your email"
+                className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-800 transition-colors"
+                style={{ fontFamily: "'Poppins', sans-serif" }}
+                disabled={isSubmittingWaitlist}
+              />
+              <button
+                type="submit"
+                disabled={isSubmittingWaitlist}
+                className="px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap"
+                style={{ fontFamily: "'Poppins', sans-serif" }}
+              >
+                {isSubmittingWaitlist ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Joining...</span>
+                  </>
+                ) : (
+                  <span>Join Waitlist</span>
+                )}
+              </button>
+            </div>
+            
+            {/* Error Message */}
+            {waitlistError && (
+              <p 
+                className="text-red-500 text-sm text-center"
+                style={{ fontFamily: "'Poppins', sans-serif" }}
+              >
+                {waitlistError}
+              </p>
+            )}
+          </form>
+        )}
       </div>
 
       {/* Footer - Privacy Policy & Terms */}
@@ -384,7 +494,7 @@ const Index = () => {
         </a>
       </div>
 
-      {/* Auth Modal */}
+      {/* Auth Modal - Only shown for admin backdoor */}
       {showAuthModal && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
