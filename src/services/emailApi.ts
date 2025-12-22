@@ -1,5 +1,6 @@
 // services/emailApi.ts - API calls for email actions
-// ✅ MODIFIED: Automatic endpoint routing based on auth_method
+// ✅ Automatic endpoint routing based on auth_method
+// ✅ Composio endpoints implemented for all functions
 
 import { auth } from '../firebase.config';
 
@@ -14,7 +15,7 @@ async function getAuthToken(): Promise<string> {
   return user.getIdToken();
 }
 
-// ✅ NEW: Get auth method from Firebase custom claims
+// Get auth method from Firebase custom claims
 async function getAuthMethod(): Promise<'direct' | 'composio'> {
   const user = auth.currentUser;
   if (!user) return 'direct';
@@ -31,12 +32,12 @@ async function getAuthMethod(): Promise<'direct' | 'composio'> {
   }
 }
 
-// ✅ MODIFIED: Helper for API calls with automatic endpoint routing
+// Helper for API calls with automatic endpoint routing
 async function apiCall(endpoint: string, options: RequestInit = {}) {
   const token = await getAuthToken();
   const authMethod = await getAuthMethod();
   
-  // ✅ ROUTE: Replace /api/emails with correct prefix based on auth method
+  // Route: Replace /api/emails with correct prefix based on auth method
   let routedEndpoint = endpoint;
   if (authMethod === 'composio' && endpoint.startsWith('/api/emails')) {
     routedEndpoint = endpoint.replace('/api/emails', '/api/composio/emails');
@@ -62,7 +63,7 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
 
 // ======================================================
 // EMAIL API FUNCTIONS
-// ✅ NO CHANGES NEEDED BELOW - Automatic routing handles everything!
+// Automatic routing handles Direct Auth vs Composio
 // ======================================================
 
 /**
@@ -195,7 +196,7 @@ export async function restoreEmail(emailId: string): Promise<{
 
 // ======================================================
 // BATCH API FUNCTIONS
-// ✅ Automatic routing based on auth_method
+// Automatic routing based on auth_method
 // ======================================================
 
 /**
@@ -288,6 +289,10 @@ export async function batchDelete(emailIds: string[]): Promise<{
   });
 }
 
+// ======================================================
+// TYPE DEFINITIONS
+// ======================================================
+
 export interface SendEmailRequest {
   to: string[];
   cc?: string[];
@@ -379,7 +384,7 @@ export interface TrackingStats {
 
 // ======================================================
 // EMAIL SEND FUNCTIONS
-// ⚠️ TODO: Implement Composio backend endpoints for these
+// ✅ Composio endpoints implemented
 // ======================================================
 
 /**
@@ -388,7 +393,9 @@ export interface TrackingStats {
  * - Returns email_id for undo
  * - 8 second undo window
  * 
- * ⚠️ TODO: Composio endpoint not yet implemented
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/send
+ * - Composio: /api/composio/emails/send
  */
 export async function sendEmail(data: SendEmailRequest): Promise<SendEmailResponse> {
   return apiCall('/api/emails/send', {
@@ -411,7 +418,9 @@ export async function sendEmail(data: SendEmailRequest): Promise<SendEmailRespon
  * Cancel/Undo an email before it's sent
  * - Only works within 8 second undo window
  * 
- * ⚠️ TODO: Composio endpoint not yet implemented
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/{emailId}/cancel
+ * - Composio: /api/composio/emails/{emailId}/cancel
  */
 export async function cancelEmail(emailId: string): Promise<CancelEmailResponse> {
   return apiCall(`/api/emails/${emailId}/cancel`, {
@@ -422,7 +431,9 @@ export async function cancelEmail(emailId: string): Promise<CancelEmailResponse>
 /**
  * Retry a failed email
  * 
- * ⚠️ TODO: Composio endpoint not yet implemented
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/{emailId}/retry
+ * - Composio: /api/composio/emails/{emailId}/retry
  */
 export async function retryEmail(emailId: string): Promise<{
   status: string;
@@ -437,7 +448,9 @@ export async function retryEmail(emailId: string): Promise<{
 /**
  * Get outbox (sent/queued/failed emails)
  * 
- * ⚠️ TODO: Composio endpoint not yet implemented
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/outbox
+ * - Composio: /api/composio/emails/outbox
  */
 export async function getOutbox(status?: string, limit: number = 50): Promise<OutboxResponse> {
   const params = new URLSearchParams();
@@ -452,7 +465,9 @@ export async function getOutbox(status?: string, limit: number = 50): Promise<Ou
 /**
  * Get email status
  * 
- * ⚠️ TODO: Composio endpoint not yet implemented
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/{emailId}/status
+ * - Composio: /api/composio/emails/{emailId}/status
  */
 export async function getEmailStatus(emailId: string): Promise<EmailStatus> {
   return apiCall(`/api/emails/${emailId}/status`, {
@@ -463,7 +478,9 @@ export async function getEmailStatus(emailId: string): Promise<EmailStatus> {
 /**
  * Get email tracking stats
  * 
- * ⚠️ TODO: Composio endpoint not yet implemented
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/{emailId}/tracking
+ * - Composio: /api/composio/emails/{emailId}/tracking
  */
 export async function getEmailTracking(emailId: string): Promise<TrackingStats> {
   return apiCall(`/api/emails/${emailId}/tracking`, {
