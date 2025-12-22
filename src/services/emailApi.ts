@@ -1,4 +1,5 @@
 // services/emailApi.ts - API calls for email actions
+// ✅ MODIFIED: Automatic endpoint routing based on auth_method
 
 import { auth } from '../firebase.config';
 
@@ -13,11 +14,36 @@ async function getAuthToken(): Promise<string> {
   return user.getIdToken();
 }
 
-// Helper for API calls
+// ✅ NEW: Get auth method from Firebase custom claims
+async function getAuthMethod(): Promise<'direct' | 'composio'> {
+  const user = auth.currentUser;
+  if (!user) return 'direct';
+  
+  try {
+    const idTokenResult = await user.getIdTokenResult();
+    const authMethod = idTokenResult.claims.auth_method as string;
+    
+    // Default to 'direct' if not set
+    return authMethod === 'composio' ? 'composio' : 'direct';
+  } catch (error) {
+    console.error('Failed to get auth method from claims:', error);
+    return 'direct';
+  }
+}
+
+// ✅ MODIFIED: Helper for API calls with automatic endpoint routing
 async function apiCall(endpoint: string, options: RequestInit = {}) {
   const token = await getAuthToken();
+  const authMethod = await getAuthMethod();
   
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  // ✅ ROUTE: Replace /api/emails with correct prefix based on auth method
+  let routedEndpoint = endpoint;
+  if (authMethod === 'composio' && endpoint.startsWith('/api/emails')) {
+    routedEndpoint = endpoint.replace('/api/emails', '/api/composio/emails');
+    console.log(`🔀 Routing to Composio: ${endpoint} → ${routedEndpoint}`);
+  }
+  
+  const response = await fetch(`${API_BASE_URL}${routedEndpoint}`, {
     ...options,
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -36,18 +62,23 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
 
 // ======================================================
 // EMAIL API FUNCTIONS
+// ✅ NO CHANGES NEEDED BELOW - Automatic routing handles everything!
 // ======================================================
 
 /**
  * Mark email as read
  * - Updates Firestore: is_read = true
  * - Updates Gmail: removes UNREAD label
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/{emailId}/read
+ * - Composio: /api/composio/emails/{emailId}/read
  */
 export async function markEmailAsRead(emailId: string): Promise<{
   status: string;
   message: string;
   email_id: string;
-  gmail_synced: boolean;
+  gmail_synced?: boolean;
   already_read?: boolean;
 }> {
   return apiCall(`/api/emails/${emailId}/read`, {
@@ -59,12 +90,16 @@ export async function markEmailAsRead(emailId: string): Promise<{
  * Mark email as unread
  * - Updates Firestore: is_read = false
  * - Updates Gmail: adds UNREAD label
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/{emailId}/unread
+ * - Composio: /api/composio/emails/{emailId}/unread
  */
 export async function markEmailAsUnread(emailId: string): Promise<{
   status: string;
   message: string;
   email_id: string;
-  gmail_synced: boolean;
+  gmail_synced?: boolean;
   already_unread?: boolean;
 }> {
   return apiCall(`/api/emails/${emailId}/unread`, {
@@ -115,7 +150,7 @@ export async function deleteEmail(emailId: string): Promise<{
   status: string;
   message: string;
   email_id: string;
-  gmail_trashed: boolean;
+  gmail_trashed?: boolean;
   already_deleted?: boolean;
   original_category?: string;
 }> {
@@ -133,7 +168,7 @@ export async function restoreEmail(emailId: string): Promise<{
   status: string;
   message: string;
   email_id: string;
-  gmail_restored: boolean;
+  gmail_restored?: boolean;
   restored_category: string;
   already_restored?: boolean;
 }> {
@@ -144,10 +179,15 @@ export async function restoreEmail(emailId: string): Promise<{
 
 // ======================================================
 // BATCH API FUNCTIONS
+// ✅ Automatic routing based on auth_method
 // ======================================================
 
 /**
  * Batch mark emails as read
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/batch/read
+ * - Composio: /api/composio/emails/batch/read
  */
 export async function batchMarkAsRead(emailIds: string[]): Promise<{
   status: string;
@@ -155,6 +195,7 @@ export async function batchMarkAsRead(emailIds: string[]): Promise<{
   success_count: number;
   failed_count: number;
   failed_ids: string[];
+  threads_updated?: number;
 }> {
   return apiCall('/api/emails/batch/read', {
     method: 'POST',
@@ -164,6 +205,10 @@ export async function batchMarkAsRead(emailIds: string[]): Promise<{
 
 /**
  * Batch mark emails as unread
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/batch/unread
+ * - Composio: /api/composio/emails/batch/unread
  */
 export async function batchMarkAsUnread(emailIds: string[]): Promise<{
   status: string;
@@ -171,6 +216,7 @@ export async function batchMarkAsUnread(emailIds: string[]): Promise<{
   success_count: number;
   failed_count: number;
   failed_ids: string[];
+  threads_updated?: number;
 }> {
   return apiCall('/api/emails/batch/unread', {
     method: 'POST',
