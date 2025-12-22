@@ -310,6 +310,10 @@ const InboxPage = () => {
           const data = await response.json();
           console.log('✅ Composio connection finalized:', data);
           
+          // Force refresh token to get new custom claims (auth_method: 'composio')
+          await currentUser.getIdToken(true);
+          console.log('🔄 Token refreshed with new custom claims');
+          
           // Clean URL (remove parameters)
           window.history.replaceState({}, '', '/inbox');
           
