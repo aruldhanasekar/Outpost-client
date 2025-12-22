@@ -69,6 +69,9 @@ async function getAuthMethod(): Promise<'direct' | 'composio'> {
     const idTokenResult = await user.getIdTokenResult();
     const authMethod = idTokenResult.claims.auth_method as string;
     
+    console.log('🔍 DEBUG getAuthMethod: claims =', idTokenResult.claims);
+    console.log('🔍 DEBUG getAuthMethod: auth_method =', authMethod);
+    
     // Default to 'direct' if not set
     return authMethod === 'composio' ? 'composio' : 'direct';
   } catch (error) {
@@ -82,15 +85,23 @@ async function getAuthMethod(): Promise<'direct' | 'composio'> {
 // HELPER: API Call with Automatic Routing
 // ======================================================
 async function apiCall(endpoint: string, options: RequestInit = {}) {
+  console.log('🔍 DEBUG apiCall: endpoint =', endpoint);
+  
   const token = await getAuthToken();
   const authMethod = await getAuthMethod();
+  
+  console.log('🔍 DEBUG apiCall: authMethod =', authMethod);
   
   // Route: Replace /api/emails with correct prefix based on auth method
   let routedEndpoint = endpoint;
   if (authMethod === 'composio' && endpoint.startsWith('/api/emails')) {
     routedEndpoint = endpoint.replace('/api/emails', '/api/composio/emails');
     console.log(`🔀 Routing to Composio: ${endpoint} → ${routedEndpoint}`);
+  } else {
+    console.log('🔍 DEBUG apiCall: NOT routing - authMethod =', authMethod, ', endpoint starts with /api/emails =', endpoint.startsWith('/api/emails'));
   }
+  
+  console.log('🔍 DEBUG apiCall: final URL =', `${API_BASE}${routedEndpoint}`);
   
   const response = await fetch(`${API_BASE}${routedEndpoint}`, {
     ...options,
@@ -137,6 +148,9 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
  * ```
  */
 export async function replyEmail(request: ReplyEmailRequest): Promise<EmailSendResponse> {
+  console.log('🔍 DEBUG: replyEmail() called from replyForwardApi.ts');
+  console.log('🔍 DEBUG: request.thread_id =', request.thread_id);
+  
   return apiCall('/api/emails/reply', {
     method: 'POST',
     body: JSON.stringify({
@@ -180,6 +194,8 @@ export async function replyEmail(request: ReplyEmailRequest): Promise<EmailSendR
  * ```
  */
 export async function forwardEmail(request: ForwardEmailRequest): Promise<EmailSendResponse> {
+  console.log('🔍 DEBUG: forwardEmail() called from replyForwardApi.ts');
+  
   return apiCall('/api/emails/forward', {
     method: 'POST',
     body: JSON.stringify({
@@ -209,6 +225,8 @@ export async function forwardEmail(request: ForwardEmailRequest): Promise<EmailS
  * - Composio: /api/composio/emails/{emailId}/cancel
  */
 export async function cancelEmail(emailId: string): Promise<{ status: string; message: string }> {
+  console.log('🔍 DEBUG: cancelEmail() called from replyForwardApi.ts');
+  
   return apiCall(`/api/emails/${emailId}/cancel`, {
     method: 'DELETE',
   });
