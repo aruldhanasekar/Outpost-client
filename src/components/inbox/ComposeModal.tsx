@@ -367,8 +367,18 @@ export function ComposeModal({
         });
         
         if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.detail || 'Failed to update email');
+          // Handle empty response body (e.g., 405 Method Not Allowed)
+          const text = await response.text();
+          let errorMessage = `Failed to update email (${response.status})`;
+          if (text) {
+            try {
+              const data = JSON.parse(text);
+              errorMessage = data.detail || errorMessage;
+            } catch {
+              errorMessage = text || errorMessage;
+            }
+          }
+          throw new Error(errorMessage);
         }
         
         console.log('✅ Scheduled email updated:', editEmailId);

@@ -77,8 +77,17 @@ const ScheduledPage = () => {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Failed to cancel email');
+        const text = await response.text();
+        let errorMessage = `Failed to cancel email (${response.status})`;
+        if (text) {
+          try {
+            const data = JSON.parse(text);
+            errorMessage = data.detail || errorMessage;
+          } catch {
+            errorMessage = text || errorMessage;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       console.log('✅ Email cancelled:', email.id);
@@ -143,8 +152,17 @@ const ScheduledPage = () => {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Failed to reschedule email');
+        const text = await response.text();
+        let errorMessage = `Failed to reschedule email (${response.status})`;
+        if (text) {
+          try {
+            const data = JSON.parse(text);
+            errorMessage = data.detail || errorMessage;
+          } catch {
+            errorMessage = text || errorMessage;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       console.log('✅ Email rescheduled:', reschedulingEmail.id);
