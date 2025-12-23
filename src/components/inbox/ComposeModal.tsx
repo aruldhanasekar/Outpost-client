@@ -655,7 +655,7 @@ export function ComposeModal({
                 <GripHorizontal className="w-4 h-4 text-zinc-600" />
               )}
               <h2 className="text-base font-semibold text-white">
-                {editMode ? 'Edit Scheduled Email' : 'New Message'}
+                {editMode ? 'Edit Scheduled Email' : (currentDraftId ? 'Draft' : 'New Message')}
               </h2>
             </div>
             <div className="flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
@@ -771,19 +771,8 @@ export function ComposeModal({
               ) : editMode ? (
                 // Edit mode - no additional buttons (reschedule is separate)
                 <span className="text-xs text-zinc-500">Editing scheduled email</span>
-              ) : currentDraftId ? (
-                // Editing a draft
-                <>
-                  <button
-                    onClick={handleSendLater}
-                    className="text-xs text-zinc-400 hover:text-white transition-colors"
-                  >
-                    Send later
-                  </button>
-                  <span className="text-xs text-zinc-500">Draft</span>
-                </>
               ) : (
-                // Normal compose - just show Send later
+                // Normal compose or editing draft - just show Send later
                 <button
                   onClick={handleSendLater}
                   className="text-xs text-zinc-400 hover:text-white transition-colors"

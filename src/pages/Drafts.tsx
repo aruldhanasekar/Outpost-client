@@ -45,18 +45,49 @@ const DraftPage = () => {
     }
   }, [currentUser, authLoading, navigate]);
 
+  // Helper: Extract email only from "Name <email>" format
+  const extractEmailOnly = (emailStr: string): string => {
+    const match = emailStr.match(/<([^>]+)>/);
+    return match ? match[1] : emailStr;
+  };
+
+  // Helper: Strip quoted reply text from body
+  const stripQuotedText = (html: string): string => {
+    // Remove everything starting with "On ... wrote:" pattern
+    // This handles formats like: "On Sun, Dec 14, 2025 at 2:13 PM Name <email> wrote:"
+    const patterns = [
+      /On\s+[A-Za-z]{3},\s+[A-Za-z]{3}\s+\d{1,2},\s+\d{4}\s+at\s+[\d:]+\s*[APap][Mm]\s+[^<]*<[^>]+>\s*wrote:[\s\S]*/gi,
+      /On\s+\d{1,2}\/\d{1,2}\/\d{2,4}[\s\S]*wrote:[\s\S]*/gi,
+      /<blockquote[^>]*>[\s\S]*<\/blockquote>/gi,
+    ];
+    
+    let result = html;
+    for (const pattern of patterns) {
+      result = result.replace(pattern, '');
+    }
+    return result.trim();
+  };
+
   // Handle email click - load full draft and open ComposeModal
   const handleEmailClick = useCallback(async (email: Email) => {
     try {
       const draft = await loadDraft(email.id);
       if (draft) {
+        // Clean email addresses - extract email only, remove names
+        const cleanTo = (draft.to || []).map(extractEmailOnly);
+        const cleanCc = (draft.cc || []).map(extractEmailOnly);
+        const cleanBcc = (draft.bcc || []).map(extractEmailOnly);
+        
+        // Strip quoted reply text from body
+        const cleanBody = stripQuotedText(draft.body_html || '');
+        
         setEditingDraft({
           id: email.id,
-          to: draft.to || [],
-          cc: draft.cc || [],
-          bcc: draft.bcc || [],
+          to: cleanTo,
+          cc: cleanCc,
+          bcc: cleanBcc,
           subject: draft.subject || '',
-          body_html: draft.body_html || '',
+          body_html: cleanBody,
         });
         setIsComposeOpen(true);
       }
