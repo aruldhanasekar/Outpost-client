@@ -329,6 +329,8 @@ export function SendLaterModal({
         
         .react-datepicker__time-container {
           border-left: 1px solid #3f3f46 !important;
+          width: 120px !important;
+          overflow: hidden !important;
         }
         
         .react-datepicker__time {
@@ -336,7 +338,13 @@ export function SendLaterModal({
         }
         
         .react-datepicker__time-box {
-          width: 120px !important;
+          width: 100% !important;
+          overflow: hidden !important;
+        }
+        
+        .react-datepicker__time-list {
+          width: 100% !important;
+          box-sizing: border-box !important;
         }
         
         .react-datepicker__time-list-item {
@@ -345,6 +353,8 @@ export function SendLaterModal({
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
         }
         
         .react-datepicker__time-list-item:hover {
