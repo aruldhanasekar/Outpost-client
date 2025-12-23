@@ -336,7 +336,7 @@ export function SendLaterModal({
         }
         
         .react-datepicker__time-box {
-          width: 100px !important;
+          width: 120px !important;
         }
         
         .react-datepicker__time-list-item {
