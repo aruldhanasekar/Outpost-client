@@ -103,6 +103,12 @@ const RightArrowIcon = () => (
   </svg>
 );
 
+// Helper: Check if URL is a Composio attachment URL (needs auth)
+const isComposioAttachmentUrl = (url: string | undefined): boolean => {
+  if (!url) return false;
+  return url.includes('/api/composio/attachments/');
+};
+
 type ThreadMode = 'promise' | 'awaiting' | 'inbox';
 
 interface ThreadDetailProps {
@@ -335,6 +341,40 @@ function EmailCard({ email, userEmail, getAuthToken, onReply, onForward }: Email
     }
   };
 
+  // v4.0: Handle Composio attachment download (needs auth)
+  const handleComposioDownload = async (e: React.MouseEvent, attachment: { url?: string; filename: string }) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!attachment.url) return;
+    
+    try {
+      const token = getAuthToken ? await getAuthToken() : null;
+      if (!token) {
+        console.error('No auth token for Composio attachment download');
+        return;
+      }
+      
+      const response = await fetch(attachment.url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+      
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = attachment.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Composio attachment download error:', error);
+    }
+  };
+
   return (
     <div className="mb-3 last:mb-0">
     <div className="group bg-white rounded-lg shadow-sm">
@@ -399,11 +439,11 @@ function EmailCard({ email, userEmail, getAuthToken, onReply, onForward }: Email
       {/* Attachments Section */}
       {email.hasAttachment && (
         <div className="px-5 pb-4">
-          {/* Image Attachments - Grid Preview */}
-          {email.attachments && email.attachments.filter(a => a.content_type?.startsWith('image/')).length > 0 && (
+          {/* Image Attachments - Grid Preview (Direct Auth only, not Composio) */}
+          {email.attachments && email.attachments.filter(a => a.content_type?.startsWith('image/') && !isComposioAttachmentUrl(a.url)).length > 0 && (
             <div className="flex flex-wrap gap-2 mb-2">
               {email.attachments
-                .filter(a => a.content_type?.startsWith('image/'))
+                .filter(a => a.content_type?.startsWith('image/') && !isComposioAttachmentUrl(a.url))
                 .map((attachment, idx) => (
                   <a
                     key={attachment.id || `img-${idx}`}
@@ -427,11 +467,11 @@ function EmailCard({ email, userEmail, getAuthToken, onReply, onForward }: Email
             </div>
           )}
           
-          {/* Non-Image Attachments - Link Style */}
-          {email.attachments && email.attachments.filter(a => !a.content_type?.startsWith('image/')).length > 0 && (
+          {/* Non-Image Attachments - Direct Auth (Link Style, unchanged) */}
+          {email.attachments && email.attachments.filter(a => !a.content_type?.startsWith('image/') && !isComposioAttachmentUrl(a.url)).length > 0 && (
             <div className="flex flex-wrap gap-2">
               {email.attachments
-                .filter(a => !a.content_type?.startsWith('image/'))
+                .filter(a => !a.content_type?.startsWith('image/') && !isComposioAttachmentUrl(a.url))
                 .map((attachment, idx) => (
                   <a
                     key={attachment.id || `file-${idx}`}
@@ -447,6 +487,27 @@ function EmailCard({ email, userEmail, getAuthToken, onReply, onForward }: Email
                       <Download className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                     )}
                   </a>
+                ))}
+            </div>
+          )}
+          
+          {/* Composio Attachments - All types (needs auth, no image preview) */}
+          {email.attachments && email.attachments.filter(a => isComposioAttachmentUrl(a.url)).length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {email.attachments
+                .filter(a => isComposioAttachmentUrl(a.url))
+                .map((attachment, idx) => (
+                  <button
+                    key={attachment.id || `composio-${idx}`}
+                    onClick={(e) => handleComposioDownload(e, attachment)}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm text-gray-700 group cursor-pointer"
+                    title={`${attachment.filename} (${formatFileSize(attachment.size)}) - Click to download`}
+                  >
+                    <Paperclip className="w-4 h-4 text-gray-500" />
+                    <span className="max-w-[180px] truncate">{attachment.filename}</span>
+                    <span className="text-gray-400 text-xs">{formatFileSize(attachment.size)}</span>
+                    <Download className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
                 ))}
             </div>
           )}
