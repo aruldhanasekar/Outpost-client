@@ -12,6 +12,18 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '@/firebase.config';
 
+// Original email snapshot for reply/forward context
+export interface OriginalEmailSnapshot {
+  sender: string;
+  senderEmail: string;
+  date: string;
+  time: string;
+  body: string;
+  subject: string;
+  to?: string[];  // For forward
+  message_id?: string;
+}
+
 export interface DraftData {
   id?: string;
   to: string[];
@@ -26,11 +38,14 @@ export interface DraftData {
     size: number;
     type: string;
   }>;
-  // For reply/forward context
-  reply_to_message_id?: string;
-  reply_to_thread_id?: string;
-  forward_from_message_id?: string;
+  // Draft type
   draft_type: 'compose' | 'reply' | 'forward';
+  // For reply context
+  reply_mode?: 'reply' | 'replyAll';
+  thread_id?: string;
+  message_id?: string;  // For In-Reply-To header
+  // Original email snapshot (for reply/forward)
+  original_email?: OriginalEmailSnapshot;
   // Timestamps
   created_at?: Timestamp | Date;
   updated_at?: Timestamp | Date;

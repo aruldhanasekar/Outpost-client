@@ -10,6 +10,7 @@ import { EmailChipInput } from './EmailChipInput';
 import { SendLaterModal } from './SendLaterModal';
 import { replyEmail } from '@/services/replyForwardApi';
 import { uploadAttachment, deleteAttachment, UploadProgress } from '@/services/attachmentApi';
+import { saveDraft, deleteDraft, isDraftWorthSaving } from '@/services/draftApi';
 import { Email } from './types';
 
 type ReplyMode = 'reply' | 'replyAll';
@@ -26,6 +27,11 @@ interface ReplyModalProps {
   userTimezone?: string;
   onEmailSent?: (emailId: string, recipients: string[]) => void;
   onEmailScheduled?: (emailId: string, scheduledAt: Date, recipients: string[]) => void;
+  // Draft mode props
+  draftId?: string;
+  initialTo?: string[];
+  initialCc?: string[];
+  initialBody?: string;
 }
 
 interface Position {
@@ -121,14 +127,25 @@ export function ReplyModal({
   userEmail, 
   userTimezone = 'UTC', 
   onEmailSent, 
-  onEmailScheduled 
+  onEmailScheduled,
+  draftId: initialDraftId,
+  initialTo,
+  initialCc,
+  initialBody
 }: ReplyModalProps) {
+  // Draft state
+  const [currentDraftId, setCurrentDraftId] = useState<string | undefined>(initialDraftId);
+  
   // Get initial values based on mode (memoized to prevent unnecessary recalculations)
   const initialRecipients = useMemo(() => {
+    // Use draft values if provided, otherwise compute from originalEmail
+    if (initialTo || initialCc) {
+      return { to: initialTo || [], cc: initialCc || [] };
+    }
     return originalEmail 
       ? getInitialRecipients(mode, originalEmail, userEmail)
       : { to: [], cc: [] };
-  }, [mode, originalEmail, userEmail]);
+  }, [mode, originalEmail, userEmail, initialTo, initialCc]);
   
   const initialSubject = useMemo(() => getSubjectWithPrefix(threadSubject), [threadSubject]);
   
@@ -179,6 +196,7 @@ export function ReplyModal({
       setPosition(null);
       setScheduledAt(null);
       setShowSendLaterModal(false);
+      setCurrentDraftId(undefined);
       editorRef.current?.clear();
     }
   }, [isOpen]);
@@ -396,6 +414,16 @@ export function ReplyModal({
       console.log(scheduledAt ? '📅 Reply scheduled:' : '📧 Reply sent:', response);
       console.log('Threaded to:', threadId);
       
+      // Delete draft if this was a draft being sent
+      if (currentDraftId) {
+        try {
+          await deleteDraft(currentDraftId);
+          console.log('🗑️ Reply draft deleted after send:', currentDraftId);
+        } catch (error) {
+          console.error('⚠️ Failed to delete reply draft after send:', error);
+        }
+      }
+      
       onClose();
       
       if (scheduledAt && onEmailScheduled) {
@@ -410,21 +438,70 @@ export function ReplyModal({
     } finally {
       setIsSending(false);
     }
-  }, [to, cc, bcc, subject, attachments, scheduledAt, threadId, messageId, originalEmail, initialQuote, onClose, onEmailSent, onEmailScheduled]);
+  }, [to, cc, bcc, subject, attachments, scheduledAt, threadId, messageId, originalEmail, initialQuote, onClose, onEmailSent, onEmailScheduled, currentDraftId]);
   
-  // Handle discard
+  // Handle discard - saves as draft if content exists
   const handleDiscard = useCallback(async () => {
-    const uploadedAttachments = attachments.filter(a => a.status === 'uploaded' && !a.id.startsWith('temp-'));
-    for (const attachment of uploadedAttachments) {
+    // Get current body content
+    const currentBodyHtml = editorRef.current?.getHTML() || bodyHtml;
+    const currentBodyText = editorRef.current?.getText() || bodyText;
+    
+    // Prepare draft data
+    const draftData = {
+      to,
+      cc,
+      bcc,
+      subject,
+      body_html: currentBodyHtml,
+      body_plain: currentBodyText,
+      attachments: attachments
+        .filter(a => a.status === 'uploaded' && !a.id.startsWith('temp-'))
+        .map(a => ({
+          id: a.id,
+          name: a.name,
+          size: a.size,
+          type: a.type
+        })),
+      draft_type: 'reply' as const,
+      reply_mode: mode,
+      thread_id: threadId,
+      message_id: messageId,
+      original_email: originalEmail ? {
+        sender: originalEmail.sender,
+        senderEmail: originalEmail.senderEmail,
+        date: originalEmail.date,
+        time: originalEmail.time,
+        body: originalEmail.body,
+        subject: originalEmail.subject,
+        message_id: originalEmail.message_id
+      } : undefined
+    };
+    
+    // Only save draft if there's content worth saving (user typed something)
+    const hasUserContent = currentBodyText.trim().length > 0;
+    
+    if (hasUserContent && isDraftWorthSaving(draftData)) {
       try {
-        await deleteAttachment(attachment.id);
-      } catch (err) {
-        console.error(`⚠️ Failed to delete from S3: ${attachment.name}`, err);
+        const savedDraftId = await saveDraft(draftData, currentDraftId);
+        setCurrentDraftId(savedDraftId);
+        console.log('💾 Reply draft auto-saved on close:', savedDraftId);
+      } catch (error) {
+        console.error('⚠️ Failed to save reply draft:', error);
+      }
+    } else {
+      // No content - delete uploaded attachments from S3 if any
+      const uploadedAttachments = attachments.filter(a => a.status === 'uploaded' && !a.id.startsWith('temp-'));
+      for (const attachment of uploadedAttachments) {
+        try {
+          await deleteAttachment(attachment.id);
+        } catch (err) {
+          console.error(`⚠️ Failed to delete from S3: ${attachment.name}`, err);
+        }
       }
     }
     
     onClose();
-  }, [attachments, onClose]);
+  }, [to, cc, bcc, subject, bodyHtml, bodyText, attachments, mode, threadId, messageId, originalEmail, currentDraftId, onClose]);
   
   // Handle keyboard shortcuts - stop propagation to prevent global shortcuts
   useEffect(() => {

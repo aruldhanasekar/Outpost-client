@@ -1,5 +1,5 @@
-// pages/Draft.tsx - Draft Emails Page (Same design as Done)
-// v3.0: Clicking a draft opens ComposeModal for editing
+// pages/Draft.tsx - Draft Emails Page
+// v4.0: Supports compose, reply, and forward drafts with undo toast
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -9,14 +9,18 @@ import {
   Email,
   EmailList,
   ComposeModal,
+  ReplyModal,
+  ForwardModal,
 } from "@/components/inbox";
 import { useDraftEmails } from "@/hooks/useDraftEmails";
-import { loadDraft } from "@/services/draftApi";
+import { loadDraft, DraftData, OriginalEmailSnapshot } from "@/services/draftApi";
 import { Sidebar } from "@/components/layout";
+import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
 
-// Draft data for editing
-interface DraftEditData {
+// Draft data for compose editing
+interface ComposeDraftData {
   id: string;
+  draft_type: 'compose';
   to: string[];
   cc: string[];
   bcc: string[];
@@ -24,17 +28,99 @@ interface DraftEditData {
   body_html: string;
 }
 
+// Draft data for reply editing
+interface ReplyDraftData {
+  id: string;
+  draft_type: 'reply';
+  reply_mode: 'reply' | 'replyAll';
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  body_html: string;
+  thread_id: string;
+  message_id?: string;
+  original_email: Email;
+}
+
+// Draft data for forward editing
+interface ForwardDraftData {
+  id: string;
+  draft_type: 'forward';
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  body_html: string;
+  thread_id: string;
+  original_email: Email;
+}
+
+type EditingDraft = ComposeDraftData | ReplyDraftData | ForwardDraftData | null;
+
+// Helper: Convert OriginalEmailSnapshot to Email type
+function snapshotToEmail(snapshot: OriginalEmailSnapshot, draftId: string): Email {
+  return {
+    id: draftId,
+    sender: snapshot.sender,
+    senderEmail: snapshot.senderEmail,
+    subject: snapshot.subject,
+    preview: '',
+    body: snapshot.body,
+    time: snapshot.time,
+    date: snapshot.date,
+    isRead: true,
+    hasAttachment: false,
+    thread_id: '',
+    to: snapshot.to,
+    message_id: snapshot.message_id,
+  };
+}
+
+// Helper: Extract email only from "Name <email>" format
+function extractEmailOnly(emailStr: string): string {
+  const match = emailStr.match(/<([^>]+)>/);
+  return match ? match[1] : emailStr;
+}
+
+// Helper: Strip quoted reply/forward text from body for display
+function stripQuotedText(html: string): string {
+  const patterns = [
+    /On\s+[A-Za-z]{3},\s+[A-Za-z]{3}\s+\d{1,2},\s+\d{4}\s+at\s+[\d:]+\s*[APap][Mm]\s+[^<]*<[^>]+>\s*wrote:[\s\S]*/gi,
+    /On\s+\d{1,2}\/\d{1,2}\/\d{2,4}[\s\S]*wrote:[\s\S]*/gi,
+    /<blockquote[^>]*>[\s\S]*<\/blockquote>/gi,
+    /---------- Forwarded message ---------[\s\S]*/gi,
+  ];
+  
+  let result = html;
+  for (const pattern of patterns) {
+    result = result.replace(pattern, '');
+  }
+  return result.trim();
+}
+
 const DraftPage = () => {
   const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Compose modal state
+  // Modal states
   const [isComposeOpen, setIsComposeOpen] = useState(false);
-  const [editingDraft, setEditingDraft] = useState<DraftEditData | null>(null);
+  const [isReplyOpen, setIsReplyOpen] = useState(false);
+  const [isForwardOpen, setIsForwardOpen] = useState(false);
+  
+  // Current editing draft
+  const [editingDraft, setEditingDraft] = useState<EditingDraft>(null);
 
   // Checked emails state (for bulk selection)
   const [checkedEmails, setCheckedEmails] = useState<Set<string>>(new Set());
+
+  // Email send undo toast state
+  const [emailUndoToast, setEmailUndoToast] = useState<{
+    show: boolean;
+    emailId: string;
+    recipients: string[];
+  } | null>(null);
 
   // Fetch draft emails from Firestore
   const { emails, loading: emailsLoading, error: emailsError } = useDraftEmails(currentUser?.uid);
@@ -45,51 +131,73 @@ const DraftPage = () => {
     }
   }, [currentUser, authLoading, navigate]);
 
-  // Helper: Extract email only from "Name <email>" format
-  const extractEmailOnly = (emailStr: string): string => {
-    const match = emailStr.match(/<([^>]+)>/);
-    return match ? match[1] : emailStr;
-  };
-
-  // Helper: Strip quoted reply text from body
-  const stripQuotedText = (html: string): string => {
-    // Remove everything starting with "On ... wrote:" pattern
-    // This handles formats like: "On Sun, Dec 14, 2025 at 2:13 PM Name <email> wrote:"
-    const patterns = [
-      /On\s+[A-Za-z]{3},\s+[A-Za-z]{3}\s+\d{1,2},\s+\d{4}\s+at\s+[\d:]+\s*[APap][Mm]\s+[^<]*<[^>]+>\s*wrote:[\s\S]*/gi,
-      /On\s+\d{1,2}\/\d{1,2}\/\d{2,4}[\s\S]*wrote:[\s\S]*/gi,
-      /<blockquote[^>]*>[\s\S]*<\/blockquote>/gi,
-    ];
-    
-    let result = html;
-    for (const pattern of patterns) {
-      result = result.replace(pattern, '');
-    }
-    return result.trim();
-  };
-
-  // Handle email click - load full draft and open ComposeModal
+  // Handle email click - load full draft and open correct modal
   const handleEmailClick = useCallback(async (email: Email) => {
     try {
       const draft = await loadDraft(email.id);
-      if (draft) {
-        // Clean email addresses - extract email only, remove names
-        const cleanTo = (draft.to || []).map(extractEmailOnly);
-        const cleanCc = (draft.cc || []).map(extractEmailOnly);
-        const cleanBcc = (draft.bcc || []).map(extractEmailOnly);
-        
-        // Strip quoted reply text from body
-        const cleanBody = stripQuotedText(draft.body_html || '');
-        
-        setEditingDraft({
-          id: email.id,
-          to: cleanTo,
-          cc: cleanCc,
-          bcc: cleanBcc,
-          subject: draft.subject || '',
-          body_html: cleanBody,
-        });
-        setIsComposeOpen(true);
+      if (!draft) {
+        console.error('Draft not found:', email.id);
+        return;
+      }
+
+      // Clean email addresses
+      const cleanTo = (draft.to || []).map(extractEmailOnly);
+      const cleanCc = (draft.cc || []).map(extractEmailOnly);
+      const cleanBcc = (draft.bcc || []).map(extractEmailOnly);
+      
+      // Strip quoted text from body for display
+      const cleanBody = stripQuotedText(draft.body_html || '');
+
+      switch (draft.draft_type) {
+        case 'reply':
+          if (draft.original_email) {
+            setEditingDraft({
+              id: email.id,
+              draft_type: 'reply',
+              reply_mode: draft.reply_mode || 'reply',
+              to: cleanTo,
+              cc: cleanCc,
+              bcc: cleanBcc,
+              subject: draft.subject || '',
+              body_html: cleanBody,
+              thread_id: draft.thread_id || '',
+              message_id: draft.message_id,
+              original_email: snapshotToEmail(draft.original_email, email.id),
+            });
+            setIsReplyOpen(true);
+          }
+          break;
+          
+        case 'forward':
+          if (draft.original_email) {
+            setEditingDraft({
+              id: email.id,
+              draft_type: 'forward',
+              to: cleanTo,
+              cc: cleanCc,
+              bcc: cleanBcc,
+              subject: draft.subject || '',
+              body_html: cleanBody,
+              thread_id: draft.thread_id || '',
+              original_email: snapshotToEmail(draft.original_email, email.id),
+            });
+            setIsForwardOpen(true);
+          }
+          break;
+          
+        case 'compose':
+        default:
+          setEditingDraft({
+            id: email.id,
+            draft_type: 'compose',
+            to: cleanTo,
+            cc: cleanCc,
+            bcc: cleanBcc,
+            subject: draft.subject || '',
+            body_html: cleanBody,
+          });
+          setIsComposeOpen(true);
+          break;
       }
     } catch (error) {
       console.error('Failed to load draft:', error);
@@ -102,10 +210,42 @@ const DraftPage = () => {
     setEditingDraft(null);
   }, []);
 
+  // Handle reply modal close
+  const handleReplyClose = useCallback(() => {
+    setIsReplyOpen(false);
+    setEditingDraft(null);
+  }, []);
+
+  // Handle forward modal close
+  const handleForwardClose = useCallback(() => {
+    setIsForwardOpen(false);
+    setEditingDraft(null);
+  }, []);
+
   // Handle new compose (not editing)
   const handleNewCompose = useCallback(() => {
     setEditingDraft(null);
     setIsComposeOpen(true);
+  }, []);
+
+  // Handle email sent - show undo toast
+  const handleEmailSent = useCallback((emailId: string, recipients: string[]) => {
+    console.log('📧 Email queued, showing undo toast:', emailId);
+    setEmailUndoToast({
+      show: true,
+      emailId,
+      recipients
+    });
+  }, []);
+
+  // Handle email undone
+  const handleEmailUndone = useCallback(() => {
+    console.log('↩️ Email cancelled');
+  }, []);
+
+  // Handle close undo toast
+  const handleCloseEmailUndoToast = useCallback(() => {
+    setEmailUndoToast(null);
   }, []);
 
   // Handle checkbox change for individual email
@@ -141,22 +281,22 @@ const DraftPage = () => {
 
   if (!currentUser) return null;
 
+  // Get compose draft data if editing
+  const composeDraft = editingDraft?.draft_type === 'compose' ? editingDraft : null;
+  const replyDraft = editingDraft?.draft_type === 'reply' ? editingDraft : null;
+  const forwardDraft = editingDraft?.draft_type === 'forward' ? editingDraft : null;
+
   return (
     <>
-      {/* Global styles to prevent scroll and hide scrollbar */}
-
-      <div 
-        className="fixed inset-0 bg-[#1a1a1a]" 
-      >
-
-
+      <div className="fixed inset-0 bg-[#1a1a1a]">
         <Sidebar 
           activePage="drafts"
           userEmail={currentUser?.email || ""}
           userName={userProfile?.firstName ? `${userProfile.firstName} ${userProfile.lastName || ""}`.trim() : undefined}
           avatarLetter={userProfile?.firstName?.[0]?.toUpperCase() || currentUser?.email?.[0]?.toUpperCase() || "U"}
         />
-        {/* ==================== MOBILE/TABLET: Overlay ==================== */}
+        
+        {/* Mobile/Tablet: Overlay */}
         {sidebarOpen && (
           <div 
             className="lg:hidden fixed inset-0 bg-black/60 z-40"
@@ -164,7 +304,7 @@ const DraftPage = () => {
           />
         )}
 
-        {/* ==================== MOBILE/TABLET: Slide-out Sidebar ==================== */}
+        {/* Mobile/Tablet: Slide-out Sidebar */}
         <div className={`
           lg:hidden fixed top-0 left-0 bottom-0 w-72 bg-[#1a1a1a] z-50 
           transform transition-transform duration-300 ease-in-out
@@ -232,13 +372,12 @@ const DraftPage = () => {
           </div>
         </div>
 
-        {/* ==================== MAIN CONTENT AREA ==================== */}
+        {/* Main Content Area */}
         <div className="lg:ml-20 h-full flex flex-col">
-          {/* ==================== TOP NAVIGATION BAR ==================== */}
+          {/* Top Navigation Bar */}
           <nav className="flex-shrink-0 border-b border-zinc-700/50">
             {/* Mobile Header */}
             <div className="flex lg:hidden items-center justify-between px-4 py-3">
-              {/* LEFT: Menu + Title */}
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setSidebarOpen(true)}
@@ -246,21 +385,15 @@ const DraftPage = () => {
                 >
                   <Menu className="w-5 h-5" />
                 </button>
-
-                {/* Page Title */}
                 <span className="text-white font-medium text-sm">Drafts</span>
               </div>
 
-              {/* RIGHT: Action Icons */}
               <div className="flex items-center">
-                {/* Search Icon */}
                 <button className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
                     <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
                   </svg>
                 </button>
-
-                {/* Compose/Pencil Icon - Orange Background */}
                 <button 
                   onClick={handleNewCompose}
                   className="p-2 bg-[#8FA8A3] hover:bg-[#7a9691] rounded-lg transition-colors text-white"
@@ -274,7 +407,6 @@ const DraftPage = () => {
 
             {/* Desktop Header */}
             <div className="hidden lg:flex items-center justify-between px-6 pt-4">
-              {/* Global Checkbox + Page Title + Email Count */}
               <div className="flex items-center gap-4 pb-4">
                 <div className="h-5 flex items-center">
                   <input
@@ -288,16 +420,12 @@ const DraftPage = () => {
                 <span className="text-zinc-500 text-sm">{emails.length} drafts</span>
               </div>
 
-              {/* Action Icons */}
               <div className="flex items-center gap-1 pb-4">
-                {/* Search Icon */}
                 <button className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
                     <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
                   </svg>
                 </button>
-
-                {/* Compose Icon - Orange Background */}
                 <button 
                   onClick={handleNewCompose}
                   className="p-2 bg-[#8FA8A3] hover:bg-[#7a9691] rounded-lg transition-colors text-white"
@@ -310,10 +438,8 @@ const DraftPage = () => {
             </div>
           </nav>
 
-          {/* ==================== MAIN CONTENT AREA - EMAIL LIST ==================== */}
+          {/* Main Content Area - Email List */}
           <div className="flex-1 flex overflow-hidden">
-            
-            {/* List Panel - Full Width Email List */}
             <div className="w-full overflow-y-auto hide-scrollbar">
               <EmailList
                 emails={emails}
@@ -328,24 +454,70 @@ const DraftPage = () => {
               />
             </div>
           </div>
-          
         </div>
         
-        {/* Compose Modal - with draft editing support */}
+        {/* Compose Modal */}
         <ComposeModal
           isOpen={isComposeOpen}
           onClose={handleComposeClose}
           userEmail={currentUser?.email || ''}
           userTimezone={backendUserData?.timezone}
-          // Draft editing props
-          draftId={editingDraft?.id}
-          initialTo={editingDraft?.to}
-          initialCc={editingDraft?.cc}
-          initialBcc={editingDraft?.bcc}
-          initialSubject={editingDraft?.subject}
-          initialBody={editingDraft?.body_html}
+          onEmailSent={handleEmailSent}
+          draftId={composeDraft?.id}
+          initialTo={composeDraft?.to}
+          initialCc={composeDraft?.cc}
+          initialBcc={composeDraft?.bcc}
+          initialSubject={composeDraft?.subject}
+          initialBody={composeDraft?.body_html}
         />
-        
+
+        {/* Reply Modal */}
+        {isReplyOpen && replyDraft && (
+          <ReplyModal
+            isOpen={isReplyOpen}
+            onClose={handleReplyClose}
+            mode={replyDraft.reply_mode}
+            originalEmail={replyDraft.original_email}
+            threadId={replyDraft.thread_id}
+            threadSubject={replyDraft.subject.replace(/^Re:\s*/i, '')}
+            messageId={replyDraft.message_id}
+            userEmail={currentUser?.email || ''}
+            userTimezone={backendUserData?.timezone}
+            onEmailSent={handleEmailSent}
+            draftId={replyDraft.id}
+            initialTo={replyDraft.to}
+            initialCc={replyDraft.cc}
+            initialBody={replyDraft.body_html}
+          />
+        )}
+
+        {/* Forward Modal */}
+        {isForwardOpen && forwardDraft && (
+          <ForwardModal
+            isOpen={isForwardOpen}
+            onClose={handleForwardClose}
+            originalEmail={forwardDraft.original_email}
+            threadId={forwardDraft.thread_id}
+            threadSubject={forwardDraft.subject.replace(/^Fwd:\s*/i, '')}
+            userEmail={currentUser?.email || ''}
+            userTimezone={backendUserData?.timezone}
+            onEmailSent={handleEmailSent}
+            draftId={forwardDraft.id}
+            initialTo={forwardDraft.to}
+            initialCc={forwardDraft.cc}
+            initialBody={forwardDraft.body_html}
+          />
+        )}
+
+        {/* Email Send Undo Toast */}
+        {emailUndoToast && emailUndoToast.show && (
+          <EmailSendUndoToast
+            emailId={emailUndoToast.emailId}
+            recipients={emailUndoToast.recipients}
+            onClose={handleCloseEmailUndoToast}
+            onUndo={handleEmailUndone}
+          />
+        )}
       </div>
     </>
   );

@@ -79,17 +79,26 @@ export function useDraftEmails(userId: string | undefined): UseDraftEmailsResult
           const recipientMatch = toStr.match(/^([^<]+)</);
           const recipient = recipientMatch ? recipientMatch[1].trim() : toStr.split('@')[0] || '(No recipient)';
 
+          // Add draft type indicator to subject
+          let displaySubject = data.subject || '(No subject)';
+          const draftType = data.draft_type;
+          if (draftType === 'reply' && !displaySubject.toLowerCase().startsWith('re:')) {
+            displaySubject = `(Reply) ${displaySubject}`;
+          } else if (draftType === 'forward' && !displaySubject.toLowerCase().startsWith('fwd:')) {
+            displaySubject = `(Fwd) ${displaySubject}`;
+          }
+
           return {
             id: doc.id,
             sender: recipient, // For drafts, we show recipient in the list
             senderEmail: toStr,
-            subject: data.subject || '(No subject)',
+            subject: displaySubject,
             preview: data.body_plain?.substring(0, 100) || data.body_html?.replace(/<[^>]*>/g, '').substring(0, 100) || '',
             body: data.body_html || data.body_plain || '',
             time: timeDisplay,
             date: dateDisplay,
             isRead: true, // Drafts are always "read"
-            hasAttachment: data.has_attachment || false,
+            hasAttachment: (data.attachments && data.attachments.length > 0) || data.has_attachment || false,
             thread_id: data.thread_id || doc.id,
           };
         });

@@ -9,6 +9,7 @@ import { EmailChipInput } from './EmailChipInput';
 import { SendLaterModal } from './SendLaterModal';
 import { forwardEmail } from '@/services/replyForwardApi';
 import { uploadAttachment, deleteAttachment, UploadProgress } from '@/services/attachmentApi';
+import { saveDraft, deleteDraft, isDraftWorthSaving } from '@/services/draftApi';
 import { Email } from './types';
 
 interface ForwardModalProps {
@@ -23,6 +24,11 @@ interface ForwardModalProps {
   onEmailScheduled?: (emailId: string, scheduledAt: Date, recipients: string[]) => void;
   // Optional: Pre-loaded attachments from original email
   originalAttachments?: AttachedFile[];
+  // Draft mode props
+  draftId?: string;
+  initialTo?: string[];
+  initialCc?: string[];
+  initialBody?: string;
 }
 
 interface Position {
@@ -73,8 +79,15 @@ export function ForwardModal({
   userTimezone = 'UTC', 
   onEmailSent, 
   onEmailScheduled,
-  originalAttachments = []
+  originalAttachments = [],
+  draftId: initialDraftId,
+  initialTo,
+  initialCc,
+  initialBody
 }: ForwardModalProps) {
+  // Draft state
+  const [currentDraftId, setCurrentDraftId] = useState<string | undefined>(initialDraftId);
+  
   // DEBUG: Log originalEmail when modal renders
   console.log('🔍 DEBUG ForwardModal render:');
   console.log('   isOpen =', isOpen);
@@ -86,9 +99,9 @@ export function ForwardModal({
   const initialSubject = originalEmail ? getForwardSubject(threadSubject) : '';
   const initialQuote = originalEmail ? generateForwardQuote(originalEmail) : '';
   
-  // Form state - Forward starts with empty recipients
-  const [to, setTo] = useState<string[]>([]);
-  const [cc, setCc] = useState<string[]>([]);
+  // Form state - Forward starts with empty recipients (or draft values if provided)
+  const [to, setTo] = useState<string[]>(initialTo || []);
+  const [cc, setCc] = useState<string[]>(initialCc || []);
   const [bcc, setBcc] = useState<string[]>([]);
   const [subject, setSubject] = useState(initialSubject);
   const [bodyHtml, setBodyHtml] = useState('');
@@ -128,6 +141,7 @@ export function ForwardModal({
       setPosition(null);
       setScheduledAt(null);
       setShowSendLaterModal(false);
+      setCurrentDraftId(undefined);
       editorRef.current?.clear();
     }
   }, [isOpen]);
@@ -328,6 +342,16 @@ export function ForwardModal({
       
       console.log(scheduledAt ? '📅 Forward scheduled:' : '➡️ Forward sent:', result);
       
+      // Delete draft if this was a draft being sent
+      if (currentDraftId) {
+        try {
+          await deleteDraft(currentDraftId);
+          console.log('🗑️ Forward draft deleted after send:', currentDraftId);
+        } catch (error) {
+          console.error('⚠️ Failed to delete forward draft after send:', error);
+        }
+      }
+      
       // Notify parent
       if (scheduledAt) {
         onEmailScheduled?.(result.email_id, scheduledAt, to);
@@ -345,17 +369,66 @@ export function ForwardModal({
     }
   };
   
-  // Handle discard/close
-  const handleDiscard = () => {
-    // Clean up uploaded attachments
-    attachments
-      .filter(a => a.status === 'uploaded' && !a.id.startsWith('temp-'))
-      .forEach(a => {
-        deleteAttachment(a.id).catch(console.error);
-      });
+  // Handle discard/close - saves as draft if content exists
+  const handleDiscard = useCallback(async () => {
+    // Get current body content
+    const currentBodyHtml = editorRef.current?.getHTML() || bodyHtml;
+    const currentBodyText = editorRef.current?.getText() || bodyText;
+    
+    // Prepare draft data
+    const draftData = {
+      to,
+      cc,
+      bcc,
+      subject,
+      body_html: currentBodyHtml,
+      body_plain: currentBodyText,
+      attachments: attachments
+        .filter(a => a.status === 'uploaded' && !a.id.startsWith('temp-'))
+        .map(a => ({
+          id: a.id,
+          name: a.name,
+          size: a.size,
+          type: a.type
+        })),
+      draft_type: 'forward' as const,
+      thread_id: threadId,
+      original_email: originalEmail ? {
+        sender: originalEmail.sender,
+        senderEmail: originalEmail.senderEmail,
+        date: originalEmail.date,
+        time: originalEmail.time,
+        body: originalEmail.body,
+        subject: originalEmail.subject,
+        to: originalEmail.to
+      } : undefined
+    };
+    
+    // Only save draft if there's content worth saving (user typed something or added recipients)
+    const hasUserContent = currentBodyText.trim().length > 0 || to.length > 0;
+    
+    if (hasUserContent && isDraftWorthSaving(draftData)) {
+      try {
+        const savedDraftId = await saveDraft(draftData, currentDraftId);
+        setCurrentDraftId(savedDraftId);
+        console.log('💾 Forward draft auto-saved on close:', savedDraftId);
+      } catch (error) {
+        console.error('⚠️ Failed to save forward draft:', error);
+      }
+    } else {
+      // No content - delete uploaded attachments from S3 if any
+      const uploadedAttachments = attachments.filter(a => a.status === 'uploaded' && !a.id.startsWith('temp-'));
+      for (const attachment of uploadedAttachments) {
+        try {
+          await deleteAttachment(attachment.id);
+        } catch (err) {
+          console.error(`⚠️ Failed to delete from S3: ${attachment.name}`, err);
+        }
+      }
+    }
     
     onClose();
-  };
+  }, [to, cc, bcc, subject, bodyHtml, bodyText, attachments, threadId, originalEmail, currentDraftId, onClose]);
   
   // Handle Send Later
   const handleSendLater = () => {
