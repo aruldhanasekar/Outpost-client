@@ -17,6 +17,7 @@ import { SentThreadDetail } from "@/components/inbox/SentThreadDetail";
 import { MobileSentThreadDetail } from "@/components/inbox/MobileSentThreadDetail";
 import { TrackingPanel } from "@/components/inbox/TrackingPanel";
 import { Sidebar } from "@/components/layout";
+import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
 
 const SentPage = () => {
   const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
@@ -26,6 +27,13 @@ const SentPage = () => {
 
   // Compose modal state
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+
+  // Email send undo toast state
+  const [emailUndoToast, setEmailUndoToast] = useState<{
+    show: boolean;
+    emailId: string;
+    recipients: string[];
+  } | null>(null);
 
   // Checked emails state (for bulk selection)
   const [checkedEmails, setCheckedEmails] = useState<Set<string>>(new Set());
@@ -77,6 +85,26 @@ const SentPage = () => {
       setCheckedEmails(allIds);
     }
   }, [checkedEmails.size, emails]);
+
+  // Handle email sent - show undo toast
+  const handleEmailSent = useCallback((emailId: string, recipients: string[]) => {
+    console.log('📧 Email queued, showing undo toast:', emailId);
+    setEmailUndoToast({
+      show: true,
+      emailId,
+      recipients
+    });
+  }, []);
+
+  // Handle email undone
+  const handleEmailUndone = useCallback(() => {
+    console.log('↩️ Email cancelled');
+  }, []);
+
+  // Handle close undo toast
+  const handleCloseEmailUndoToast = useCallback(() => {
+    setEmailUndoToast(null);
+  }, []);
 
   if (authLoading) {
     return (
@@ -363,7 +391,18 @@ const SentPage = () => {
           onClose={() => setIsComposeOpen(false)}
           userEmail={currentUser?.email || ''}
           userTimezone={backendUserData?.timezone}
+          onEmailSent={handleEmailSent}
         />
+
+        {/* Email Send Undo Toast */}
+        {emailUndoToast && emailUndoToast.show && (
+          <EmailSendUndoToast
+            emailId={emailUndoToast.emailId}
+            recipients={emailUndoToast.recipients}
+            onClose={handleCloseEmailUndoToast}
+            onUndo={handleEmailUndone}
+          />
+        )}
         
       </div>
     </>
