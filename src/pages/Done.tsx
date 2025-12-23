@@ -137,16 +137,23 @@ const DonePage = () => {
     });
   }, []);
 
-  // Handle email undone
+  // Handle email undone - just store data, useEffect will open modal
   const handleEmailUndone = useCallback(() => {
-    console.log('↩️ Email cancelled, reopening modal');
+    console.log('↩️ Email cancelled, storing data for modal');
     const emailData = emailUndoToast?.emailData;
     if (!emailData) return;
     
-    // Store undo data and reopen compose modal
+    // Store undo data - useEffect below will open the modal
     setUndoComposeData(emailData);
-    setIsComposeOpen(true);
   }, [emailUndoToast]);
+
+  // Open modal AFTER undoComposeData is set (fixes timing issue)
+  useEffect(() => {
+    if (undoComposeData && undoComposeData.type === 'compose') {
+      console.log('📧 Opening compose modal with undo data');
+      setIsComposeOpen(true);
+    }
+  }, [undoComposeData]);
 
   // Handle close undo toast
   const handleCloseEmailUndoToast = useCallback(() => {

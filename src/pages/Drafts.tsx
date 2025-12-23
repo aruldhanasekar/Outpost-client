@@ -250,24 +250,29 @@ const DraftPage = () => {
     });
   }, []);
 
-  // Handle email undone - reopen modal with stored data
+  // Handle email undone - just store data, useEffect will open modal
   const handleEmailUndone = useCallback(() => {
-    console.log('↩️ Email cancelled, reopening modal');
+    console.log('↩️ Email cancelled, storing data for modal');
     const emailData = emailUndoToast?.emailData;
     if (!emailData) return;
     
-    // Store undo data for modal to use
+    // Store undo data - useEffect below will open the modal
     setUndoComposeData(emailData);
-    
-    // Reopen the appropriate modal based on type
-    if (emailData.type === 'compose') {
-      setIsComposeOpen(true);
-    } else if (emailData.type === 'reply') {
-      setIsReplyOpen(true);
-    } else if (emailData.type === 'forward') {
-      setIsForwardOpen(true);
-    }
   }, [emailUndoToast]);
+
+  // Open modal AFTER undoComposeData is set (fixes timing issue)
+  useEffect(() => {
+    if (undoComposeData) {
+      console.log('📧 Opening modal with undo data, type:', undoComposeData.type);
+      if (undoComposeData.type === 'compose') {
+        setIsComposeOpen(true);
+      } else if (undoComposeData.type === 'reply') {
+        setIsReplyOpen(true);
+      } else if (undoComposeData.type === 'forward') {
+        setIsForwardOpen(true);
+      }
+    }
+  }, [undoComposeData]);
 
   // Handle close undo toast
   const handleCloseEmailUndoToast = useCallback(() => {

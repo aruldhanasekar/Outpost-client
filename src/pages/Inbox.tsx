@@ -721,29 +721,39 @@ const InboxPage = () => {
     });
   }, []);
   
-  // Called when user successfully undoes the email
+  // Called when user successfully undoes the email - just store data
   const handleEmailUndone = useCallback(() => {
-    console.log('↩️ Email cancelled, reopening modal');
+    console.log('↩️ Email cancelled, storing data for modal');
     
-    // Get stored email data before clearing toast
+    // Get stored email data
     const emailData = emailUndoToast?.emailData;
     if (!emailData) return;
     
-    // Store undo data for modal to use
+    // Store undo data - useEffect below will open the appropriate modal
     setUndoComposeData(emailData);
     
-    // Reopen the appropriate modal based on type
-    if (emailData.type === 'compose') {
-      setIsComposeOpen(true);
-    } else if (emailData.type === 'reply' && emailData.originalEmail) {
+    // Also set up reply/forward state if needed (so modal has originalEmail)
+    if (emailData.type === 'reply' && emailData.originalEmail) {
       setReplyToEmail(emailData.originalEmail as Email);
       setReplyMode(emailData.replyMode || 'reply');
-      setIsReplyOpen(true);
     } else if (emailData.type === 'forward' && emailData.originalEmail) {
       setForwardEmail(emailData.originalEmail as Email);
-      setIsForwardOpen(true);
     }
   }, [emailUndoToast]);
+
+  // Open modal AFTER undoComposeData is set (fixes timing issue)
+  useEffect(() => {
+    if (undoComposeData) {
+      console.log('📧 Opening modal with undo data, type:', undoComposeData.type);
+      if (undoComposeData.type === 'compose') {
+        setIsComposeOpen(true);
+      } else if (undoComposeData.type === 'reply') {
+        setIsReplyOpen(true);
+      } else if (undoComposeData.type === 'forward') {
+        setIsForwardOpen(true);
+      }
+    }
+  }, [undoComposeData]);
   
   // Called when undo toast closes (timer expired or manually closed)
   const handleCloseEmailUndoToast = useCallback(() => {
