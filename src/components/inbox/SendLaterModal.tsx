@@ -356,6 +356,15 @@ export function SendLaterModal({
           color: #ffffff !important;
         }
         
+        .react-datepicker__time-list {
+          scrollbar-width: none !important; /* Firefox */
+          -ms-overflow-style: none !important; /* IE/Edge */
+        }
+        
+        .react-datepicker__time-list::-webkit-scrollbar {
+          display: none !important; /* Chrome, Safari */
+        }
+        
         .react-datepicker__triangle {
           display: none !important;
         }
