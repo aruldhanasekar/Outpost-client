@@ -12,6 +12,7 @@ import { replyEmail } from '@/services/replyForwardApi';
 import { uploadAttachment, deleteAttachment, UploadProgress } from '@/services/attachmentApi';
 import { saveDraft, deleteDraft, isDraftWorthSaving } from '@/services/draftApi';
 import { Email } from './types';
+import { UndoEmailData } from './ComposeModal';
 
 type ReplyMode = 'reply' | 'replyAll';
 
@@ -25,7 +26,7 @@ interface ReplyModalProps {
   messageId?: string;          // Gmail Message-ID for In-Reply-To header (optional for backwards compat)
   userEmail: string;
   userTimezone?: string;
-  onEmailSent?: (emailId: string, recipients: string[]) => void;
+  onEmailSent?: (emailId: string, recipients: string[], emailData: UndoEmailData) => void;
   onEmailScheduled?: (emailId: string, scheduledAt: Date, recipients: string[]) => void;
   // Draft mode props
   draftId?: string;
@@ -431,7 +432,20 @@ export function ReplyModal({
       if (scheduledAt && onEmailScheduled) {
         onEmailScheduled(response.email_id, scheduledAt, to);
       } else if (onEmailSent && response.can_undo) {
-        onEmailSent(response.email_id, to);
+        // Pass email data for undo/restore functionality
+        onEmailSent(response.email_id, to, {
+          type: 'reply',
+          to,
+          cc,
+          bcc,
+          subject,
+          body_html: editorHtml, // User's message without quote (quote will be regenerated)
+          attachments: attachments.filter(a => a.status === 'uploaded'),
+          replyMode: mode,
+          originalEmail: originalEmail,
+          threadId: threadId,
+          messageId: messageId
+        });
       }
       
     } catch (err) {
@@ -440,7 +454,7 @@ export function ReplyModal({
     } finally {
       setIsSending(false);
     }
-  }, [to, cc, bcc, subject, attachments, scheduledAt, threadId, messageId, originalEmail, initialQuote, onClose, onEmailSent, onEmailScheduled, currentDraftId]);
+  }, [to, cc, bcc, subject, attachments, scheduledAt, threadId, messageId, originalEmail, initialQuote, onClose, onEmailSent, onEmailScheduled, currentDraftId, mode]);
   
   // Handle discard - saves as draft if content exists
   const handleDiscard = useCallback(async () => {

@@ -11,6 +11,7 @@ import { forwardEmail } from '@/services/replyForwardApi';
 import { uploadAttachment, deleteAttachment, UploadProgress } from '@/services/attachmentApi';
 import { saveDraft, deleteDraft, isDraftWorthSaving } from '@/services/draftApi';
 import { Email } from './types';
+import { UndoEmailData } from './ComposeModal';
 
 interface ForwardModalProps {
   isOpen: boolean;
@@ -20,7 +21,7 @@ interface ForwardModalProps {
   threadSubject: string;
   userEmail: string;
   userTimezone?: string;
-  onEmailSent?: (emailId: string, recipients: string[]) => void;
+  onEmailSent?: (emailId: string, recipients: string[], emailData: UndoEmailData) => void;
   onEmailScheduled?: (emailId: string, scheduledAt: Date, recipients: string[]) => void;
   // Optional: Pre-loaded attachments from original email
   originalAttachments?: AttachedFile[];
@@ -357,8 +358,19 @@ export function ForwardModal({
       // Notify parent
       if (scheduledAt) {
         onEmailScheduled?.(result.email_id, scheduledAt, to);
-      } else {
-        onEmailSent?.(result.email_id, to);
+      } else if (result.can_undo) {
+        // Pass email data for undo/restore functionality
+        onEmailSent?.(result.email_id, to, {
+          type: 'forward',
+          to,
+          cc,
+          bcc,
+          subject,
+          body_html: bodyHtml, // User's message without quote (quote will be regenerated)
+          attachments: attachments.filter(a => a.status === 'uploaded'),
+          originalEmail: originalEmail,
+          threadId: threadId
+        });
       }
       
       // Close modal

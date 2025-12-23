@@ -18,6 +18,7 @@ import { MobileSentThreadDetail } from "@/components/inbox/MobileSentThreadDetai
 import { TrackingPanel } from "@/components/inbox/TrackingPanel";
 import { Sidebar } from "@/components/layout";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
+import { UndoEmailData } from "@/components/inbox/ComposeModal";
 
 const SentPage = () => {
   const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
@@ -33,7 +34,11 @@ const SentPage = () => {
     show: boolean;
     emailId: string;
     recipients: string[];
+    emailData: UndoEmailData;
   } | null>(null);
+
+  // Undo restore state
+  const [undoComposeData, setUndoComposeData] = useState<UndoEmailData | null>(null);
 
   // Checked emails state (for bulk selection)
   const [checkedEmails, setCheckedEmails] = useState<Set<string>>(new Set());
@@ -87,19 +92,26 @@ const SentPage = () => {
   }, [checkedEmails.size, emails]);
 
   // Handle email sent - show undo toast
-  const handleEmailSent = useCallback((emailId: string, recipients: string[]) => {
+  const handleEmailSent = useCallback((emailId: string, recipients: string[], emailData: UndoEmailData) => {
     console.log('📧 Email queued, showing undo toast:', emailId);
     setEmailUndoToast({
       show: true,
       emailId,
-      recipients
+      recipients,
+      emailData
     });
   }, []);
 
   // Handle email undone
   const handleEmailUndone = useCallback(() => {
-    console.log('↩️ Email cancelled');
-  }, []);
+    console.log('↩️ Email cancelled, reopening modal');
+    const emailData = emailUndoToast?.emailData;
+    if (!emailData) return;
+    
+    // Store undo data and reopen compose modal
+    setUndoComposeData(emailData);
+    setIsComposeOpen(true);
+  }, [emailUndoToast]);
 
   // Handle close undo toast
   const handleCloseEmailUndoToast = useCallback(() => {
@@ -388,10 +400,19 @@ const SentPage = () => {
         {/* Compose Modal */}
         <ComposeModal
           isOpen={isComposeOpen}
-          onClose={() => setIsComposeOpen(false)}
+          onClose={() => {
+            setIsComposeOpen(false);
+            setUndoComposeData(null);
+          }}
           userEmail={currentUser?.email || ''}
           userTimezone={backendUserData?.timezone}
           onEmailSent={handleEmailSent}
+          initialTo={undoComposeData?.type === 'compose' ? undoComposeData.to : undefined}
+          initialCc={undoComposeData?.type === 'compose' ? undoComposeData.cc : undefined}
+          initialBcc={undoComposeData?.type === 'compose' ? undoComposeData.bcc : undefined}
+          initialSubject={undoComposeData?.type === 'compose' ? undoComposeData.subject : undefined}
+          initialBody={undoComposeData?.type === 'compose' ? undoComposeData.body_html : undefined}
+          initialAttachments={undoComposeData?.type === 'compose' ? undoComposeData.attachments : undefined}
         />
 
         {/* Email Send Undo Toast */}

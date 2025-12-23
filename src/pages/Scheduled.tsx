@@ -11,6 +11,7 @@ import { ComposeModal } from "@/components/inbox";
 import { SendLaterModal } from "@/components/inbox/SendLaterModal";
 import { useScheduledEmails, formatScheduledTime, getTimeUntilSend, ScheduledEmail } from "@/hooks/useScheduledEmails";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
+import { UndoEmailData } from "@/components/inbox/ComposeModal";
 
 const ScheduledPage = () => {
   const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
@@ -38,7 +39,11 @@ const ScheduledPage = () => {
     show: boolean;
     emailId: string;
     recipients: string[];
+    emailData: UndoEmailData;
   } | null>(null);
+
+  // Undo restore state
+  const [undoComposeData, setUndoComposeData] = useState<UndoEmailData | null>(null);
 
   // Fetch scheduled emails
   const { emails, loading: emailsLoading, error: emailsError, refresh } = useScheduledEmails(currentUser?.uid);
@@ -207,19 +212,26 @@ const ScheduledPage = () => {
   };
 
   // Handle email sent - show undo toast
-  const handleEmailSent = useCallback((emailId: string, recipients: string[]) => {
+  const handleEmailSent = useCallback((emailId: string, recipients: string[], emailData: UndoEmailData) => {
     console.log('📧 Email queued, showing undo toast:', emailId);
     setEmailUndoToast({
       show: true,
       emailId,
-      recipients
+      recipients,
+      emailData
     });
   }, []);
 
   // Handle email undone
   const handleEmailUndone = useCallback(() => {
-    console.log('↩️ Email cancelled');
-  }, []);
+    console.log('↩️ Email cancelled, reopening modal');
+    const emailData = emailUndoToast?.emailData;
+    if (!emailData) return;
+    
+    // Store undo data and reopen compose modal
+    setUndoComposeData(emailData);
+    setIsComposeOpen(true);
+  }, [emailUndoToast]);
 
   // Handle close undo toast
   const handleCloseEmailUndoToast = useCallback(() => {
@@ -620,16 +632,20 @@ const ScheduledPage = () => {
         <ComposeModal
           key={editingEmail?.id || 'new'}
           isOpen={isComposeOpen}
-          onClose={handleEditClose}
+          onClose={() => {
+            handleEditClose();
+            setUndoComposeData(null);
+          }}
           userEmail={currentUser?.email || ''}
           userTimezone={backendUserData?.timezone}
           editMode={!!editingEmail}
           editEmailId={editingEmail?.id}
-          initialTo={editingEmail?.to}
-          initialCc={editingEmail?.cc}
-          initialBcc={editingEmail?.bcc}
-          initialSubject={editingEmail?.subject}
-          initialBody={editingEmail?.body_html}
+          initialTo={editingEmail?.to || (undoComposeData?.type === 'compose' ? undoComposeData.to : undefined)}
+          initialCc={editingEmail?.cc || (undoComposeData?.type === 'compose' ? undoComposeData.cc : undefined)}
+          initialBcc={editingEmail?.bcc || (undoComposeData?.type === 'compose' ? undoComposeData.bcc : undefined)}
+          initialSubject={editingEmail?.subject || (undoComposeData?.type === 'compose' ? undoComposeData.subject : undefined)}
+          initialBody={editingEmail?.body_html || (undoComposeData?.type === 'compose' ? undoComposeData.body_html : undefined)}
+          initialAttachments={undoComposeData?.type === 'compose' ? undoComposeData.attachments : undefined}
           initialScheduledAt={editingEmail?.scheduled_at}
           onEmailUpdated={() => {
             console.log('✅ Scheduled email updated');

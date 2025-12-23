@@ -16,6 +16,7 @@ import { useDraftEmails } from "@/hooks/useDraftEmails";
 import { loadDraft, DraftData, OriginalEmailSnapshot } from "@/services/draftApi";
 import { Sidebar } from "@/components/layout";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
+import { UndoEmailData } from "@/components/inbox/ComposeModal";
 
 // Draft data for compose editing
 interface ComposeDraftData {
@@ -123,7 +124,11 @@ const DraftPage = () => {
     show: boolean;
     emailId: string;
     recipients: string[];
+    emailData: UndoEmailData;
   } | null>(null);
+
+  // Undo restore state
+  const [undoComposeData, setUndoComposeData] = useState<UndoEmailData | null>(null);
 
   // Fetch draft emails from Firestore
   const { emails, loading: emailsLoading, error: emailsError } = useDraftEmails(currentUser?.uid);
@@ -235,19 +240,34 @@ const DraftPage = () => {
   }, []);
 
   // Handle email sent - show undo toast
-  const handleEmailSent = useCallback((emailId: string, recipients: string[]) => {
+  const handleEmailSent = useCallback((emailId: string, recipients: string[], emailData: UndoEmailData) => {
     console.log('📧 Email queued, showing undo toast:', emailId);
     setEmailUndoToast({
       show: true,
       emailId,
-      recipients
+      recipients,
+      emailData
     });
   }, []);
 
-  // Handle email undone
+  // Handle email undone - reopen modal with stored data
   const handleEmailUndone = useCallback(() => {
-    console.log('↩️ Email cancelled');
-  }, []);
+    console.log('↩️ Email cancelled, reopening modal');
+    const emailData = emailUndoToast?.emailData;
+    if (!emailData) return;
+    
+    // Store undo data for modal to use
+    setUndoComposeData(emailData);
+    
+    // Reopen the appropriate modal based on type
+    if (emailData.type === 'compose') {
+      setIsComposeOpen(true);
+    } else if (emailData.type === 'reply') {
+      setIsReplyOpen(true);
+    } else if (emailData.type === 'forward') {
+      setIsForwardOpen(true);
+    }
+  }, [emailUndoToast]);
 
   // Handle close undo toast
   const handleCloseEmailUndoToast = useCallback(() => {
@@ -465,23 +485,31 @@ const DraftPage = () => {
         {/* Compose Modal */}
         <ComposeModal
           isOpen={isComposeOpen}
-          onClose={handleComposeClose}
+          onClose={() => {
+            handleComposeClose();
+            setUndoComposeData(null);
+          }}
           userEmail={currentUser?.email || ''}
           userTimezone={backendUserData?.timezone}
           onEmailSent={handleEmailSent}
           draftId={composeDraft?.id}
-          initialTo={composeDraft?.to}
-          initialCc={composeDraft?.cc}
-          initialBcc={composeDraft?.bcc}
-          initialSubject={composeDraft?.subject}
-          initialBody={composeDraft?.body_html}
+          initialTo={composeDraft?.to || (undoComposeData?.type === 'compose' ? undoComposeData.to : undefined)}
+          initialCc={composeDraft?.cc || (undoComposeData?.type === 'compose' ? undoComposeData.cc : undefined)}
+          initialBcc={composeDraft?.bcc || (undoComposeData?.type === 'compose' ? undoComposeData.bcc : undefined)}
+          initialSubject={composeDraft?.subject || (undoComposeData?.type === 'compose' ? undoComposeData.subject : undefined)}
+          initialBody={composeDraft?.body_html || (undoComposeData?.type === 'compose' ? undoComposeData.body_html : undefined)}
+          initialAttachments={undoComposeData?.type === 'compose' ? undoComposeData.attachments : undefined}
         />
 
         {/* Reply Modal */}
+        {/* Reply Modal - from draft */}
         {isReplyOpen && replyDraft && (
           <ReplyModal
             isOpen={isReplyOpen}
-            onClose={handleReplyClose}
+            onClose={() => {
+              handleReplyClose();
+              setUndoComposeData(null);
+            }}
             mode={replyDraft.reply_mode}
             originalEmail={replyDraft.original_email}
             threadId={replyDraft.thread_id}
@@ -504,11 +532,37 @@ const DraftPage = () => {
           />
         )}
 
-        {/* Forward Modal */}
+        {/* Reply Modal - from undo */}
+        {isReplyOpen && !replyDraft && undoComposeData?.type === 'reply' && undoComposeData.originalEmail && (
+          <ReplyModal
+            isOpen={isReplyOpen}
+            onClose={() => {
+              setIsReplyOpen(false);
+              setUndoComposeData(null);
+            }}
+            mode={undoComposeData.replyMode || 'reply'}
+            originalEmail={undoComposeData.originalEmail as Email}
+            threadId={undoComposeData.threadId || ''}
+            threadSubject={undoComposeData.subject.replace(/^Re:\s*/i, '')}
+            messageId={undoComposeData.messageId}
+            userEmail={currentUser?.email || ''}
+            userTimezone={backendUserData?.timezone}
+            onEmailSent={handleEmailSent}
+            initialTo={undoComposeData.to}
+            initialCc={undoComposeData.cc}
+            initialBody={undoComposeData.body_html}
+            initialAttachments={undoComposeData.attachments}
+          />
+        )}
+
+        {/* Forward Modal - from draft */}
         {isForwardOpen && forwardDraft && (
           <ForwardModal
             isOpen={isForwardOpen}
-            onClose={handleForwardClose}
+            onClose={() => {
+              handleForwardClose();
+              setUndoComposeData(null);
+            }}
             originalEmail={forwardDraft.original_email}
             threadId={forwardDraft.thread_id}
             threadSubject={forwardDraft.subject.replace(/^Fwd:\s*/i, '')}
@@ -526,6 +580,27 @@ const DraftPage = () => {
               type: a.type,
               status: 'uploaded' as const
             }))}
+          />
+        )}
+
+        {/* Forward Modal - from undo */}
+        {isForwardOpen && !forwardDraft && undoComposeData?.type === 'forward' && undoComposeData.originalEmail && (
+          <ForwardModal
+            isOpen={isForwardOpen}
+            onClose={() => {
+              setIsForwardOpen(false);
+              setUndoComposeData(null);
+            }}
+            originalEmail={undoComposeData.originalEmail as Email}
+            threadId={undoComposeData.threadId || ''}
+            threadSubject={undoComposeData.subject.replace(/^Fwd:\s*/i, '')}
+            userEmail={currentUser?.email || ''}
+            userTimezone={backendUserData?.timezone}
+            onEmailSent={handleEmailSent}
+            initialTo={undoComposeData.to}
+            initialCc={undoComposeData.cc}
+            initialBody={undoComposeData.body_html}
+            initialAttachments={undoComposeData.attachments}
           />
         )}
 

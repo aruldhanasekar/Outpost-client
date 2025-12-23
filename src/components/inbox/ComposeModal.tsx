@@ -16,12 +16,28 @@ import { uploadAttachment, deleteAttachment, UploadProgress } from '@/services/a
 import { saveDraft, deleteDraft, isDraftWorthSaving } from '@/services/draftApi';
 import { auth } from '@/firebase.config';
 
+// Data passed to parent for undo functionality
+export interface UndoEmailData {
+  type: 'compose' | 'reply' | 'forward';
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  body_html: string;
+  attachments: AttachedFile[];
+  // Reply-specific
+  replyMode?: 'reply' | 'replyAll';
+  originalEmail?: unknown;
+  threadId?: string;
+  messageId?: string;
+}
+
 interface ComposeModalProps {
   isOpen: boolean;
   onClose: () => void;
   userEmail: string;
   userTimezone?: string; // e.g., "Asia/Calcutta"
-  onEmailSent?: (emailId: string, recipients: string[]) => void;  // Callback for undo toast
+  onEmailSent?: (emailId: string, recipients: string[], emailData: UndoEmailData) => void;  // Callback for undo toast
   onEmailScheduled?: (emailId: string, scheduledAt: Date, recipients: string[]) => void; // Callback for scheduled notification
   // Edit mode props (for editing scheduled emails)
   editMode?: boolean;
@@ -31,6 +47,7 @@ interface ComposeModalProps {
   initialBcc?: string[];
   initialSubject?: string;
   initialBody?: string;
+  initialAttachments?: AttachedFile[];
   initialScheduledAt?: string;
   onEmailUpdated?: (emailId: string) => void;
   // Draft mode props (for editing existing drafts)
@@ -62,6 +79,7 @@ export function ComposeModal({
   initialBcc,
   initialSubject,
   initialBody,
+  initialAttachments,
   initialScheduledAt,
   onEmailUpdated,
   draftId: initialDraftId,
@@ -145,6 +163,9 @@ export function ComposeModal({
         setBody(initialBody.replace(/<[^>]*>/g, '')); // Strip HTML for plain text
         // Editor will be initialized with initialContent prop
       }
+      if (initialAttachments && initialAttachments.length > 0) {
+        setAttachments(initialAttachments);
+      }
       if (initialScheduledAt) {
         setScheduledAt(new Date(initialScheduledAt));
       }
@@ -153,7 +174,7 @@ export function ComposeModal({
         setCurrentDraftId(initialDraftId);
       }
     }
-  }, [isOpen, editMode, initialDraftId, initialTo, initialCc, initialBcc, initialSubject, initialBody, initialScheduledAt]);
+  }, [isOpen, editMode, initialDraftId, initialTo, initialCc, initialBcc, initialSubject, initialBody, initialAttachments, initialScheduledAt]);
   
   // Handle drag start
   const handleDragStart = (e: React.MouseEvent) => {
@@ -445,7 +466,16 @@ export function ComposeModal({
         if (scheduledAt && onEmailScheduled) {
           onEmailScheduled(response.email_id, scheduledAt, to);
         } else if (onEmailSent && response.can_undo) {
-          onEmailSent(response.email_id, to);
+          // Pass email data for undo/restore functionality
+          onEmailSent(response.email_id, to, {
+            type: 'compose',
+            to,
+            cc,
+            bcc,
+            subject,
+            body_html: htmlBody,
+            attachments: attachments.filter(a => a.status === 'uploaded')
+          });
         }
       }
       
