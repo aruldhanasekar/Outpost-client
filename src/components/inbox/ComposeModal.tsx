@@ -7,12 +7,13 @@
 // Draggable centered overlay design matching app theme
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Minus, Send, Loader2, GripHorizontal, Calendar } from 'lucide-react';
+import { X, Minus, Send, Loader2, GripHorizontal, Calendar, Edit3 } from 'lucide-react';
 import { TiptapEditor, TiptapEditorRef, AttachedFile } from './TiptapEditor';
 import { EmailChipInput } from './EmailChipInput';
 import { SendLaterModal } from './SendLaterModal';
 import { sendEmail } from '@/services/emailApi';
 import { uploadAttachment, deleteAttachment, UploadProgress } from '@/services/attachmentApi';
+import { auth } from '@/firebase.config';
 
 interface ComposeModalProps {
   isOpen: boolean;
@@ -21,6 +22,16 @@ interface ComposeModalProps {
   userTimezone?: string; // e.g., "Asia/Calcutta"
   onEmailSent?: (emailId: string, recipients: string[]) => void;  // Callback for undo toast
   onEmailScheduled?: (emailId: string, scheduledAt: Date, recipients: string[]) => void; // Callback for scheduled notification
+  // Edit mode props (for editing scheduled emails)
+  editMode?: boolean;
+  editEmailId?: string;
+  initialTo?: string[];
+  initialCc?: string[];
+  initialBcc?: string[];
+  initialSubject?: string;
+  initialBody?: string;
+  initialScheduledAt?: string;
+  onEmailUpdated?: (emailId: string) => void;
 }
 
 interface Position {
@@ -32,7 +43,23 @@ interface Position {
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
 const MAX_TOTAL_SIZE = 20 * 1024 * 1024; // 20MB total
 
-export function ComposeModal({ isOpen, onClose, userEmail, userTimezone = 'UTC', onEmailSent, onEmailScheduled }: ComposeModalProps) {
+export function ComposeModal({ 
+  isOpen, 
+  onClose, 
+  userEmail, 
+  userTimezone = 'UTC', 
+  onEmailSent, 
+  onEmailScheduled,
+  editMode = false,
+  editEmailId,
+  initialTo,
+  initialCc,
+  initialBcc,
+  initialSubject,
+  initialBody,
+  initialScheduledAt,
+  onEmailUpdated
+}: ComposeModalProps) {
   // Form state - arrays for multiple recipients
   const [to, setTo] = useState<string[]>([]);
   const [cc, setCc] = useState<string[]>([]);
@@ -82,6 +109,34 @@ export function ComposeModal({ isOpen, onClose, userEmail, userTimezone = 'UTC',
       editorRef.current?.clear();
     }
   }, [isOpen]);
+  
+  // Initialize form fields when in edit mode
+  useEffect(() => {
+    if (isOpen && editMode) {
+      // Set initial values from props
+      if (initialTo && initialTo.length > 0) {
+        setTo(initialTo);
+      }
+      if (initialCc && initialCc.length > 0) {
+        setCc(initialCc);
+        setShowCc(true);
+      }
+      if (initialBcc && initialBcc.length > 0) {
+        setBcc(initialBcc);
+        setShowBcc(true);
+      }
+      if (initialSubject) {
+        setSubject(initialSubject);
+      }
+      if (initialBody) {
+        setBodyHtml(initialBody);
+        setBody(initialBody.replace(/<[^>]*>/g, '')); // Strip HTML for plain text
+      }
+      if (initialScheduledAt) {
+        setScheduledAt(new Date(initialScheduledAt));
+      }
+    }
+  }, [isOpen, editMode, initialTo, initialCc, initialBcc, initialSubject, initialBody, initialScheduledAt]);
   
   // Handle drag start
   const handleDragStart = (e: React.MouseEvent) => {
@@ -289,32 +344,71 @@ export function ComposeModal({ isOpen, onClose, userEmail, userTimezone = 'UTC',
       .map(a => a.id);
     
     try {
-      // Call API to send email
-      const response = await sendEmail({
-        to,
-        cc: cc.length > 0 ? cc : [],
-        bcc: bcc.length > 0 ? bcc : [],
-        subject,
-        body_html: htmlBody,
-        body_text: textBody,
-        tracking_enabled: true,
-        attachment_ids: attachmentIds,
-        scheduled_at: scheduledAt ? scheduledAt.toISOString() : null
-      });
-      
-      console.log(scheduledAt ? '📅 Email scheduled:' : '📧 Email queued:', response);
-      if (attachmentIds.length > 0) {
-        console.log(`   📎 With ${attachmentIds.length} attachment(s)`);
-      }
-      
-      // Close modal
-      onClose();
-      
-      // Notify parent based on whether it's scheduled or immediate
-      if (scheduledAt && onEmailScheduled) {
-        onEmailScheduled(response.email_id, scheduledAt, to);
-      } else if (onEmailSent && response.can_undo) {
-        onEmailSent(response.email_id, to);
+      if (editMode && editEmailId) {
+        // Edit mode: Update existing scheduled email
+        const user = auth.currentUser;
+        if (!user) throw new Error('Not authenticated');
+        const token = await user.getIdToken();
+        
+        const response = await fetch(`/api/scheduled/${editEmailId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            to,
+            cc: cc.length > 0 ? cc : [],
+            bcc: bcc.length > 0 ? bcc : [],
+            subject,
+            body_html: htmlBody,
+            body_text: textBody
+          })
+        });
+        
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.detail || 'Failed to update email');
+        }
+        
+        console.log('✅ Scheduled email updated:', editEmailId);
+        
+        // Close modal
+        onClose();
+        
+        // Notify parent
+        if (onEmailUpdated) {
+          onEmailUpdated(editEmailId);
+        }
+        
+      } else {
+        // Normal mode: Send new email
+        const response = await sendEmail({
+          to,
+          cc: cc.length > 0 ? cc : [],
+          bcc: bcc.length > 0 ? bcc : [],
+          subject,
+          body_html: htmlBody,
+          body_text: textBody,
+          tracking_enabled: true,
+          attachment_ids: attachmentIds,
+          scheduled_at: scheduledAt ? scheduledAt.toISOString() : null
+        });
+        
+        console.log(scheduledAt ? '📅 Email scheduled:' : '📧 Email queued:', response);
+        if (attachmentIds.length > 0) {
+          console.log(`   📎 With ${attachmentIds.length} attachment(s)`);
+        }
+        
+        // Close modal
+        onClose();
+        
+        // Notify parent based on whether it's scheduled or immediate
+        if (scheduledAt && onEmailScheduled) {
+          onEmailScheduled(response.email_id, scheduledAt, to);
+        } else if (onEmailSent && response.can_undo) {
+          onEmailSent(response.email_id, to);
+        }
       }
       
     } catch (err) {
@@ -323,7 +417,7 @@ export function ComposeModal({ isOpen, onClose, userEmail, userTimezone = 'UTC',
     } finally {
       setIsSending(false);
     }
-  }, [to, cc, bcc, subject, attachments, scheduledAt, onClose, onEmailSent, onEmailScheduled]);
+  }, [to, cc, bcc, subject, attachments, scheduledAt, onClose, onEmailSent, onEmailScheduled, editMode, editEmailId, onEmailUpdated]);
   
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -398,7 +492,8 @@ export function ComposeModal({ isOpen, onClose, userEmail, userTimezone = 'UTC',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
+      timeZone: userTimezone
     });
   };
 
@@ -456,8 +551,14 @@ export function ComposeModal({ isOpen, onClose, userEmail, userTimezone = 'UTC',
             onMouseDown={handleDragStart}
           >
             <div className="flex items-center gap-2">
-              <GripHorizontal className="w-4 h-4 text-zinc-600" />
-              <h2 className="text-base font-semibold text-white">New Message</h2>
+              {editMode ? (
+                <Edit3 className="w-4 h-4 text-[#f7ac5c]" />
+              ) : (
+                <GripHorizontal className="w-4 h-4 text-zinc-600" />
+              )}
+              <h2 className="text-base font-semibold text-white">
+                {editMode ? 'Edit Scheduled Email' : 'New Message'}
+              </h2>
             </div>
             <div className="flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
               {/* Minimize button - for future use */}
@@ -536,6 +637,7 @@ export function ComposeModal({ isOpen, onClose, userEmail, userTimezone = 'UTC',
               <TiptapEditor
                 ref={editorRef}
                 placeholder="Write your message..."
+                initialContent={editMode ? initialBody : undefined}
                 onChange={(html, text) => {
                   setBodyHtml(html);
                   setBody(text);
@@ -568,6 +670,9 @@ export function ComposeModal({ isOpen, onClose, userEmail, userTimezone = 'UTC',
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
+              ) : editMode ? (
+                // Edit mode - no additional buttons (reschedule is separate)
+                <span className="text-xs text-zinc-500">Editing scheduled email</span>
               ) : (
                 // Normal action buttons
                 <>
@@ -602,7 +707,12 @@ export function ComposeModal({ isOpen, onClose, userEmail, userTimezone = 'UTC',
               {isSending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>{scheduledAt ? 'Scheduling...' : 'Sending...'}</span>
+                  <span>{editMode ? 'Updating...' : (scheduledAt ? 'Scheduling...' : 'Sending...')}</span>
+                </>
+              ) : editMode ? (
+                <>
+                  <Edit3 className="w-4 h-4" />
+                  <span>Update</span>
                 </>
               ) : scheduledAt ? (
                 <>
