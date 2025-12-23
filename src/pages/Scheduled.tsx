@@ -57,6 +57,24 @@ const ScheduledPage = () => {
     }
   }, [openMenuId]);
 
+  // Sync selectedEmail with real-time updates from Firestore
+  useEffect(() => {
+    if (selectedEmail) {
+      const updated = emails.find(e => e.id === selectedEmail.id);
+      if (updated) {
+        // Update selectedEmail if the data has changed
+        if (JSON.stringify(updated) !== JSON.stringify(selectedEmail)) {
+          console.log('🔄 Syncing selectedEmail with updated data');
+          setSelectedEmail(updated);
+        }
+      } else {
+        // Email no longer in list (cancelled or status changed)
+        console.log('📭 Email removed from scheduled list');
+        setSelectedEmail(null);
+      }
+    }
+  }, [emails]);
+
   // ==================== ACTIONS ====================
 
   // Cancel scheduled email
@@ -168,6 +186,7 @@ const ScheduledPage = () => {
       console.log('✅ Email rescheduled:', reschedulingEmail.id);
       setIsRescheduleOpen(false);
       setReschedulingEmail(null);
+      refresh(); // Trigger refresh to ensure real-time sync
       
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to reschedule email';
@@ -556,6 +575,7 @@ const ScheduledPage = () => {
           onEmailUpdated={() => {
             console.log('✅ Scheduled email updated');
             handleEditClose();
+            refresh(); // Trigger refresh to ensure real-time sync
           }}
         />
 
