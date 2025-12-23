@@ -128,8 +128,7 @@ export function SendLaterModal({
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true,
-      timeZone: userTimezone
+      hour12: true
     });
   };
   
