@@ -1,18 +1,50 @@
 // hooks/useDraftEmails.ts - Fetch draft emails from Firestore
+// Updated to work with new draft structure (to as array)
 
 import { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/firebase.config';
-import { Email } from '../components/inbox/types';
+
+// Draft attachment structure (different from email attachments)
+export interface DraftAttachment {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+}
+
+// DraftEmail type for drafts list - compatible with EmailList component
+export interface DraftEmail {
+  id: string;
+  draft_id: string;
+  sender: string; // Shows recipient in drafts list
+  senderEmail: string;
+  subject: string;
+  preview: string;
+  body: string;
+  time: string;
+  date: string;
+  isRead: boolean;
+  hasAttachment: boolean;
+  thread_id: string;
+  // Draft-specific fields for editing
+  to_list: string[];
+  cc_list: string[];
+  bcc_list: string[];
+  body_html: string;
+  body_plain: string;
+  draft_type: 'compose' | 'reply' | 'forward';
+  draft_attachments: DraftAttachment[];
+}
 
 interface UseDraftEmailsResult {
-  emails: Email[];
+  emails: DraftEmail[];
   loading: boolean;
   error: string | null;
 }
 
 export function useDraftEmails(userId: string | undefined): UseDraftEmailsResult {
-  const [emails, setEmails] = useState<Email[]>([]);
+  const [emails, setEmails] = useState<DraftEmail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +68,7 @@ export function useDraftEmails(userId: string | undefined): UseDraftEmailsResult
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const draftList: Email[] = snapshot.docs.map((doc) => {
+        const draftList: DraftEmail[] = snapshot.docs.map((doc) => {
           const data = doc.data();
           
           // Format time for display
@@ -73,23 +105,47 @@ export function useDraftEmails(userId: string | undefined): UseDraftEmailsResult
             });
           }
 
-          // Extract recipient (to field)
-          const toStr = data.to || '';
-          const recipientMatch = toStr.match(/^([^<]+)</);
-          const recipient = recipientMatch ? recipientMatch[1].trim() : toStr.split('@')[0] || '(No recipient)';
+          // Extract recipients (to field is now an array)
+          const toArray: string[] = data.to || [];
+          const firstRecipient = toArray[0] || '';
+          
+          // Extract display name from email
+          const recipientMatch = firstRecipient.match(/^([^<]+)</);
+          let recipientDisplay = recipientMatch 
+            ? recipientMatch[1].trim() 
+            : firstRecipient.split('@')[0] || '(No recipient)';
+          
+          // If multiple recipients, show count
+          if (toArray.length > 1) {
+            recipientDisplay += ` +${toArray.length - 1}`;
+          }
+
+          // Get preview text
+          const preview = data.body_plain?.substring(0, 100) 
+            || data.body_html?.replace(/<[^>]*>/g, '').substring(0, 100) 
+            || '';
 
           return {
             id: doc.id,
-            sender: recipient, // For drafts, we show recipient in the list
-            senderEmail: toStr,
+            draft_id: doc.id,
+            sender: recipientDisplay, // For drafts, we show recipient as "sender" in list
+            senderEmail: firstRecipient,
             subject: data.subject || '(No subject)',
-            preview: data.body_plain?.substring(0, 100) || data.body_html?.replace(/<[^>]*>/g, '').substring(0, 100) || '',
+            preview: preview,
             body: data.body_html || data.body_plain || '',
             time: timeDisplay,
             date: dateDisplay,
             isRead: true, // Drafts are always "read"
-            hasAttachment: data.has_attachment || false,
-            thread_id: data.thread_id || doc.id,
+            hasAttachment: (data.attachments && data.attachments.length > 0) || false,
+            thread_id: data.reply_to_thread_id || doc.id,
+            // Draft-specific fields
+            to_list: toArray,
+            cc_list: data.cc || [],
+            bcc_list: data.bcc || [],
+            body_html: data.body_html || '',
+            body_plain: data.body_plain || '',
+            draft_type: data.draft_type || 'compose',
+            draft_attachments: data.attachments || [],
           };
         });
 

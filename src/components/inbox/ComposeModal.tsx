@@ -13,6 +13,7 @@ import { EmailChipInput } from './EmailChipInput';
 import { SendLaterModal } from './SendLaterModal';
 import { sendEmail } from '@/services/emailApi';
 import { uploadAttachment, deleteAttachment, UploadProgress } from '@/services/attachmentApi';
+import { saveDraft, deleteDraft, isDraftWorthSaving } from '@/services/draftApi';
 import { auth } from '@/firebase.config';
 
 interface ComposeModalProps {
@@ -32,6 +33,10 @@ interface ComposeModalProps {
   initialBody?: string;
   initialScheduledAt?: string;
   onEmailUpdated?: (emailId: string) => void;
+  // Draft mode props (for editing existing drafts)
+  draftId?: string;
+  onDraftSaved?: (draftId: string) => void;
+  onDraftDeleted?: (draftId: string) => void;
 }
 
 interface Position {
@@ -58,7 +63,10 @@ export function ComposeModal({
   initialSubject,
   initialBody,
   initialScheduledAt,
-  onEmailUpdated
+  onEmailUpdated,
+  draftId: initialDraftId,
+  onDraftSaved,
+  onDraftDeleted
 }: ComposeModalProps) {
   // Form state - arrays for multiple recipients
   const [to, setTo] = useState<string[]>([]);
@@ -68,6 +76,9 @@ export function ComposeModal({
   const [body, setBody] = useState(''); // Plain text body
   const [bodyHtml, setBodyHtml] = useState(''); // HTML body for sending
   const [attachments, setAttachments] = useState<AttachedFile[]>([]);
+  
+  // Draft state
+  const [currentDraftId, setCurrentDraftId] = useState<string | undefined>(initialDraftId);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null); // Send Later date/time
   
   // UI state
@@ -105,14 +116,15 @@ export function ComposeModal({
       setPosition(null); // Reset position to center
       setScheduledAt(null); // Reset scheduled time
       setShowSendLaterModal(false);
+      setCurrentDraftId(undefined); // Reset draft ID
       // Clear editor content
       editorRef.current?.clear();
     }
   }, [isOpen]);
   
-  // Initialize form fields when in edit mode
+  // Initialize form fields when in edit mode or editing a draft
   useEffect(() => {
-    if (isOpen && editMode) {
+    if (isOpen && (editMode || initialDraftId)) {
       // Set initial values from props
       if (initialTo && initialTo.length > 0) {
         setTo(initialTo);
@@ -131,12 +143,17 @@ export function ComposeModal({
       if (initialBody) {
         setBodyHtml(initialBody);
         setBody(initialBody.replace(/<[^>]*>/g, '')); // Strip HTML for plain text
+        // Editor will be initialized with initialContent prop
       }
       if (initialScheduledAt) {
         setScheduledAt(new Date(initialScheduledAt));
       }
+      // Set draft ID if editing a draft
+      if (initialDraftId) {
+        setCurrentDraftId(initialDraftId);
+      }
     }
-  }, [isOpen, editMode, initialTo, initialCc, initialBcc, initialSubject, initialBody, initialScheduledAt]);
+  }, [isOpen, editMode, initialDraftId, initialTo, initialCc, initialBcc, initialSubject, initialBody, initialScheduledAt]);
   
   // Handle drag start
   const handleDragStart = (e: React.MouseEvent) => {
@@ -410,6 +427,17 @@ export function ComposeModal({
           console.log(`   📎 With ${attachmentIds.length} attachment(s)`);
         }
         
+        // Delete draft if this was a draft being sent
+        if (currentDraftId) {
+          try {
+            await deleteDraft(currentDraftId);
+            console.log('🗑️ Draft deleted after send:', currentDraftId);
+            onDraftDeleted?.(currentDraftId);
+          } catch (error) {
+            console.error('⚠️ Failed to delete draft after send:', error);
+          }
+        }
+        
         // Close modal
         onClose();
         
@@ -427,7 +455,7 @@ export function ComposeModal({
     } finally {
       setIsSending(false);
     }
-  }, [to, cc, bcc, subject, attachments, scheduledAt, onClose, onEmailSent, onEmailScheduled, editMode, editEmailId, onEmailUpdated]);
+  }, [to, cc, bcc, subject, attachments, scheduledAt, onClose, onEmailSent, onEmailScheduled, editMode, editEmailId, onEmailUpdated, currentDraftId, onDraftDeleted]);
   
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -462,21 +490,58 @@ export function ComposeModal({
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [isOpen, handleSend, onClose]);
   
-  // Handle discard
+  // Handle discard - saves as draft if content exists
   const handleDiscard = useCallback(async () => {
-    // Delete uploaded attachments from S3
-    const uploadedAttachments = attachments.filter(a => a.status === 'uploaded' && !a.id.startsWith('temp-'));
-    for (const attachment of uploadedAttachments) {
+    // Get current content
+    const htmlBody = editorRef.current?.getHTML() || bodyHtml;
+    const textBody = editorRef.current?.getText() || body;
+    
+    // Prepare draft data
+    const draftData = {
+      to,
+      cc,
+      bcc,
+      subject,
+      body_html: htmlBody,
+      body_plain: textBody,
+      attachments: attachments
+        .filter(a => a.status === 'uploaded' && !a.id.startsWith('temp-'))
+        .map(a => ({
+          id: a.id,
+          name: a.name,
+          size: a.size,
+          type: a.type
+        })),
+      draft_type: 'compose' as const
+    };
+    
+    // Only save draft if there's content worth saving
+    // Don't save drafts in edit mode (scheduled emails)
+    if (!editMode && isDraftWorthSaving(draftData)) {
       try {
-        await deleteAttachment(attachment.id);
-        console.log(`🗑️ Deleted from S3: ${attachment.name}`);
+        const savedDraftId = await saveDraft(draftData, currentDraftId);
+        setCurrentDraftId(savedDraftId);
+        console.log('💾 Draft auto-saved on close:', savedDraftId);
+        onDraftSaved?.(savedDraftId);
       } catch (error) {
-        console.error(`⚠️ Failed to delete from S3: ${attachment.name}`, error);
+        console.error('⚠️ Failed to save draft:', error);
+        // Don't block close on error
+      }
+    } else if (!isDraftWorthSaving(draftData)) {
+      // No content - delete uploaded attachments from S3 if any
+      const uploadedAttachments = attachments.filter(a => a.status === 'uploaded' && !a.id.startsWith('temp-'));
+      for (const attachment of uploadedAttachments) {
+        try {
+          await deleteAttachment(attachment.id);
+          console.log(`🗑️ Deleted from S3: ${attachment.name}`);
+        } catch (error) {
+          console.error(`⚠️ Failed to delete from S3: ${attachment.name}`, error);
+        }
       }
     }
     
     onClose();
-  }, [attachments, onClose]);
+  }, [to, cc, bcc, subject, body, bodyHtml, attachments, editMode, currentDraftId, onClose, onDraftSaved]);
   
   // Handle Send Later - opens modal
   const handleSendLater = () => {
@@ -513,20 +578,44 @@ export function ComposeModal({
     alert('Remind me feature coming soon!');
   };
   
-  // Handle Save to Draft
-  const handleSaveDraft = () => {
-    // TODO: Implement save to draft functionality
-    const htmlBody = editorRef.current?.getHTML() || '';
-    const textBody = editorRef.current?.getText() || '';
+  // Handle Save to Draft (manual save)
+  const handleSaveDraft = useCallback(async () => {
+    const htmlBody = editorRef.current?.getHTML() || bodyHtml;
+    const textBody = editorRef.current?.getText() || body;
     
-    console.log('💾 Saving draft:', { 
-      to, cc, bcc, subject, 
-      body: textBody, 
-      bodyHtml: htmlBody,
-      attachments: attachments.map(a => ({ name: a.name, size: a.size, id: a.id, status: a.status }))
-    });
-    alert('Draft saved! (simulated)');
-  };
+    const draftData = {
+      to,
+      cc,
+      bcc,
+      subject,
+      body_html: htmlBody,
+      body_plain: textBody,
+      attachments: attachments
+        .filter(a => a.status === 'uploaded' && !a.id.startsWith('temp-'))
+        .map(a => ({
+          id: a.id,
+          name: a.name,
+          size: a.size,
+          type: a.type
+        })),
+      draft_type: 'compose' as const
+    };
+    
+    if (!isDraftWorthSaving(draftData)) {
+      console.log('💾 Nothing to save');
+      return;
+    }
+    
+    try {
+      const savedDraftId = await saveDraft(draftData, currentDraftId);
+      setCurrentDraftId(savedDraftId);
+      console.log('💾 Draft saved:', savedDraftId);
+      onDraftSaved?.(savedDraftId);
+    } catch (error) {
+      console.error('❌ Failed to save draft:', error);
+      setError('Failed to save draft');
+    }
+  }, [to, cc, bcc, subject, body, bodyHtml, attachments, currentDraftId, onDraftSaved]);
   
   if (!isOpen) return null;
   
@@ -646,7 +735,7 @@ export function ComposeModal({
               <TiptapEditor
                 ref={editorRef}
                 placeholder="Write your message..."
-                initialContent={editMode ? initialBody : undefined}
+                initialContent={(editMode || initialDraftId) ? initialBody : undefined}
                 onChange={(html, text) => {
                   setBodyHtml(html);
                   setBody(text);
@@ -682,8 +771,8 @@ export function ComposeModal({
               ) : editMode ? (
                 // Edit mode - no additional buttons (reschedule is separate)
                 <span className="text-xs text-zinc-500">Editing scheduled email</span>
-              ) : (
-                // Normal action buttons
+              ) : currentDraftId ? (
+                // Editing a draft
                 <>
                   <button
                     onClick={handleSendLater}
@@ -691,13 +780,16 @@ export function ComposeModal({
                   >
                     Send later
                   </button>
-                  <button
-                    onClick={handleSaveDraft}
-                    className="text-xs text-zinc-400 hover:text-white transition-colors"
-                  >
-                    Save to draft
-                  </button>
+                  <span className="text-xs text-zinc-500">Draft</span>
                 </>
+              ) : (
+                // Normal compose - just show Send later
+                <button
+                  onClick={handleSendLater}
+                  className="text-xs text-zinc-400 hover:text-white transition-colors"
+                >
+                  Send later
+                </button>
               )}
             </div>
             

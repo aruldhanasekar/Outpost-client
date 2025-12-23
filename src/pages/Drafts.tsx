@@ -1,5 +1,5 @@
 // pages/Draft.tsx - Draft Emails Page (Same design as Done)
-// v2.0: Added ComposeModal support
+// v3.0: Added draft editing support - clicking a draft opens ComposeModal
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -10,20 +10,19 @@ import {
   EmailList,
   ComposeModal,
 } from "@/components/inbox";
-import { useDraftEmails } from "@/hooks/useDraftEmails";
-import { useThreadEmailsByThreadId } from "@/components/inbox/useThreadEmailsByThreadId";
-import { SentThreadDetail } from "@/components/inbox/SentThreadDetail";
-import { MobileSentThreadDetail } from "@/components/inbox/MobileSentThreadDetail";
+import { useDraftEmails, DraftEmail } from "@/hooks/useDraftEmails";
 import { Sidebar } from "@/components/layout";
 
 const DraftPage = () => {
   const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
 
   // Compose modal state
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+  
+  // Draft being edited
+  const [editingDraft, setEditingDraft] = useState<DraftEmail | null>(null);
 
   // Checked emails state (for bulk selection)
   const [checkedEmails, setCheckedEmails] = useState<Set<string>>(new Set());
@@ -31,26 +30,37 @@ const DraftPage = () => {
   // Fetch draft emails from Firestore
   const { emails, loading: emailsLoading, error: emailsError } = useDraftEmails(currentUser?.uid);
 
-  // Fetch thread emails when an email is selected
-  const { emails: threadEmails, loading: threadEmailsLoading } = useThreadEmailsByThreadId(
-    currentUser?.uid,
-    selectedEmail?.thread_id
-  );
-
   useEffect(() => {
     if (!authLoading && !currentUser) {
       navigate("/");
     }
   }, [currentUser, authLoading, navigate]);
 
-  // Handle email click
+  // Handle email click - opens draft for editing
   const handleEmailClick = useCallback((email: Email) => {
-    setSelectedEmail(email);
+    // Find the full draft data
+    const draft = emails.find(e => e.id === email.id) as DraftEmail | undefined;
+    if (draft) {
+      setEditingDraft(draft);
+      setIsComposeOpen(true);
+    }
+  }, [emails]);
+
+  // Handle compose modal close
+  const handleComposeClose = useCallback(() => {
+    setIsComposeOpen(false);
+    setEditingDraft(null);
   }, []);
 
-  // Close detail panel
-  const handleCloseDetail = useCallback(() => {
-    setSelectedEmail(null);
+  // Handle draft deleted (after send)
+  const handleDraftDeleted = useCallback((draftId: string) => {
+    console.log('🗑️ Draft sent/deleted:', draftId);
+    setEditingDraft(null);
+  }, []);
+
+  // Handle draft saved
+  const handleDraftSaved = useCallback((draftId: string) => {
+    console.log('💾 Draft saved:', draftId);
   }, []);
 
   // Handle checkbox change for individual email
@@ -85,8 +95,6 @@ const DraftPage = () => {
   }
 
   if (!currentUser) return null;
-  
-  const hasSelection = selectedEmail !== null;
 
   return (
     <>
@@ -237,7 +245,10 @@ const DraftPage = () => {
 
                 {/* Compose/Pencil Icon - Orange Background */}
                 <button 
-                  onClick={() => setIsComposeOpen(true)}
+                  onClick={() => {
+                    setEditingDraft(null);
+                    setIsComposeOpen(true);
+                  }}
                   className="p-2 bg-[#8FA8A3] hover:bg-[#7a9691] rounded-lg transition-colors text-white"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
@@ -274,7 +285,10 @@ const DraftPage = () => {
 
                 {/* Compose Icon - Orange Background */}
                 <button 
-                  onClick={() => setIsComposeOpen(true)}
+                  onClick={() => {
+                    setEditingDraft(null);
+                    setIsComposeOpen(true);
+                  }}
                   className="p-2 bg-[#8FA8A3] hover:bg-[#7a9691] rounded-lg transition-colors text-white"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
@@ -285,85 +299,43 @@ const DraftPage = () => {
             </div>
           </nav>
 
-          {/* ==================== MAIN CONTENT AREA - EMAIL LIST + DETAIL ==================== */}
+          {/* ==================== MAIN CONTENT AREA - EMAIL LIST ONLY ==================== */}
+          {/* Clicking a draft opens ComposeModal for editing */}
           <div className="flex-1 flex overflow-hidden">
             
-            {/* List Panel - Email List */}
-            <div 
-              className={`
-                overflow-y-auto hide-scrollbar
-                ${hasSelection ? 'hidden lg:block lg:w-[30%] lg:border-r lg:border-zinc-700/50' : 'w-full'}
-              `}
-            >
+            {/* List Panel - Full Width Email List */}
+            <div className="w-full overflow-y-auto hide-scrollbar">
               <EmailList
-                emails={emails}
+                emails={emails as Email[]}
                 loading={emailsLoading}
                 error={emailsError}
-                selectedEmailId={selectedEmail?.id || null}
-                isCompact={hasSelection}
+                selectedEmailId={null}
+                isCompact={false}
                 onEmailClick={handleEmailClick}
                 showMarkDone={false}
                 checkedEmailIds={checkedEmails}
                 onCheckChange={handleCheckChange}
               />
             </div>
-
-            {/* Detail Panel - Desktop Only */}
-            <div 
-              className={`
-                hidden lg:flex flex-col bg-[#2d2d2d] overflow-hidden
-                ${hasSelection ? 'w-[55%]' : 'w-0'}
-              `}
-            >
-              {selectedEmail && (
-                <SentThreadDetail 
-                  subject={selectedEmail.subject}
-                  emails={threadEmails}
-                  loading={threadEmailsLoading}
-                  userEmail={currentUser?.email || ""}
-                  onClose={handleCloseDetail}
-                />
-              )}
-            </div>
-
-            {/* Profile Panel - Desktop Only */}
-            <div 
-              className={`
-                hidden lg:flex flex-col bg-[#2d2d2d] border-l border-zinc-700/50 overflow-hidden
-                ${hasSelection ? 'w-[15%]' : 'w-0'}
-              `}
-            >
-              {selectedEmail && (
-                <div className="p-6 pt-8">
-                  <p className="text-zinc-500 text-xs uppercase tracking-wider mb-2">Draft</p>
-                  <p className="text-zinc-300 text-sm">Last edited</p>
-                  <p className="text-zinc-400 text-xs mt-1">{selectedEmail.time || selectedEmail.date}</p>
-                  <p className="text-zinc-500 text-xs mt-4 uppercase tracking-wider mb-2">To</p>
-                  <p className="text-zinc-400 text-xs truncate">{selectedEmail.sender || '(No recipient)'}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Mobile Detail View - Full Screen */}
-            {selectedEmail && (
-              <MobileSentThreadDetail 
-                subject={selectedEmail.subject}
-                emails={threadEmails}
-                loading={threadEmailsLoading}
-                userEmail={currentUser?.email || ""}
-                onClose={handleCloseDetail}
-              />
-            )}
           </div>
           
         </div>
         
-        {/* Compose Modal */}
+        {/* Compose Modal - with draft editing support */}
         <ComposeModal
           isOpen={isComposeOpen}
-          onClose={() => setIsComposeOpen(false)}
+          onClose={handleComposeClose}
           userEmail={currentUser?.email || ''}
           userTimezone={backendUserData?.timezone}
+          // Draft editing props
+          draftId={editingDraft?.draft_id}
+          initialTo={editingDraft?.to_list}
+          initialCc={editingDraft?.cc_list}
+          initialBcc={editingDraft?.bcc_list}
+          initialSubject={editingDraft?.subject !== '(No subject)' ? editingDraft?.subject : ''}
+          initialBody={editingDraft?.body_html}
+          onDraftSaved={handleDraftSaved}
+          onDraftDeleted={handleDraftDeleted}
         />
         
       </div>
