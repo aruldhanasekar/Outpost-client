@@ -18,7 +18,7 @@ import { markEmailAsUndone } from "@/services/emailApi";
 import { Sidebar } from "@/components/layout";
 
 const DonePage = () => {
-  const { currentUser, userProfile, loading: authLoading } = useAuth();
+  const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
@@ -400,6 +400,7 @@ const DonePage = () => {
           isOpen={isComposeOpen}
           onClose={() => setIsComposeOpen(false)}
           userEmail={currentUser?.email || ''}
+          userTimezone={backendUserData?.timezone}
         />
         
       </div>

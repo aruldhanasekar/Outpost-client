@@ -267,7 +267,7 @@ const InboxPage = () => {
       console.log('🔄 Sync started - showing loading overlay');
       setShowSyncLoading(true);
     }
-  }, [backendUserData?.sync_status]);
+  }, [backendUserData]);
 
   // ==================== COMPOSIO CALLBACK HANDLER ====================
   
@@ -1424,6 +1424,7 @@ const InboxPage = () => {
           isOpen={isComposeOpen}
           onClose={() => setIsComposeOpen(false)}
           userEmail={currentUser?.email || ''}
+          userTimezone={backendUserData?.timezone}
           onEmailSent={handleEmailSent}
         />
         
@@ -1438,6 +1439,7 @@ const InboxPage = () => {
             threadSubject={selectedThread?.gmail_subject || ''}
             messageId={replyToEmail?.message_id}
             userEmail={currentUser?.email || ''}
+            userTimezone={backendUserData?.timezone}
             onEmailSent={handleEmailSent}
           />
         )}
@@ -1451,6 +1453,7 @@ const InboxPage = () => {
             threadId={selectedThread?.thread_id || ''}
             threadSubject={selectedThread?.gmail_subject || ''}
             userEmail={currentUser?.email || ''}
+            userTimezone={backendUserData?.timezone}
             onEmailSent={handleEmailSent}
           />
         )}

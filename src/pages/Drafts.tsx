@@ -17,7 +17,7 @@ import { MobileSentThreadDetail } from "@/components/inbox/MobileSentThreadDetai
 import { Sidebar } from "@/components/layout";
 
 const DraftPage = () => {
-  const { currentUser, userProfile, loading: authLoading } = useAuth();
+  const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
@@ -363,6 +363,7 @@ const DraftPage = () => {
           isOpen={isComposeOpen}
           onClose={() => setIsComposeOpen(false)}
           userEmail={currentUser?.email || ''}
+          userTimezone={backendUserData?.timezone}
         />
         
       </div>
