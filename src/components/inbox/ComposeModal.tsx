@@ -86,22 +86,22 @@ export function ComposeModal({
   onDraftSaved,
   onDraftDeleted
 }: ComposeModalProps) {
-  // Form state - arrays for multiple recipients
-  const [to, setTo] = useState<string[]>([]);
-  const [cc, setCc] = useState<string[]>([]);
-  const [bcc, setBcc] = useState<string[]>([]);
-  const [subject, setSubject] = useState('');
+  // Form state - arrays for multiple recipients (initialize from props for undo restore)
+  const [to, setTo] = useState<string[]>(initialTo || []);
+  const [cc, setCc] = useState<string[]>(initialCc || []);
+  const [bcc, setBcc] = useState<string[]>(initialBcc || []);
+  const [subject, setSubject] = useState(initialSubject || '');
   const [body, setBody] = useState(''); // Plain text body
   const [bodyHtml, setBodyHtml] = useState(''); // HTML body for sending
-  const [attachments, setAttachments] = useState<AttachedFile[]>([]);
+  const [attachments, setAttachments] = useState<AttachedFile[]>(initialAttachments || []);
   
   // Draft state
   const [currentDraftId, setCurrentDraftId] = useState<string | undefined>(initialDraftId);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null); // Send Later date/time
   
-  // UI state
-  const [showCc, setShowCc] = useState(false);
-  const [showBcc, setShowBcc] = useState(false);
+  // UI state (show CC/BCC if initial values exist)
+  const [showCc, setShowCc] = useState((initialCc && initialCc.length > 0) || false);
+  const [showBcc, setShowBcc] = useState((initialBcc && initialBcc.length > 0) || false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSendLaterModal, setShowSendLaterModal] = useState(false);
