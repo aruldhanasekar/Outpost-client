@@ -109,10 +109,19 @@ const ScheduledPage = () => {
 
   // Open edit modal
   const handleEdit = (email: ScheduledEmail) => {
+    console.log('📝 Edit clicked for:', email.id, email.subject);
     setEditingEmail(email);
-    setIsComposeOpen(true);
     setOpenMenuId(null);
+    // Don't open modal here - let useEffect handle it
   };
+
+  // Open compose modal when editingEmail is set (fixes race condition)
+  useEffect(() => {
+    if (editingEmail && !isComposeOpen) {
+      console.log('📝 Opening edit modal for:', editingEmail.subject);
+      setIsComposeOpen(true);
+    }
+  }, [editingEmail, isComposeOpen]);
 
   // Open reschedule modal
   const handleReschedule = (email: ScheduledEmail) => {
@@ -459,12 +468,25 @@ const ScheduledPage = () => {
         {/* ==================== MODALS ==================== */}
 
         {/* Compose Modal for Editing */}
-        {/* TODO: Update ComposeModal to support edit mode props */}
+        {/* Key forces re-render when editing different emails */}
         <ComposeModal
+          key={editingEmail?.id || 'new'}
           isOpen={isComposeOpen}
           onClose={handleEditClose}
           userEmail={currentUser?.email || ''}
           userTimezone={backendUserData?.timezone}
+          editMode={!!editingEmail}
+          editEmailId={editingEmail?.id}
+          initialTo={editingEmail?.to}
+          initialCc={editingEmail?.cc}
+          initialBcc={editingEmail?.bcc}
+          initialSubject={editingEmail?.subject}
+          initialBody={editingEmail?.body_html}
+          initialScheduledAt={editingEmail?.scheduled_at}
+          onEmailUpdated={() => {
+            console.log('✅ Scheduled email updated');
+            handleEditClose();
+          }}
         />
 
         {/* Reschedule Modal */}
