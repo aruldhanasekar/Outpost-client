@@ -1,5 +1,5 @@
 // pages/Draft.tsx - Draft Emails Page (Same design as Done)
-// v3.0: Added draft editing support - clicking a draft opens ComposeModal
+// v3.0: Clicking a draft opens ComposeModal for editing
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -10,8 +10,19 @@ import {
   EmailList,
   ComposeModal,
 } from "@/components/inbox";
-import { useDraftEmails, DraftEmail } from "@/hooks/useDraftEmails";
+import { useDraftEmails } from "@/hooks/useDraftEmails";
+import { loadDraft } from "@/services/draftApi";
 import { Sidebar } from "@/components/layout";
+
+// Draft data for editing
+interface DraftEditData {
+  id: string;
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  body_html: string;
+}
 
 const DraftPage = () => {
   const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
@@ -20,9 +31,7 @@ const DraftPage = () => {
 
   // Compose modal state
   const [isComposeOpen, setIsComposeOpen] = useState(false);
-  
-  // Draft being edited
-  const [editingDraft, setEditingDraft] = useState<DraftEmail | null>(null);
+  const [editingDraft, setEditingDraft] = useState<DraftEditData | null>(null);
 
   // Checked emails state (for bulk selection)
   const [checkedEmails, setCheckedEmails] = useState<Set<string>>(new Set());
@@ -36,15 +45,25 @@ const DraftPage = () => {
     }
   }, [currentUser, authLoading, navigate]);
 
-  // Handle email click - opens draft for editing
-  const handleEmailClick = useCallback((email: Email) => {
-    // Find the full draft data
-    const draft = emails.find(e => e.id === email.id) as DraftEmail | undefined;
-    if (draft) {
-      setEditingDraft(draft);
-      setIsComposeOpen(true);
+  // Handle email click - load full draft and open ComposeModal
+  const handleEmailClick = useCallback(async (email: Email) => {
+    try {
+      const draft = await loadDraft(email.id);
+      if (draft) {
+        setEditingDraft({
+          id: email.id,
+          to: draft.to || [],
+          cc: draft.cc || [],
+          bcc: draft.bcc || [],
+          subject: draft.subject || '',
+          body_html: draft.body_html || '',
+        });
+        setIsComposeOpen(true);
+      }
+    } catch (error) {
+      console.error('Failed to load draft:', error);
     }
-  }, [emails]);
+  }, []);
 
   // Handle compose modal close
   const handleComposeClose = useCallback(() => {
@@ -52,15 +71,10 @@ const DraftPage = () => {
     setEditingDraft(null);
   }, []);
 
-  // Handle draft deleted (after send)
-  const handleDraftDeleted = useCallback((draftId: string) => {
-    console.log('🗑️ Draft sent/deleted:', draftId);
+  // Handle new compose (not editing)
+  const handleNewCompose = useCallback(() => {
     setEditingDraft(null);
-  }, []);
-
-  // Handle draft saved
-  const handleDraftSaved = useCallback((draftId: string) => {
-    console.log('💾 Draft saved:', draftId);
+    setIsComposeOpen(true);
   }, []);
 
   // Handle checkbox change for individual email
@@ -179,50 +193,22 @@ const DraftPage = () => {
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/30 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5 flex-shrink-0" fill="currentColor">
-                  <path d="M530.8 134.1C545.1 144.5 548.3 164.5 537.9 178.8L281.9 530.8C276.4 538.4 267.9 543.1 258.5 543.9C249.1 544.7 240 541.2 233.4 534.6L105.4 406.6C92.9 394.1 92.9 373.8 105.4 361.3C117.9 348.8 138.2 348.8 150.7 361.3L252.2 462.8L486.2 141.1C496.6 126.8 516.6 123.6 530.9 134z"/>
+                  <path d="M337.3 86.1L385.7 125.5C390.3 129.3 396 131.5 402 131.8L463.8 135.1C495.8 136.8 521.2 162.2 523 194.2L526.2 256C526.5 262 528.7 267.7 532.5 272.3L571.9 320.7C593 347.3 593 385.7 571.9 412.3L532.5 460.7C528.7 465.3 526.5 471 526.2 477L523 538.8C521.2 570.8 495.8 596.2 463.8 598L402 601.2C396 601.5 390.3 603.7 385.7 607.5L337.3 646.9C310.7 668 272.3 668 245.7 646.9L197.3 607.5C192.7 603.7 187 601.5 181 601.2L119.2 598C87.2 596.2 61.8 570.8 60 538.8L56.8 477C56.5 471 54.3 465.3 50.5 460.7L11.1 412.3C-10 385.7 -10 347.3 11.1 320.7L50.5 272.3C54.3 267.7 56.5 262 56.8 256L60 194.2C61.8 162.2 87.2 136.8 119.2 135L181 131.8C187 131.5 192.7 129.3 197.3 125.5L245.7 86.1C272.3 65 310.7 65 337.3 86.1zM408.5 252.5C421 240 421 219.7 408.5 207.2C396 194.7 375.7 194.7 363.2 207.2L252 318.3L209.8 276.2C197.3 263.7 177 263.7 164.5 276.2C152 288.7 152 309 164.5 321.5L229.4 386.3C241.9 398.8 262.2 398.8 274.7 386.3L408.5 252.5z"/>
                 </svg>
                 <span className="text-sm font-medium">Done</span>
-              </button>
-              <button 
-                onClick={() => { setSidebarOpen(false); navigate('/scheduled'); }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/30 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-5 h-5 flex-shrink-0" fill="currentColor">
-                  <path d="M256 0a256 256 0 1 1 0 512A256 256 0 1 1 256 0zM232 120V256c0 8 4 15.5 10.7 20l96 64c11 7.4 25.9 4.4 33.3-6.7s4.4-25.9-6.7-33.3L280 243.2V120c0-13.3-10.7-24-24-24s-24 10.7-24 24z"/>
-                </svg>
-                <span className="text-sm font-medium">Scheduled</span>
-              </button>
-              <button 
-                onClick={() => { setSidebarOpen(false); navigate('/trash'); }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/30 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5 flex-shrink-0" fill="currentColor">
-                  <path d="M232.7 69.9L224 96L128 96C110.3 96 96 110.3 96 128C96 145.7 110.3 160 128 160L512 160C529.7 160 544 145.7 544 128C544 110.3 529.7 96 512 96L416 96L407.3 69.9C402.9 56.8 390.7 48 376.9 48L263.1 48C249.3 48 237.1 56.8 232.7 69.9zM512 208L128 208L149.1 531.1C150.7 556.4 171.7 576 197 576L443 576C468.3 576 489.3 556.4 490.9 531.1L512 208z"/>
-                </svg>
-                <span className="text-sm font-medium">Trash</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* ==================== MAIN CONTAINER ==================== */}
-        <div className={`fixed inset-0 lg:top-0 lg:right-0 lg:left-16 bg-[#2d2d2d] lg:rounded-bl-2xl flex flex-col ${isComposeOpen ? 'lg:bottom-12' : 'lg:bottom-8'}`}>
-          
-          {/* ==================== TOP NAVBAR ==================== */}
+        {/* ==================== MAIN CONTENT AREA ==================== */}
+        <div className="lg:ml-20 h-full flex flex-col">
+          {/* ==================== TOP NAVIGATION BAR ==================== */}
           <nav className="flex-shrink-0 border-b border-zinc-700/50">
-            {/* Mobile/Tablet Header */}
-            <div className="flex lg:hidden items-center justify-between h-14 px-3">
-              {/* LEFT: Checkbox + Hamburger + Title */}
-              <div className="flex items-center">
-                <div className="flex items-center justify-center w-8">
-                  <input
-                    type="checkbox"
-                    checked={checkedEmails.size > 0 && checkedEmails.size === emails.length}
-                    onChange={handleGlobalCheckChange}
-                    className="w-4 h-4 rounded bg-transparent cursor-pointer appearance-none border-2 border-zinc-500 outline-none focus:outline-none focus:ring-0 relative checked:after:content-['✓'] checked:after:absolute checked:after:text-white checked:after:text-xs checked:after:font-bold checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2"
-                  />
-                </div>
-                {/* Hamburger Menu */}
+            {/* Mobile Header */}
+            <div className="flex lg:hidden items-center justify-between px-4 py-3">
+              {/* LEFT: Menu + Title */}
+              <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setSidebarOpen(true)}
                   className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
@@ -245,10 +231,7 @@ const DraftPage = () => {
 
                 {/* Compose/Pencil Icon - Orange Background */}
                 <button 
-                  onClick={() => {
-                    setEditingDraft(null);
-                    setIsComposeOpen(true);
-                  }}
+                  onClick={handleNewCompose}
                   className="p-2 bg-[#8FA8A3] hover:bg-[#7a9691] rounded-lg transition-colors text-white"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
@@ -285,10 +268,7 @@ const DraftPage = () => {
 
                 {/* Compose Icon - Orange Background */}
                 <button 
-                  onClick={() => {
-                    setEditingDraft(null);
-                    setIsComposeOpen(true);
-                  }}
+                  onClick={handleNewCompose}
                   className="p-2 bg-[#8FA8A3] hover:bg-[#7a9691] rounded-lg transition-colors text-white"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
@@ -299,14 +279,13 @@ const DraftPage = () => {
             </div>
           </nav>
 
-          {/* ==================== MAIN CONTENT AREA - EMAIL LIST ONLY ==================== */}
-          {/* Clicking a draft opens ComposeModal for editing */}
+          {/* ==================== MAIN CONTENT AREA - EMAIL LIST ==================== */}
           <div className="flex-1 flex overflow-hidden">
             
             {/* List Panel - Full Width Email List */}
             <div className="w-full overflow-y-auto hide-scrollbar">
               <EmailList
-                emails={emails as Email[]}
+                emails={emails}
                 loading={emailsLoading}
                 error={emailsError}
                 selectedEmailId={null}
@@ -328,14 +307,12 @@ const DraftPage = () => {
           userEmail={currentUser?.email || ''}
           userTimezone={backendUserData?.timezone}
           // Draft editing props
-          draftId={editingDraft?.draft_id}
-          initialTo={editingDraft?.to_list}
-          initialCc={editingDraft?.cc_list}
-          initialBcc={editingDraft?.bcc_list}
-          initialSubject={editingDraft?.subject !== '(No subject)' ? editingDraft?.subject : ''}
+          draftId={editingDraft?.id}
+          initialTo={editingDraft?.to}
+          initialCc={editingDraft?.cc}
+          initialBcc={editingDraft?.bcc}
+          initialSubject={editingDraft?.subject}
           initialBody={editingDraft?.body_html}
-          onDraftSaved={handleDraftSaved}
-          onDraftDeleted={handleDraftDeleted}
         />
         
       </div>
