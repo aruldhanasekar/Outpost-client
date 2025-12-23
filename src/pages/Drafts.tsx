@@ -26,6 +26,7 @@ interface ComposeDraftData {
   bcc: string[];
   subject: string;
   body_html: string;
+  attachments: Array<{ id: string; name: string; size: number; type: string }>;
 }
 
 // Draft data for reply editing
@@ -41,6 +42,7 @@ interface ReplyDraftData {
   thread_id: string;
   message_id?: string;
   original_email: Email;
+  attachments: Array<{ id: string; name: string; size: number; type: string }>;
 }
 
 // Draft data for forward editing
@@ -54,6 +56,7 @@ interface ForwardDraftData {
   body_html: string;
   thread_id: string;
   original_email: Email;
+  attachments: Array<{ id: string; name: string; size: number; type: string }>;
 }
 
 type EditingDraft = ComposeDraftData | ReplyDraftData | ForwardDraftData | null;
@@ -163,6 +166,7 @@ const DraftPage = () => {
               thread_id: draft.thread_id || '',
               message_id: draft.message_id,
               original_email: snapshotToEmail(draft.original_email, email.id),
+              attachments: draft.attachments || [],
             });
             setIsReplyOpen(true);
           }
@@ -180,6 +184,7 @@ const DraftPage = () => {
               body_html: cleanBody,
               thread_id: draft.thread_id || '',
               original_email: snapshotToEmail(draft.original_email, email.id),
+              attachments: draft.attachments || [],
             });
             setIsForwardOpen(true);
           }
@@ -195,6 +200,7 @@ const DraftPage = () => {
             bcc: cleanBcc,
             subject: draft.subject || '',
             body_html: cleanBody,
+            attachments: draft.attachments || [],
           });
           setIsComposeOpen(true);
           break;
@@ -488,6 +494,13 @@ const DraftPage = () => {
             initialTo={replyDraft.to}
             initialCc={replyDraft.cc}
             initialBody={replyDraft.body_html}
+            initialAttachments={replyDraft.attachments.map(a => ({
+              id: a.id,
+              name: a.name,
+              size: a.size,
+              type: a.type,
+              status: 'uploaded' as const
+            }))}
           />
         )}
 
@@ -506,6 +519,13 @@ const DraftPage = () => {
             initialTo={forwardDraft.to}
             initialCc={forwardDraft.cc}
             initialBody={forwardDraft.body_html}
+            initialAttachments={forwardDraft.attachments.map(a => ({
+              id: a.id,
+              name: a.name,
+              size: a.size,
+              type: a.type,
+              status: 'uploaded' as const
+            }))}
           />
         )}
 

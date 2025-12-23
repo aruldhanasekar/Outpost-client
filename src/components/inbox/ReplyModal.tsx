@@ -32,6 +32,7 @@ interface ReplyModalProps {
   initialTo?: string[];
   initialCc?: string[];
   initialBody?: string;
+  initialAttachments?: AttachedFile[];
 }
 
 interface Position {
@@ -131,7 +132,8 @@ export function ReplyModal({
   draftId: initialDraftId,
   initialTo,
   initialCc,
-  initialBody
+  initialBody,
+  initialAttachments
 }: ReplyModalProps) {
   // Draft state
   const [currentDraftId, setCurrentDraftId] = useState<string | undefined>(initialDraftId);
@@ -160,7 +162,7 @@ export function ReplyModal({
   const [subject, setSubject] = useState(initialSubject);
   const [bodyHtml, setBodyHtml] = useState('');
   const [bodyText, setBodyText] = useState('');
-  const [attachments, setAttachments] = useState<AttachedFile[]>([]);
+  const [attachments, setAttachments] = useState<AttachedFile[]>(initialAttachments || []);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   
   // UI state
