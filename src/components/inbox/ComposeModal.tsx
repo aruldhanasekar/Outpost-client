@@ -765,7 +765,7 @@ export function ComposeModal({
               <TiptapEditor
                 ref={editorRef}
                 placeholder="Write your message..."
-                initialContent={(editMode || initialDraftId) ? initialBody : undefined}
+                initialContent={initialBody || undefined}
                 onChange={(html, text) => {
                   setBodyHtml(html);
                   setBody(text);

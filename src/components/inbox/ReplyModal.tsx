@@ -699,6 +699,7 @@ export function ReplyModal({
               <TiptapEditor
                 ref={editorRef}
                 placeholder="Write your reply..."
+                initialContent={initialBody || undefined}
                 onChange={(html, text) => {
                   setBodyHtml(html);
                   setBodyText(text);

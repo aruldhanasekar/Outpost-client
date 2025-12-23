@@ -619,6 +619,7 @@ export function ForwardModal({
               <TiptapEditor
                 ref={editorRef}
                 placeholder="Add a message..."
+                initialContent={initialBody || undefined}
                 onChange={(html, text) => {
                   setBodyHtml(html);
                   setBodyText(text);
