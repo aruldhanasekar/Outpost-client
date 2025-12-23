@@ -484,7 +484,7 @@ export function ComposeModal({
     setScheduledAt(null);
   };
   
-  // Format scheduled time for display
+  // Format scheduled time for display - uses browser local time
   const formatScheduledTime = (date: Date): string => {
     return date.toLocaleString('en-US', {
       weekday: 'short',
@@ -492,8 +492,7 @@ export function ComposeModal({
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true,
-      timeZone: userTimezone
+      hour12: true
     });
   };
 
