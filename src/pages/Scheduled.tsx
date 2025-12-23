@@ -17,7 +17,7 @@ const ScheduledPage = () => {
   
   // UI State
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedEmail, setSelectedEmail] = useState<ScheduledEmail | null>(null);
+  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   
   // Compose modal state (for editing)
@@ -34,6 +34,9 @@ const ScheduledPage = () => {
 
   // Fetch scheduled emails
   const { emails, loading: emailsLoading, error: emailsError, refresh } = useScheduledEmails(currentUser?.uid);
+
+  // Derive selectedEmail from emails array (always fresh)
+  const selectedEmail = selectedEmailId ? emails.find(e => e.id === selectedEmailId) || null : null;
 
   // Get ID token helper
   const getIdToken = useCallback(async () => {
@@ -56,24 +59,6 @@ const ScheduledPage = () => {
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [openMenuId]);
-
-  // Sync selectedEmail with real-time updates from Firestore
-  useEffect(() => {
-    if (selectedEmail) {
-      const updated = emails.find(e => e.id === selectedEmail.id);
-      if (updated) {
-        // Update selectedEmail if the data has changed
-        if (JSON.stringify(updated) !== JSON.stringify(selectedEmail)) {
-          console.log('🔄 Syncing selectedEmail with updated data');
-          setSelectedEmail(updated);
-        }
-      } else {
-        // Email no longer in list (cancelled or status changed)
-        console.log('📭 Email removed from scheduled list');
-        setSelectedEmail(null);
-      }
-    }
-  }, [emails]);
 
   // ==================== ACTIONS ====================
 
@@ -109,8 +94,8 @@ const ScheduledPage = () => {
       }
 
       console.log('✅ Email cancelled:', email.id);
-      if (selectedEmail?.id === email.id) {
-        setSelectedEmail(null);
+      if (selectedEmailId === email.id) {
+        setSelectedEmailId(null);
       }
       
     } catch (error: unknown) {
@@ -199,12 +184,12 @@ const ScheduledPage = () => {
 
   // Handle email click
   const handleEmailClick = (email: ScheduledEmail) => {
-    setSelectedEmail(email);
+    setSelectedEmailId(email.id);
   };
 
   // Close detail panel
   const handleCloseDetail = () => {
-    setSelectedEmail(null);
+    setSelectedEmailId(null);
   };
 
   // ==================== RENDER HELPERS ====================
