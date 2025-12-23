@@ -142,7 +142,9 @@ export function ComposeModal({
   
   // Initialize form fields when in edit mode or editing a draft
   useEffect(() => {
-    if (isOpen && (editMode || initialDraftId)) {
+    // Run initialization when: editing, draft loading, OR undo restore (has initial props)
+    const hasInitialData = (initialTo && initialTo.length > 0) || initialSubject || initialBody || (initialAttachments && initialAttachments.length > 0);
+    if (isOpen && (editMode || initialDraftId || hasInitialData)) {
       // Set initial values from props
       if (initialTo && initialTo.length > 0) {
         setTo(initialTo);
