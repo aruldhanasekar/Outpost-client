@@ -406,6 +406,7 @@ const SentPage = () => {
         
         {/* Compose Modal */}
         <ComposeModal
+          key={undoComposeData ? 'undo' : 'normal'}
           isOpen={isComposeOpen}
           onClose={() => {
             setIsComposeOpen(false);

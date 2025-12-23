@@ -637,7 +637,7 @@ const ScheduledPage = () => {
 
         {/* Compose Modal for Editing */}
         <ComposeModal
-          key={editingEmail?.id || 'new'}
+          key={editingEmail?.id || (undoComposeData ? 'undo' : 'new')}
           isOpen={isComposeOpen}
           onClose={() => {
             handleEditClose();

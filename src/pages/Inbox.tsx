@@ -1455,6 +1455,7 @@ const InboxPage = () => {
         
         {/* Compose Modal */}
         <ComposeModal
+          key={undoComposeData?.type === 'compose' ? 'undo' : 'normal'}
           isOpen={isComposeOpen}
           onClose={() => {
             setIsComposeOpen(false);
@@ -1475,6 +1476,7 @@ const InboxPage = () => {
         {/* Reply Modal */}
         {isReplyOpen && replyToEmail && (
           <ReplyModal
+            key={undoComposeData?.type === 'reply' ? 'undo' : 'normal'}
             isOpen={isReplyOpen}
             onClose={() => {
               setIsReplyOpen(false);
@@ -1499,6 +1501,7 @@ const InboxPage = () => {
         {/* Forward Modal */}
         {isForwardOpen && forwardEmail && (
           <ForwardModal
+            key={undoComposeData?.type === 'forward' ? 'undo' : 'normal'}
             isOpen={isForwardOpen}
             onClose={() => {
               setIsForwardOpen(false);

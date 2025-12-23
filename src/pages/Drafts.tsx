@@ -489,6 +489,7 @@ const DraftPage = () => {
         
         {/* Compose Modal */}
         <ComposeModal
+          key={composeDraft?.id || (undoComposeData?.type === 'compose' ? 'undo' : 'new')}
           isOpen={isComposeOpen}
           onClose={() => {
             handleComposeClose();
@@ -510,6 +511,7 @@ const DraftPage = () => {
         {/* Reply Modal - from draft */}
         {isReplyOpen && replyDraft && (
           <ReplyModal
+            key={replyDraft.id || 'draft'}
             isOpen={isReplyOpen}
             onClose={() => {
               handleReplyClose();
@@ -540,6 +542,7 @@ const DraftPage = () => {
         {/* Reply Modal - from undo */}
         {isReplyOpen && !replyDraft && undoComposeData?.type === 'reply' && undoComposeData.originalEmail && (
           <ReplyModal
+            key="undo"
             isOpen={isReplyOpen}
             onClose={() => {
               setIsReplyOpen(false);
@@ -563,6 +566,7 @@ const DraftPage = () => {
         {/* Forward Modal - from draft */}
         {isForwardOpen && forwardDraft && (
           <ForwardModal
+            key={forwardDraft.id || 'draft'}
             isOpen={isForwardOpen}
             onClose={() => {
               handleForwardClose();
@@ -591,6 +595,7 @@ const DraftPage = () => {
         {/* Forward Modal - from undo */}
         {isForwardOpen && !forwardDraft && undoComposeData?.type === 'forward' && undoComposeData.originalEmail && (
           <ForwardModal
+            key="undo"
             isOpen={isForwardOpen}
             onClose={() => {
               setIsForwardOpen(false);

@@ -444,6 +444,7 @@ const DonePage = () => {
         
         {/* Compose Modal */}
         <ComposeModal
+          key={undoComposeData ? 'undo' : 'normal'}
           isOpen={isComposeOpen}
           onClose={() => {
             setIsComposeOpen(false);
