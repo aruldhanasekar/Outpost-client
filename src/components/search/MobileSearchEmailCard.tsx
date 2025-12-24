@@ -183,10 +183,30 @@ export function MobileSearchEmailCard({ email, onClose, onReply, onForward }: Mo
         {/* Email Card */}
         <div className="m-4">
           <div className="bg-white rounded-lg shadow-sm">
-            {/* Card Header */}
+            {/* Card Header - Sender + Reply/Forward (always visible on mobile) + Date */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <span className="text-sm font-medium text-gray-800">{displayName}</span>
-              <span className="text-xs text-gray-400">{formatDate(email.date)}</span>
+              
+              {/* Right side: Reply/Forward icons (always visible) + Date */}
+              <div className="flex items-center gap-2">
+                {/* Reply/Forward icons - always visible on mobile */}
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={onReply}
+                    className="p-1.5 hover:bg-gray-100 rounded-md transition-colors text-gray-400 hover:text-gray-600"
+                  >
+                    <Reply className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={onForward}
+                    className="p-1.5 hover:bg-gray-100 rounded-md transition-colors text-gray-400 hover:text-gray-600"
+                  >
+                    <Forward className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <span className="text-xs text-gray-400">{formatDate(email.date)}</span>
+              </div>
             </div>
             
             {/* Card Body */}
@@ -245,24 +265,6 @@ export function MobileSearchEmailCard({ email, onClose, onReply, onForward }: Mo
             )}
           </div>
         </div>
-      </div>
-      
-      {/* Bottom Action Bar */}
-      <div className="flex items-center justify-center gap-6 px-4 py-3 bg-zinc-900 border-t border-zinc-800 flex-shrink-0">
-        <button
-          onClick={onReply}
-          className="flex items-center gap-2 px-4 py-2 hover:bg-zinc-800 rounded-lg transition-colors text-zinc-300"
-        >
-          <Reply className="w-5 h-5" />
-          <span className="text-sm">Reply</span>
-        </button>
-        <button
-          onClick={onForward}
-          className="flex items-center gap-2 px-4 py-2 hover:bg-zinc-800 rounded-lg transition-colors text-zinc-300"
-        >
-          <Forward className="w-5 h-5" />
-          <span className="text-sm">Forward</span>
-        </button>
       </div>
     </div>
   );
