@@ -12,6 +12,7 @@ import {
   ReplyModal,
   ForwardModal,
 } from "@/components/inbox";
+import { SearchModal } from "@/components/search";
 import { useDraftEmails } from "@/hooks/useDraftEmails";
 import { loadDraft, DraftData, OriginalEmailSnapshot } from "@/services/draftApi";
 import { Sidebar } from "@/components/layout";
@@ -112,6 +113,7 @@ const DraftPage = () => {
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [isReplyOpen, setIsReplyOpen] = useState(false);
   const [isForwardOpen, setIsForwardOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   
   // Current editing draft
   const [editingDraft, setEditingDraft] = useState<EditingDraft>(null);
@@ -138,6 +140,24 @@ const DraftPage = () => {
       navigate("/");
     }
   }, [currentUser, authLoading, navigate]);
+
+  // Keyboard shortcut: "/" to open search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if (target.closest('[data-modal]')) return;
+      if (isComposeOpen || isReplyOpen || isForwardOpen || isSearchOpen) return;
+      
+      if (e.key === '/' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isComposeOpen, isReplyOpen, isForwardOpen, isSearchOpen]);
 
   // Handle email click - load full draft and open correct modal
   const handleEmailClick = useCallback(async (email: Email) => {
@@ -420,7 +440,7 @@ const DraftPage = () => {
               </div>
 
               <div className="flex items-center">
-                <button className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white">
+                <button onClick={() => setIsSearchOpen(true)} className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white" title="Search">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
                     <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
                   </svg>
@@ -452,7 +472,7 @@ const DraftPage = () => {
               </div>
 
               <div className="flex items-center gap-1 pb-4">
-                <button className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white">
+                <button onClick={() => setIsSearchOpen(true)} className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white" title="Search">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
                     <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
                   </svg>
@@ -623,6 +643,13 @@ const DraftPage = () => {
             onUndo={handleEmailUndone}
           />
         )}
+
+        {/* Search Modal */}
+        <SearchModal
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          userEmail={currentUser?.email || ''}
+        />
       </div>
     </>
   );

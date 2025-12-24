@@ -21,6 +21,7 @@ import {
   ReplyModal,
   ForwardModal,
 } from "@/components/inbox";
+import { SearchModal } from "@/components/search";
 import { UndoEmailData } from "@/components/inbox/ComposeModal";
 import { useThreads } from "@/hooks/useThreads";
 import { 
@@ -76,6 +77,9 @@ const InboxPage = () => {
 
   // Compose modal state
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+
+  // Search modal state
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // Email send undo toast state
   const [emailUndoToast, setEmailUndoToast] = useState<{
@@ -793,7 +797,14 @@ const InboxPage = () => {
       if (target.closest('[role="dialog"]') || target.closest('.compose-modal') || target.closest('[data-modal]')) return;
       
       // Don't trigger if any modal is open (state check as backup)
-      if (isComposeOpen || isReplyOpen || isForwardOpen) return;
+      if (isComposeOpen || isReplyOpen || isForwardOpen || isSearchOpen) return;
+      
+      // "/" key to open search
+      if (e.key === '/' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setIsSearchOpen(true);
+        return;
+      }
       
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
@@ -831,7 +842,7 @@ const InboxPage = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [checkedThreads, currentThreads, isComposeOpen, isReplyOpen, isForwardOpen, handleBatchMarkAsRead, handleBatchMarkAsUnread, handleBatchMarkAsDone, handleBatchDelete]);
+  }, [checkedThreads, currentThreads, isComposeOpen, isReplyOpen, isForwardOpen, isSearchOpen, handleBatchMarkAsRead, handleBatchMarkAsUnread, handleBatchMarkAsDone, handleBatchDelete]);
 
   // v4.0: Keyboard shortcuts for Reply/Reply All/Forward (when viewing thread)
   useEffect(() => {
@@ -1067,7 +1078,7 @@ const InboxPage = () => {
                 />
               </div>
               <div className="flex items-center">
-                <button className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white">
+                <button onClick={() => setIsSearchOpen(true)} className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white" title="Search">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
                     <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
                   </svg>
@@ -1104,7 +1115,7 @@ const InboxPage = () => {
                 />
               </div>
               <div className="flex items-center gap-1 pb-4">
-                <button className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white">
+                <button onClick={() => setIsSearchOpen(true)} className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white" title="Search">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
                     <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
                   </svg>
@@ -1530,6 +1541,13 @@ const InboxPage = () => {
             onUndo={handleEmailUndone}
           />
         )}
+        
+        {/* Search Modal */}
+        <SearchModal
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          userEmail={currentUser?.email || ''}
+        />
         
       </div>
     </>
