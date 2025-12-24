@@ -1,6 +1,7 @@
 // SearchEmailCard.tsx - Email card for search results detail view
-// Matches ThreadDetail EmailCard design exactly
+// Matches ThreadDetail EmailCard design exactly - uses iframe for HTML
 
+import { useRef, useEffect, useState } from 'react';
 import { Reply, Forward, Paperclip, Download } from 'lucide-react';
 
 export interface SearchEmailData {
@@ -44,7 +45,8 @@ function formatCardDate(dateStr: string): string {
     return date.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric',
-      year: 'numeric',
+      year: 'numeric'
+    }) + ', ' + date.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit'
     });
@@ -63,8 +65,94 @@ function formatFileSize(bytes?: number): string {
 }
 
 export function SearchEmailCard({ email, onReply, onForward }: SearchEmailCardProps) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [iframeHeight, setIframeHeight] = useState<number>(100);
+  
   const displayName = email.sender || email.sender_email || 'Unknown';
   const hasAttachments = email.has_attachment || (email.attachments && email.attachments.length > 0);
+  
+  // Check if body contains actual HTML tags
+  const isHtml = email.body_html && /<[a-z][\s\S]*>/i.test(email.body_html);
+  const bodyContent = email.body_html || email.body_text || email.snippet;
+  
+  // HTML content for iframe (like ThreadDetail)
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          * { box-sizing: border-box; -ms-overflow-style: none; scrollbar-width: none; }
+          *::-webkit-scrollbar { display: none; }
+          html, body {
+            margin: 0;
+            padding: 0;
+            height: auto !important;
+            overflow-x: hidden;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #1a1a1a;
+            background: transparent;
+            padding: 0;
+          }
+          img { max-width: 100%; height: auto; }
+          a { color: #2563eb; }
+          pre { white-space: pre-wrap; word-wrap: break-word; }
+          table { max-width: 100%; }
+        </style>
+      </head>
+      <body>${bodyContent}</body>
+      <script>
+        function sendHeight() {
+          const height = document.body.scrollHeight;
+          window.parent.postMessage({ type: 'searchEmailHeight', height: height }, '*');
+        }
+        window.addEventListener('load', sendHeight);
+        setTimeout(sendHeight, 100);
+        setTimeout(sendHeight, 500);
+      </script>
+    </html>
+  `;
+
+  // Adjust iframe height based on content
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !isHtml) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'searchEmailHeight' && event.data.height > 0) {
+        setIframeHeight(event.data.height + 10);
+      }
+    };
+
+    const updateHeight = () => {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (doc && doc.body) {
+          const height = doc.body.scrollHeight;
+          if (height > 0) setIframeHeight(height + 10);
+        }
+      } catch {
+        // Cross-origin error
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    iframe.addEventListener('load', updateHeight);
+    const t1 = setTimeout(updateHeight, 100);
+    const t2 = setTimeout(updateHeight, 500);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      iframe.removeEventListener('load', updateHeight);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [bodyContent, isHtml]);
 
   return (
     <div className="group bg-white rounded-lg shadow-sm">
@@ -116,25 +204,19 @@ export function SearchEmailCard({ email, onReply, onForward }: SearchEmailCardPr
       
       {/* Card Body - Email Content */}
       <div className="px-5 py-4">
-        {email.body_html ? (
-          <div 
-            className="prose prose-sm max-w-none
-              prose-p:text-gray-700 prose-p:my-2 prose-p:leading-relaxed
-              prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
-              prose-strong:text-gray-900
-              prose-headings:text-gray-900
-              prose-li:text-gray-700
-              prose-img:rounded-lg prose-img:max-w-full
-              prose-blockquote:border-gray-300 prose-blockquote:text-gray-600
-              [&_table]:text-gray-700 [&_td]:p-2 [&_th]:p-2"
-            dangerouslySetInnerHTML={{ __html: email.body_html }}
+        {isHtml ? (
+          <iframe
+            ref={iframeRef}
+            srcDoc={htmlContent}
+            sandbox="allow-same-origin"
+            className="w-full border-0 transition-[height] duration-200 ease-out"
+            style={{ height: `${iframeHeight}px`, background: 'transparent' }}
+            title="Email content"
           />
-        ) : email.body_text ? (
-          <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-            {email.body_text}
-          </div>
         ) : (
-          <p className="text-gray-600 text-sm">{email.snippet}</p>
+          <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+            {email.body_text || email.snippet}
+          </div>
         )}
       </div>
       

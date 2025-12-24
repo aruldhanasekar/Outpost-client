@@ -11,6 +11,7 @@ import { SearchEmailCard, SearchEmailData } from './SearchEmailCard';
 import { ReplyModal, ForwardModal, Email } from '@/components/inbox';
 import { UndoEmailData } from '@/components/inbox/ComposeModal';
 import { EmailSendUndoToast } from '@/components/ui/EmailSendUndoToast';
+import { AttachedFile } from '@/components/inbox/TiptapEditor';
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
@@ -185,7 +186,8 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [replyEmail, setReplyEmail] = useState<Email | null>(null);
   const [forwardEmail, setForwardEmail] = useState<Email | null>(null);
   
-  // Undo toast state (like Inbox)
+  // Undo state (like Inbox)
+  const [undoComposeData, setUndoComposeData] = useState<UndoEmailData | null>(null);
   const [emailUndoToast, setEmailUndoToast] = useState<{
     show: boolean;
     emailId: string;
@@ -309,7 +311,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     setIsForwardOpen(true);
   }, [selectedEmail]);
   
-  // Email sent handler - show undo toast
+  // Email sent handler - show undo toast (like Inbox)
   const handleEmailSent = useCallback((emailId: string, recipients: string[], emailData: UndoEmailData) => {
     console.log('📧 Email queued, showing undo toast:', emailId);
     setEmailUndoToast({
@@ -320,21 +322,35 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     });
   }, []);
   
-  // Undo handler - restore email data to modal
+  // Called when user successfully undoes the email - store data (like Inbox)
   const handleEmailUndone = useCallback(() => {
-    console.log('↩️ Email cancelled, restoring data');
+    console.log('↩️ Email cancelled, storing data for modal');
+    
     const emailData = emailUndoToast?.emailData;
     if (!emailData) return;
     
-    // Restore to appropriate modal
+    // Store undo data - useEffect below will open the appropriate modal
+    setUndoComposeData(emailData);
+    
+    // Also set up reply/forward state if needed (so modal has originalEmail)
     if (emailData.type === 'reply' && emailData.originalEmail) {
       setReplyEmail(emailData.originalEmail as Email);
-      setIsReplyOpen(true);
     } else if (emailData.type === 'forward' && emailData.originalEmail) {
       setForwardEmail(emailData.originalEmail as Email);
-      setIsForwardOpen(true);
     }
   }, [emailUndoToast]);
+  
+  // Open modal AFTER undoComposeData is set (fixes timing issue - like Inbox)
+  useEffect(() => {
+    if (undoComposeData) {
+      console.log('📧 Opening modal with undo data, type:', undoComposeData.type);
+      if (undoComposeData.type === 'reply') {
+        setIsReplyOpen(true);
+      } else if (undoComposeData.type === 'forward') {
+        setIsForwardOpen(true);
+      }
+    }
+  }, [undoComposeData]);
   
   // Close undo toast
   const handleCloseEmailUndoToast = useCallback(() => {
@@ -375,14 +391,13 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       setSelectedIndex(0);
       setSelectedEmail(null);
       setIsExpanded(false);
-      // Don't reset emails cache - keep for instant search on reopen
+      setUndoComposeData(null);
     }
   }, [isOpen]);
   
   // Reset fetch flag when modal closes completely
   useEffect(() => {
     if (!isOpen) {
-      // Reset after a delay to allow for quick reopen
       const timer = setTimeout(() => {
         hasFetchedRef.current = false;
       }, 60000); // Refresh cache after 1 minute
@@ -615,34 +630,48 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       {/* Reply Modal */}
       {isReplyOpen && replyEmail && (
         <ReplyModal
+          key={undoComposeData?.type === 'reply' ? 'undo' : 'normal'}
           isOpen={isReplyOpen}
           onClose={() => {
             setIsReplyOpen(false);
             setReplyEmail(null);
+            setUndoComposeData(null);
           }}
           mode="reply"
           originalEmail={replyEmail}
-          threadId={selectedEmail?.thread_id || ''}
+          threadId={selectedEmail?.thread_id || undoComposeData?.threadId || ''}
           threadSubject={selectedEmail?.subject || ''}
-          messageId={replyEmail.message_id}
+          messageId={replyEmail.message_id || undoComposeData?.messageId}
           userEmail={currentUser?.email || ''}
           onEmailSent={handleEmailSent}
+          // Undo restore: pass initial values if available
+          initialTo={undoComposeData?.type === 'reply' ? undoComposeData.to : undefined}
+          initialCc={undoComposeData?.type === 'reply' ? undoComposeData.cc : undefined}
+          initialBody={undoComposeData?.type === 'reply' ? undoComposeData.body_html : undefined}
+          initialAttachments={undoComposeData?.type === 'reply' ? undoComposeData.attachments as AttachedFile[] : undefined}
         />
       )}
       
       {/* Forward Modal */}
       {isForwardOpen && forwardEmail && (
         <ForwardModal
+          key={undoComposeData?.type === 'forward' ? 'undo' : 'normal'}
           isOpen={isForwardOpen}
           onClose={() => {
             setIsForwardOpen(false);
             setForwardEmail(null);
+            setUndoComposeData(null);
           }}
           originalEmail={forwardEmail}
-          threadId={selectedEmail?.thread_id || ''}
+          threadId={selectedEmail?.thread_id || undoComposeData?.threadId || ''}
           threadSubject={selectedEmail?.subject || ''}
           userEmail={currentUser?.email || ''}
           onEmailSent={handleEmailSent}
+          // Undo restore: pass initial values if available
+          initialTo={undoComposeData?.type === 'forward' ? undoComposeData.to : undefined}
+          initialCc={undoComposeData?.type === 'forward' ? undoComposeData.cc : undefined}
+          initialBody={undoComposeData?.type === 'forward' ? undoComposeData.body_html : undefined}
+          initialAttachments={undoComposeData?.type === 'forward' ? undoComposeData.attachments as AttachedFile[] : undefined}
         />
       )}
       
