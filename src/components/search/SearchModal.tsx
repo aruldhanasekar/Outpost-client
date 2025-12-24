@@ -8,6 +8,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { SearchableEmail } from './types';
 import { SearchEmailCard, SearchEmailData } from './SearchEmailCard';
+import { MobileSearchEmailCard, MobileSearchEmailData } from './MobileSearchEmailCard';
 import { ReplyModal, ForwardModal, Email } from '@/components/inbox';
 import { UndoEmailData } from '@/components/inbox/ComposeModal';
 import { EmailSendUndoToast } from '@/components/ui/EmailSendUndoToast';
@@ -194,6 +195,18 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     recipients: string[];
     emailData: UndoEmailData;
   } | null>(null);
+  
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   // Pre-fetch emails when modal opens (for instant search)
   useEffect(() => {
@@ -434,7 +447,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
         
         {/* Modal */}
         <div className={`relative bg-zinc-900 rounded-xl shadow-2xl border border-zinc-700/50 overflow-hidden flex flex-col transition-all duration-200 ${
-          showDetailPanel 
+          showDetailPanel && !isMobile
             ? isExpanded 
               ? 'w-full h-full max-w-none rounded-none' 
               : 'w-full max-w-6xl h-[80vh]'
@@ -460,11 +473,11 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           </div>
           
           {/* Content Area */}
-          <div className={`flex flex-1 min-h-0 ${showDetailPanel ? 'divide-x divide-zinc-700/50' : ''}`}>
+          <div className={`flex flex-1 min-h-0 ${showDetailPanel && !isMobile ? 'divide-x divide-zinc-700/50' : ''}`}>
             
             {/* Left Panel - Results List */}
             <div className={`flex flex-col min-h-0 ${
-              showDetailPanel 
+              showDetailPanel && !isMobile
                 ? isExpanded ? 'w-[280px]' : 'w-[320px]' 
                 : 'w-full'
             }`}>
@@ -554,7 +567,8 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
             </div>
             
             {/* Right Panel - Email Detail */}
-            {showDetailPanel && (
+            {/* Right Panel - Email Detail (Desktop only) */}
+            {showDetailPanel && !isMobile && (
               <div className="flex-1 flex flex-col min-h-0 bg-[#1a1a1a]">
                 {/* Detail Header Bar */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700/50 bg-zinc-900/50 flex-shrink-0">
@@ -626,6 +640,16 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           </div>
         </div>
       </div>
+      
+      {/* Mobile Email Card - Fullscreen overlay on mobile */}
+      {isMobile && selectedEmail && !detailLoading && (
+        <MobileSearchEmailCard
+          email={selectedEmail as MobileSearchEmailData}
+          onClose={() => setSelectedEmail(null)}
+          onReply={handleReply}
+          onForward={handleForward}
+        />
+      )}
       
       {/* Reply Modal */}
       {isReplyOpen && replyEmail && (
