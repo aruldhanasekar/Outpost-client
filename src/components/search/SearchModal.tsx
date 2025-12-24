@@ -9,6 +9,8 @@ import { useAuth } from '@/context/AuthContext';
 import { SearchableEmail } from './types';
 import { SearchEmailCard, SearchEmailData } from './SearchEmailCard';
 import { ReplyModal, ForwardModal, Email } from '@/components/inbox';
+import { UndoEmailData } from '@/components/inbox/ComposeModal';
+import { EmailSendUndoToast } from '@/components/ui/EmailSendUndoToast';
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
@@ -183,9 +185,17 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [replyEmail, setReplyEmail] = useState<Email | null>(null);
   const [forwardEmail, setForwardEmail] = useState<Email | null>(null);
   
-  // Fetch emails when user starts typing
+  // Undo toast state (like Inbox)
+  const [emailUndoToast, setEmailUndoToast] = useState<{
+    show: boolean;
+    emailId: string;
+    recipients: string[];
+    emailData: UndoEmailData;
+  } | null>(null);
+  
+  // Pre-fetch emails when modal opens (for instant search)
   useEffect(() => {
-    if (!isOpen || !currentUser || hasFetchedRef.current || !query.trim()) return;
+    if (!isOpen || !currentUser || hasFetchedRef.current) return;
     
     const fetchEmails = async () => {
       setLoading(true);
@@ -211,7 +221,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     };
     
     fetchEmails();
-  }, [isOpen, currentUser, query]);
+  }, [isOpen, currentUser]);
   
   // Focus input when modal opens
   useEffect(() => {
@@ -220,7 +230,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     }
   }, [isOpen]);
   
-  // Filter results instantly
+  // Filter results instantly (no API call, just filter cached emails)
   const results = useMemo(() => {
     if (!query.trim()) return [];
     const { operators, keywords } = parseQuery(query);
@@ -299,6 +309,38 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     setIsForwardOpen(true);
   }, [selectedEmail]);
   
+  // Email sent handler - show undo toast
+  const handleEmailSent = useCallback((emailId: string, recipients: string[], emailData: UndoEmailData) => {
+    console.log('📧 Email queued, showing undo toast:', emailId);
+    setEmailUndoToast({
+      show: true,
+      emailId,
+      recipients,
+      emailData
+    });
+  }, []);
+  
+  // Undo handler - restore email data to modal
+  const handleEmailUndone = useCallback(() => {
+    console.log('↩️ Email cancelled, restoring data');
+    const emailData = emailUndoToast?.emailData;
+    if (!emailData) return;
+    
+    // Restore to appropriate modal
+    if (emailData.type === 'reply' && emailData.originalEmail) {
+      setReplyEmail(emailData.originalEmail as Email);
+      setIsReplyOpen(true);
+    } else if (emailData.type === 'forward' && emailData.originalEmail) {
+      setForwardEmail(emailData.originalEmail as Email);
+      setIsForwardOpen(true);
+    }
+  }, [emailUndoToast]);
+  
+  // Close undo toast
+  const handleCloseEmailUndoToast = useCallback(() => {
+    setEmailUndoToast(null);
+  }, []);
+  
   // Keyboard navigation
   useEffect(() => {
     if (!isOpen || isReplyOpen || isForwardOpen) return;
@@ -333,6 +375,18 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       setSelectedIndex(0);
       setSelectedEmail(null);
       setIsExpanded(false);
+      // Don't reset emails cache - keep for instant search on reopen
+    }
+  }, [isOpen]);
+  
+  // Reset fetch flag when modal closes completely
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset after a delay to allow for quick reopen
+      const timer = setTimeout(() => {
+        hasFetchedRef.current = false;
+      }, 60000); // Refresh cache after 1 minute
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
   
@@ -380,10 +434,11 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search emails... (from:name, subject:text, has:attachment)"
+              placeholder={loading ? "Loading emails..." : "Search emails... (from:name, subject:text, has:attachment)"}
               className="flex-1 bg-transparent text-white placeholder-zinc-500 outline-none text-base"
               autoComplete="off"
               spellCheck={false}
+              disabled={loading}
             />
             <button onClick={onClose} className="p-1.5 hover:bg-zinc-700/50 rounded">
               <X className="w-5 h-5 text-zinc-400" />
@@ -403,21 +458,22 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 className="search-scroll flex-1 overflow-y-auto"
                 style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}
               >
-                {!query.trim() ? (
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-5 h-5 text-[#8FA8A3] animate-spin" />
+                    <span className="ml-3 text-zinc-400">Loading emails...</span>
+                  </div>
+                ) : error ? (
+                  <div className="py-8 text-center text-red-400">{error}</div>
+                ) : !query.trim() ? (
                   <div className="py-8 px-4 text-center text-zinc-500">
                     <p className="mb-3">Start typing to search</p>
                     <div className="text-xs space-y-1 text-zinc-600">
                       <p><span className="text-zinc-500">from:</span>sender • <span className="text-zinc-500">subject:</span>text</p>
                       <p><span className="text-zinc-500">has:</span>attachment • <span className="text-zinc-500">in:</span>inbox/sent</p>
                     </div>
+                    <p className="mt-4 text-xs text-zinc-600">{emails.length} emails loaded</p>
                   </div>
-                ) : loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-5 h-5 text-[#8FA8A3] animate-spin" />
-                    <span className="ml-3 text-zinc-400">Loading...</span>
-                  </div>
-                ) : error ? (
-                  <div className="py-8 text-center text-red-400">{error}</div>
                 ) : results.length === 0 ? (
                   <div className="py-12 text-center text-zinc-500">
                     No emails found for "{query}"
@@ -577,6 +633,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           threadSubject={selectedEmail?.subject || ''}
           messageId={replyEmail.message_id}
           userEmail={currentUser?.email || ''}
+          onEmailSent={handleEmailSent}
         />
       )}
       
@@ -592,6 +649,17 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           threadId={selectedEmail?.thread_id || ''}
           threadSubject={selectedEmail?.subject || ''}
           userEmail={currentUser?.email || ''}
+          onEmailSent={handleEmailSent}
+        />
+      )}
+      
+      {/* Email Send Undo Toast */}
+      {emailUndoToast && emailUndoToast.show && (
+        <EmailSendUndoToast
+          emailId={emailUndoToast.emailId}
+          recipients={emailUndoToast.recipients}
+          onClose={handleCloseEmailUndoToast}
+          onUndo={handleEmailUndone}
         />
       )}
     </>
