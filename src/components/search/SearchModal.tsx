@@ -434,11 +434,10 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={loading ? "Loading emails..." : "Search emails... (from:name, subject:text, has:attachment)"}
+              placeholder="Search emails... (from:name, subject:text, has:attachment)"
               className="flex-1 bg-transparent text-white placeholder-zinc-500 outline-none text-base"
               autoComplete="off"
               spellCheck={false}
-              disabled={loading}
             />
             <button onClick={onClose} className="p-1.5 hover:bg-zinc-700/50 rounded">
               <X className="w-5 h-5 text-zinc-400" />
@@ -458,12 +457,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 className="search-scroll flex-1 overflow-y-auto"
                 style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}
               >
-                {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-5 h-5 text-[#8FA8A3] animate-spin" />
-                    <span className="ml-3 text-zinc-400">Loading emails...</span>
-                  </div>
-                ) : error ? (
+                {error ? (
                   <div className="py-8 text-center text-red-400">{error}</div>
                 ) : !query.trim() ? (
                   <div className="py-8 px-4 text-center text-zinc-500">
@@ -472,11 +466,10 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       <p><span className="text-zinc-500">from:</span>sender • <span className="text-zinc-500">subject:</span>text</p>
                       <p><span className="text-zinc-500">has:</span>attachment • <span className="text-zinc-500">in:</span>inbox/sent</p>
                     </div>
-                    <p className="mt-4 text-xs text-zinc-600">{emails.length} emails loaded</p>
                   </div>
                 ) : results.length === 0 ? (
                   <div className="py-12 text-center text-zinc-500">
-                    No emails found for "{query}"
+                    {loading ? 'Searching...' : `No emails found for "${query}"`}
                   </div>
                 ) : (
                   <div className="divide-y divide-zinc-800">
