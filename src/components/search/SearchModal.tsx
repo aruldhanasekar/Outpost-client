@@ -1,446 +1,354 @@
-// SearchModal.tsx - AI-powered email search modal
-// Features:
-// - Natural language search + Gmail-style operators
-// - Draggable modal (like ComposeModal)
-// - Expandable view (like ThreadDetail expanded overlay)
-// - Two-panel layout: Results list + Email detail
-// - Keyboard shortcut: "/" to open, Enter to search, Esc to close
+// SearchModal.tsx - Search modal with instant results as user types
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Loader2, GripHorizontal, Search, AlertCircle } from 'lucide-react';
-import { SearchInput } from './SearchInput';
-import { SearchResultList } from './SearchResultList';
-import { SearchEmailDetail } from './SearchEmailDetail';
-import { SearchOperatorsHelp } from './SearchOperatorsHelp';
-import { searchEmails, SearchResult } from '@/services/searchApi';
-import { auth } from '@/firebase.config';
+import { useEffect, useRef, useState, useMemo } from 'react';
+import { X, Search, Paperclip, Mail, Send, Archive, Trash2, Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { SearchableEmail } from './types';
 
-// Expand icon SVG component
-const ExpandIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
-    <path d="M408 64L552 64C565.3 64 576 74.7 576 88L576 232C576 241.7 570.2 250.5 561.2 254.2C552.2 257.9 541.9 255.9 535 249L496 210L409 297C399.6 306.4 384.4 306.4 375.1 297L343.1 265C333.7 255.6 333.7 240.4 343.1 231.1L430.1 144.1L391.1 105.1C384.2 98.2 382.2 87.9 385.9 78.9C389.6 69.9 398.3 64 408 64zM232 576L88 576C74.7 576 64 565.3 64 552L64 408C64 398.3 69.8 389.5 78.8 385.8C87.8 382.1 98.1 384.2 105 391L144 430L231 343C240.4 333.6 255.6 333.6 264.9 343L296.9 375C306.3 384.4 306.3 399.6 296.9 408.9L209.9 495.9L248.9 534.9C255.8 541.8 257.8 552.1 254.1 561.1C250.4 570.1 241.7 576 232 576z"/>
-  </svg>
-);
-
-// Minimize icon SVG component
-const MinimizeIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
-    <path d="M503.5 71C512.9 61.6 528.1 61.6 537.4 71L569.4 103C578.8 112.4 578.8 127.6 569.4 136.9L482.4 223.9L521.4 262.9C528.3 269.8 530.3 280.1 526.6 289.1C522.9 298.1 514.2 304 504.5 304L360.5 304C347.2 304 336.5 293.3 336.5 280L336.5 136C336.5 126.3 342.3 117.5 351.3 113.8C360.3 110.1 370.6 112.1 377.5 119L416.5 158L503.5 71zM136.5 336L280.5 336C293.8 336 304.5 346.7 304.5 360L304.5 504C304.5 513.7 298.7 522.5 289.7 526.2C280.7 529.9 270.4 527.9 263.5 521L224.5 482L137.5 569C128.1 578.4 112.9 578.4 103.6 569L71.6 537C62.2 527.6 62.2 512.4 71.6 503.1L158.6 416.1L119.6 377.1C112.7 370.2 110.7 359.9 114.4 350.9C118.1 341.9 126.8 336 136.5 336z"/>
-  </svg>
-);
-
-interface Position {
-  x: number;
-  y: number;
-}
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  userEmail: string;
+  onEmailSelect?: (email: SearchableEmail) => void;
+  userEmail?: string; // Optional, for compatibility
 }
 
-export function SearchModal({ isOpen, onClose, userEmail }: SearchModalProps) {
-  // Search state
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
+// Parse search query into operators and keywords
+function parseQuery(query: string) {
+  const operators: { type: string; value: string }[] = [];
+  let keywords: string[] = [];
   
-  // Selected email for detail view
-  const [selectedEmail, setSelectedEmail] = useState<SearchResult | null>(null);
+  const operatorRegex = /(from|to|subject|has|in|is|category):(\S+)/gi;
+  let remaining = query;
+  let match;
   
-  // UI state
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [showOperatorsHelp, setShowOperatorsHelp] = useState(false);
+  while ((match = operatorRegex.exec(query)) !== null) {
+    operators.push({ 
+      type: match[1].toLowerCase(), 
+      value: match[2].toLowerCase() 
+    });
+    remaining = remaining.replace(match[0], '');
+  }
   
-  // Drag state
-  const [position, setPosition] = useState<Position | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
-  const modalRef = useRef<HTMLDivElement>(null);
+  // Extract quoted phrases
+  const quotedRegex = /"([^"]+)"/g;
+  while ((match = quotedRegex.exec(remaining)) !== null) {
+    keywords.push(match[1].toLowerCase());
+    remaining = remaining.replace(match[0], '');
+  }
   
-  // Input ref for focus
-  const inputRef = useRef<HTMLInputElement>(null);
+  // Remaining words
+  const words = remaining.trim().split(/\s+/).filter(w => w.length > 0);
+  keywords = [...keywords, ...words.map(w => w.toLowerCase())];
+  
+  return { operators, keywords };
+}
 
-  // Reset state when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      setQuery('');
-      setResults([]);
-      setError(null);
-      setHasSearched(false);
-      setSelectedEmail(null);
-      setIsExpanded(false);
-      setPosition(null);
-      setShowOperatorsHelp(false);
+// Check if email matches query
+function matchesQuery(email: SearchableEmail, operators: { type: string; value: string }[], keywords: string[]): boolean {
+  // Check operators
+  for (const op of operators) {
+    switch (op.type) {
+      case 'from':
+        if (!email.sender.toLowerCase().includes(op.value) && 
+            !email.sender_email.toLowerCase().includes(op.value)) {
+          return false;
+        }
+        break;
+      case 'to': {
+        const toMatch = email.recipients.some(r => r.toLowerCase().includes(op.value));
+        if (!toMatch) return false;
+        break;
+      }
+      case 'subject':
+        if (!email.subject.toLowerCase().includes(op.value)) return false;
+        break;
+      case 'has':
+        if (op.value === 'attachment' && !email.has_attachment) return false;
+        break;
+      case 'in':
+        if (email.source !== op.value) return false;
+        break;
+      case 'is':
+        if (op.value === 'unread' && email.is_read) return false;
+        if (op.value === 'read' && !email.is_read) return false;
+        break;
+      case 'category':
+        if (email.category.toLowerCase() !== op.value) return false;
+        break;
     }
-  }, [isOpen]);
+  }
+  
+  // Check keywords
+  for (const keyword of keywords) {
+    const searchable = `${email.subject} ${email.sender} ${email.sender_email} ${email.snippet}`.toLowerCase();
+    if (!searchable.includes(keyword)) return false;
+  }
+  
+  return true;
+}
 
+// Format date
+function formatDate(dateStr: string): string {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (days === 0) return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return date.toLocaleDateString('en-US', { weekday: 'short' });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
+// Source icon
+function SourceIcon({ source }: { source: string }) {
+  const className = "w-3.5 h-3.5";
+  switch (source) {
+    case 'sent': return <Send className={className} />;
+    case 'done': return <Archive className={className} />;
+    case 'trash': return <Trash2 className={className} />;
+    default: return <Mail className={className} />;
+  }
+}
+
+export function SearchModal({ isOpen, onClose, onEmailSelect }: SearchModalProps) {
+  const { currentUser } = useAuth();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const hasFetchedRef = useRef(false);
+  
+  const [emails, setEmails] = useState<SearchableEmail[]>([]);
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  
+  // Fetch emails when modal opens
+  useEffect(() => {
+    if (!isOpen || !currentUser || hasFetchedRef.current) return;
+    
+    const fetchEmails = async () => {
+      setLoading(true);
+      setError(null);
+      hasFetchedRef.current = true;
+      
+      try {
+        const token = await currentUser.getIdToken();
+        const response = await fetch(`${API_URL}/api/emails/searchable?limit=300`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        
+        if (!response.ok) throw new Error('Failed to fetch');
+        
+        const data = await response.json();
+        setEmails(data.emails || []);
+      } catch (err) {
+        setError('Failed to load emails');
+        hasFetchedRef.current = false; // Allow retry on error
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchEmails();
+  }, [isOpen, currentUser]);
+  
   // Focus input when modal opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
-
-  // Handle keyboard shortcuts
+  
+  // Filter results instantly
+  const results = useMemo(() => {
+    if (!query.trim()) return [];
+    const { operators, keywords } = parseQuery(query);
+    if (operators.length === 0 && keywords.length === 0) return [];
+    return emails.filter(email => matchesQuery(email, operators, keywords));
+  }, [emails, query]);
+  
+  // Reset selection when results change
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [results]);
+  
+  // Keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
-
+    
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle if typing in input (except for Escape and Enter)
-      const isInInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
-      
-      // Escape to close
       if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        if (showOperatorsHelp) {
-          setShowOperatorsHelp(false);
-        } else if (selectedEmail) {
-          setSelectedEmail(null);
-        } else {
-          onClose();
-        }
-        return;
-      }
-      
-      // Enter to search (only in input)
-      if (e.key === 'Enter' && isInInput && query.trim()) {
+        setSelectedIndex(prev => Math.min(prev + 1, Math.min(results.length - 1, 19)));
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        handleSearch();
-        return;
+        setSelectedIndex(prev => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter' && results[selectedIndex]) {
+        e.preventDefault();
+        onEmailSelect?.(results[selectedIndex]);
       }
     };
-
+    
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, query, showOperatorsHelp, selectedEmail, onClose]);
-
-  // Handle drag start
-  const handleDragStart = (e: React.MouseEvent) => {
-    if (isExpanded) return; // Don't allow dragging in expanded mode
-    if (!modalRef.current) return;
-    
-    const rect = modalRef.current.getBoundingClientRect();
-    setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    });
-    setIsDragging(true);
-  };
-
-  // Handle drag move
+  }, [isOpen, results, selectedIndex, onClose, onEmailSelect]);
+  
+  // Reset on close
   useEffect(() => {
-    if (!isDragging) return;
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      const newX = e.clientX - dragOffset.x;
-      const newY = e.clientY - dragOffset.y;
-      
-      const maxX = window.innerWidth - (modalRef.current?.offsetWidth || 900);
-      const maxY = window.innerHeight - (modalRef.current?.offsetHeight || 600) - 48;
-      
-      setPosition({
-        x: Math.max(0, Math.min(newX, maxX)),
-        y: Math.max(0, Math.min(newY, maxY))
-      });
-    };
-    
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-    
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, dragOffset]);
-
-  // Search handler
-  const handleSearch = useCallback(async () => {
-    if (!query.trim()) return;
-    
-    setIsSearching(true);
-    setError(null);
-    setHasSearched(true);
-    setSelectedEmail(null);
-    
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) {
-        throw new Error('Not authenticated');
-      }
-      
-      const searchResults = await searchEmails(query, token);
-      setResults(searchResults);
-      
-      // Auto-select first result if available
-      if (searchResults.length > 0) {
-        setSelectedEmail(searchResults[0]);
-      }
-    } catch (err) {
-      console.error('Search error:', err);
-      setError(err instanceof Error ? err.message : 'Search failed');
-      setResults([]);
-    } finally {
-      setIsSearching(false);
+    if (!isOpen) {
+      setQuery('');
+      setSelectedIndex(0);
     }
-  }, [query]);
-
-  // Toggle expand
-  const handleToggleExpand = useCallback(() => {
-    setIsExpanded(prev => !prev);
-    if (!isExpanded) {
-      setPosition(null); // Reset position when expanding
-    }
-  }, [isExpanded]);
-
+  }, [isOpen]);
+  
   if (!isOpen) return null;
-
-  // Expanded overlay mode
-  if (isExpanded) {
-    return (
-      <>
-        {/* Backdrop */}
-        <div 
-          className="fixed inset-0 bg-black/60 z-50"
-          onClick={onClose}
-        />
-        
-        {/* Expanded Modal */}
-        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none p-8">
-          <div 
-            ref={modalRef}
-            className="pointer-events-auto flex flex-col bg-[#2d2d2d] rounded-2xl shadow-2xl overflow-hidden"
-            style={{ width: '90%', maxWidth: '1400px', height: '90vh' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-700/50">
-              <div className="flex items-center gap-3">
-                <Search className="w-5 h-5 text-[#8FA8A3]" />
-                <h2 className="text-base font-semibold text-white" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                  AI Search
-                </h2>
-                {hasSearched && (
-                  <span className="text-sm text-zinc-500">
-                    {results.length} result{results.length !== 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={handleToggleExpand}
-                  className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
-                  title="Minimize"
-                >
-                  <MinimizeIcon />
-                </button>
-                <button 
-                  onClick={onClose}
-                  className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
-                  title="Close"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            
-            {/* Search Input */}
-            <div className="px-6 py-4 border-b border-zinc-700/50">
-              <SearchInput
-                ref={inputRef}
-                value={query}
-                onChange={setQuery}
-                onSearch={handleSearch}
-                onShowHelp={() => setShowOperatorsHelp(true)}
-                isSearching={isSearching}
-                placeholder='Search emails... Try "from:john about the invoice" or "has:attachment newer_than:1w"'
-              />
-            </div>
-            
-            {/* Content Area */}
-            <div className="flex-1 flex overflow-hidden">
-              {/* Results List Panel */}
-              <div className="w-[35%] border-r border-zinc-700/50 overflow-hidden flex flex-col">
-                <SearchResultList
-                  results={results}
-                  selectedId={selectedEmail?.id || null}
-                  onSelect={setSelectedEmail}
-                  isSearching={isSearching}
-                  hasSearched={hasSearched}
-                  error={error}
-                />
-              </div>
-              
-              {/* Email Detail Panel */}
-              <div className="flex-1 overflow-hidden flex flex-col bg-[#252525]">
-                <SearchEmailDetail
-                  email={selectedEmail}
-                  userEmail={userEmail}
-                />
-              </div>
-            </div>
-            
-            {/* Footer */}
-            <div className="px-6 py-3 border-t border-zinc-700/50 flex items-center justify-between">
-              <div className="flex items-center gap-4 text-xs text-zinc-500">
-                <span>Searched: Inbox, Sent, Done, Trash</span>
-                <span>•</span>
-                <button 
-                  onClick={() => setShowOperatorsHelp(true)}
-                  className="text-[#8FA8A3] hover:text-[#a3bbb7] transition-colors"
-                >
-                  View search operators
-                </button>
-              </div>
-              <div className="flex items-center gap-4 text-xs text-zinc-500">
-                <span><kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400 font-mono">Enter</kbd> Search</span>
-                <span><kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400 font-mono">Esc</kbd> Close</span>
-              </div>
-            </div>
-          </div>
+  
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      
+      {/* Modal */}
+      <div className="relative w-full max-w-2xl mx-4 bg-zinc-900 rounded-xl shadow-2xl border border-zinc-700/50 overflow-hidden">
+        {/* Search Input */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-700/50">
+          <Search className="w-5 h-5 text-zinc-400 flex-shrink-0" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search emails... (from:name, subject:text, has:attachment)"
+            className="flex-1 bg-transparent text-white placeholder-zinc-500 outline-none text-base"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          {query && (
+            <button onClick={() => setQuery('')} className="p-1 hover:bg-zinc-700/50 rounded">
+              <X className="w-4 h-4 text-zinc-400" />
+            </button>
+          )}
+          <button onClick={onClose} className="p-1.5 hover:bg-zinc-700/50 rounded">
+            <X className="w-5 h-5 text-zinc-400" />
+          </button>
         </div>
         
-        {/* Operators Help Modal */}
-        {showOperatorsHelp && (
-          <SearchOperatorsHelp onClose={() => setShowOperatorsHelp(false)} />
-        )}
-      </>
-    );
-  }
-
-  // Normal modal mode (draggable)
-  return (
-    <>
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/40 z-40"
-        onClick={onClose}
-      />
-      
-      {/* Modal Container */}
-      <div 
-        className={`fixed z-50 pointer-events-none ${position ? '' : 'top-0 left-0 right-0 bottom-12 flex items-center justify-center p-4'}`}
-        style={position ? { top: 0, left: 0, right: 0, bottom: 48 } : undefined}
-      >
-        <div 
-          ref={modalRef}
-          data-modal="search"
-          className={`pointer-events-auto bg-[#2d2d2d] rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-shadow ${isDragging ? 'shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]' : ''}`}
-          style={{ 
-            width: '100%',
-            maxWidth: '900px',
-            height: '600px',
-            maxHeight: '85vh',
-            ...(position ? {
-              position: 'absolute',
-              left: position.x,
-              top: position.y,
-            } : {})
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header - Draggable */}
-          <div 
-            className={`flex items-center justify-between px-5 py-4 border-b border-zinc-700/50 select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-            onMouseDown={handleDragStart}
-          >
-            <div className="flex items-center gap-2">
-              <GripHorizontal className="w-4 h-4 text-zinc-600" />
-              <Search className="w-4 h-4 text-[#8FA8A3]" />
-              <h2 className="text-base font-semibold text-white" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                AI Search
-              </h2>
-              {hasSearched && (
-                <span className="text-sm text-zinc-500 ml-2">
-                  {results.length} result{results.length !== 1 ? 's' : ''}
-                </span>
+        {/* Results */}
+        <div className="max-h-[60vh] overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 text-[#8FA8A3] animate-spin" />
+              <span className="ml-3 text-zinc-400">Loading emails...</span>
+            </div>
+          ) : error ? (
+            <div className="py-8 text-center text-red-400">{error}</div>
+          ) : !query.trim() ? (
+            <div className="py-8 px-4 text-center text-zinc-500">
+              <p className="mb-3">Start typing to search</p>
+              <div className="text-xs space-y-1 text-zinc-600">
+                <p><span className="text-zinc-500">from:</span>sender • <span className="text-zinc-500">to:</span>recipient • <span className="text-zinc-500">subject:</span>text</p>
+                <p><span className="text-zinc-500">has:</span>attachment • <span className="text-zinc-500">in:</span>inbox/sent/done/trash</p>
+                <p><span className="text-zinc-500">is:</span>read/unread • <span className="text-zinc-500">category:</span>urgent/important</p>
+              </div>
+            </div>
+          ) : results.length === 0 ? (
+            <div className="py-12 text-center text-zinc-500">
+              No emails found for "{query}"
+            </div>
+          ) : (
+            <div className="divide-y divide-zinc-800">
+              {results.slice(0, 20).map((email, index) => (
+                <div
+                  key={email.id}
+                  onClick={() => onEmailSelect?.(email)}
+                  className={`px-4 py-3 cursor-pointer transition-colors ${
+                    index === selectedIndex ? 'bg-zinc-800' : 'hover:bg-zinc-800/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Unread indicator */}
+                    <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${
+                      email.is_read ? 'bg-transparent' : 'bg-[#8FA8A3]'
+                    }`} />
+                    
+                    <div className="flex-1 min-w-0">
+                      {/* Sender + Date */}
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <span className={`truncate ${email.is_read ? 'text-zinc-300' : 'text-white font-medium'}`}>
+                          {email.sender || email.sender_email}
+                        </span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {email.has_attachment && <Paperclip className="w-3.5 h-3.5 text-zinc-500" />}
+                          <span className="text-xs text-zinc-500">{formatDate(email.date)}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Subject */}
+                      <div className={`truncate text-sm ${email.is_read ? 'text-zinc-400' : 'text-zinc-200'}`}>
+                        {email.subject || '(no subject)'}
+                      </div>
+                      
+                      {/* Snippet */}
+                      <div className="truncate text-xs text-zinc-500 mt-0.5">
+                        {email.snippet}
+                      </div>
+                      
+                      {/* Tags */}
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${
+                          email.source === 'inbox' ? 'bg-blue-500/10 text-blue-400' :
+                          email.source === 'sent' ? 'bg-green-500/10 text-green-400' :
+                          email.source === 'done' ? 'bg-zinc-500/10 text-zinc-400' :
+                          'bg-red-500/10 text-red-400'
+                        }`}>
+                          <SourceIcon source={email.source} />
+                          {email.source}
+                        </span>
+                        {email.category && email.category !== 'OTHERS' && (
+                          <span className={`px-1.5 py-0.5 rounded text-xs ${
+                            email.category === 'URGENT' ? 'bg-red-500/10 text-red-400' :
+                            email.category === 'IMPORTANT' ? 'bg-orange-500/10 text-orange-400' :
+                            email.category === 'PROMISES' ? 'bg-purple-500/10 text-purple-400' :
+                            email.category === 'AWAITING' ? 'bg-yellow-500/10 text-yellow-400' :
+                            'bg-zinc-500/10 text-zinc-400'
+                          }`}>
+                            {email.category.toLowerCase()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {results.length > 20 && (
+                <div className="py-3 text-center text-sm text-zinc-500">
+                  Showing 20 of {results.length} results
+                </div>
               )}
             </div>
-            <div className="flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
-              <button 
-                onClick={handleToggleExpand}
-                className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
-                title="Expand"
-              >
-                <ExpandIcon />
-              </button>
-              <button 
-                onClick={onClose}
-                className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
-                title="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-          
-          {/* Search Input */}
-          <div className="px-5 py-4 border-b border-zinc-700/50">
-            <SearchInput
-              ref={inputRef}
-              value={query}
-              onChange={setQuery}
-              onSearch={handleSearch}
-              onShowHelp={() => setShowOperatorsHelp(true)}
-              isSearching={isSearching}
-              placeholder='Try "from:john invoice" or "emails about the project deadline"'
-            />
-          </div>
-          
-          {/* Content Area */}
-          <div className="flex-1 flex overflow-hidden">
-            {/* Results List Panel */}
-            <div className={`${selectedEmail ? 'w-[35%] border-r border-zinc-700/50' : 'w-full'} overflow-hidden flex flex-col`}>
-              <SearchResultList
-                results={results}
-                selectedId={selectedEmail?.id || null}
-                onSelect={setSelectedEmail}
-                isSearching={isSearching}
-                hasSearched={hasSearched}
-                error={error}
-              />
-            </div>
-            
-            {/* Email Detail Panel */}
-            {selectedEmail && (
-              <div className="flex-1 overflow-hidden flex flex-col bg-[#252525]">
-                <SearchEmailDetail
-                  email={selectedEmail}
-                  userEmail={userEmail}
-                />
-              </div>
-            )}
-          </div>
-          
-          {/* Footer */}
-          <div className="px-5 py-2.5 border-t border-zinc-700/50 flex items-center justify-between">
-            <button 
-              onClick={() => setShowOperatorsHelp(true)}
-              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-            >
-              Search operators help
-            </button>
-            <div className="flex items-center gap-3 text-xs text-zinc-500">
-              <span><kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400 font-mono">Enter</kbd> Search</span>
-              <span><kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400 font-mono">Esc</kbd> Close</span>
-            </div>
-          </div>
+          )}
+        </div>
+        
+        {/* Footer */}
+        <div className="px-4 py-2 border-t border-zinc-700/50 text-xs text-zinc-500 flex items-center justify-between">
+          <span>{results.length > 0 && `${results.length} result${results.length === 1 ? '' : 's'}`}</span>
+          <span className="flex items-center gap-3">
+            <span><kbd className="px-1.5 py-0.5 bg-zinc-800 rounded">↑↓</kbd> navigate</span>
+            <span><kbd className="px-1.5 py-0.5 bg-zinc-800 rounded">↵</kbd> open</span>
+            <span><kbd className="px-1.5 py-0.5 bg-zinc-800 rounded">esc</kbd> close</span>
+          </span>
         </div>
       </div>
-      
-      {/* Operators Help Modal */}
-      {showOperatorsHelp && (
-        <SearchOperatorsHelp onClose={() => setShowOperatorsHelp(false)} />
-      )}
-    </>
+    </div>
   );
 }
-
-export default SearchModal;
