@@ -552,26 +552,29 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     className="search-scroll flex-1 overflow-y-auto p-6"
                     style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}
                   >
-                    {selectedEmail.body_html ? (
-                      <div 
-                        className="prose prose-invert prose-sm max-w-none
-                          prose-p:text-zinc-300 prose-p:my-2 prose-p:leading-relaxed
-                          prose-a:text-[#8FA8A3] prose-a:no-underline hover:prose-a:underline
-                          prose-strong:text-white
-                          prose-headings:text-white
-                          prose-li:text-zinc-300
-                          prose-img:rounded-lg prose-img:max-w-full
-                          prose-blockquote:border-zinc-600 prose-blockquote:text-zinc-400
-                          [&_table]:text-zinc-300 [&_td]:p-2 [&_th]:p-2"
-                        dangerouslySetInnerHTML={{ __html: selectedEmail.body_html }}
-                      />
-                    ) : selectedEmail.body_text ? (
-                      <pre className="whitespace-pre-wrap text-sm text-zinc-300 font-sans leading-relaxed">
-                        {selectedEmail.body_text}
-                      </pre>
-                    ) : (
-                      <p className="text-zinc-400">{selectedEmail.snippet}</p>
-                    )}
+                    {/* Email content container */}
+                    <div className="bg-white rounded-lg p-6 min-h-[200px]">
+                      {selectedEmail.body_html ? (
+                        <div 
+                          className="prose prose-sm max-w-none
+                            prose-p:text-zinc-700 prose-p:my-2 prose-p:leading-relaxed
+                            prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
+                            prose-strong:text-zinc-900
+                            prose-headings:text-zinc-900
+                            prose-li:text-zinc-700
+                            prose-img:rounded-lg prose-img:max-w-full
+                            prose-blockquote:border-zinc-300 prose-blockquote:text-zinc-600
+                            [&_table]:text-zinc-700 [&_td]:p-2 [&_th]:p-2"
+                          dangerouslySetInnerHTML={{ __html: selectedEmail.body_html }}
+                        />
+                      ) : selectedEmail.body_text ? (
+                        <pre className="whitespace-pre-wrap text-sm text-zinc-700 font-sans leading-relaxed">
+                          {selectedEmail.body_text}
+                        </pre>
+                      ) : (
+                        <p className="text-zinc-600">{selectedEmail.snippet}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
