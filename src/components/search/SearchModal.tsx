@@ -641,8 +641,8 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
         </div>
       </div>
       
-      {/* Mobile Email Card - Fullscreen overlay on mobile (hide when Reply/Forward modal open) */}
-      {isMobile && selectedEmail && !detailLoading && !isReplyOpen && !isForwardOpen && (
+      {/* Mobile Email Card - Fullscreen overlay on mobile */}
+      {isMobile && selectedEmail && !detailLoading && (
         <MobileSearchEmailCard
           email={selectedEmail as MobileSearchEmailData}
           onClose={() => setSelectedEmail(null)}
