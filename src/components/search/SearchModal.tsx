@@ -129,9 +129,9 @@ export function SearchModal({ isOpen, onClose, onEmailSelect }: SearchModalProps
   const [error, setError] = useState<string | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   
-  // Fetch emails when modal opens
+  // Fetch emails when user starts typing (not on modal open)
   useEffect(() => {
-    if (!isOpen || !currentUser || hasFetchedRef.current) return;
+    if (!isOpen || !currentUser || hasFetchedRef.current || !query.trim()) return;
     
     const fetchEmails = async () => {
       setLoading(true);
@@ -157,7 +157,7 @@ export function SearchModal({ isOpen, onClose, onEmailSelect }: SearchModalProps
     };
     
     fetchEmails();
-  }, [isOpen, currentUser]);
+  }, [isOpen, currentUser, query]);
   
   // Focus input when modal opens
   useEffect(() => {
@@ -214,6 +214,22 @@ export function SearchModal({ isOpen, onClose, onEmailSelect }: SearchModalProps
   
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]">
+      {/* Custom scrollbar styles */}
+      <style>{`
+        .search-results-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+        .search-results-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .search-results-scroll::-webkit-scrollbar-thumb {
+          background: #3f3f46;
+          border-radius: 3px;
+        }
+        .search-results-scroll::-webkit-scrollbar-thumb:hover {
+          background: #52525b;
+        }
+      `}</style>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       
@@ -243,15 +259,8 @@ export function SearchModal({ isOpen, onClose, onEmailSelect }: SearchModalProps
         </div>
         
         {/* Results */}
-        <div className="max-h-[60vh] overflow-y-auto">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-5 h-5 text-[#8FA8A3] animate-spin" />
-              <span className="ml-3 text-zinc-400">Loading emails...</span>
-            </div>
-          ) : error ? (
-            <div className="py-8 text-center text-red-400">{error}</div>
-          ) : !query.trim() ? (
+        <div className="search-results-scroll max-h-[60vh] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
+          {!query.trim() ? (
             <div className="py-8 px-4 text-center text-zinc-500">
               <p className="mb-3">Start typing to search</p>
               <div className="text-xs space-y-1 text-zinc-600">
@@ -260,6 +269,13 @@ export function SearchModal({ isOpen, onClose, onEmailSelect }: SearchModalProps
                 <p><span className="text-zinc-500">is:</span>read/unread • <span className="text-zinc-500">category:</span>urgent/important</p>
               </div>
             </div>
+          ) : loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 text-[#8FA8A3] animate-spin" />
+              <span className="ml-3 text-zinc-400">Loading emails...</span>
+            </div>
+          ) : error ? (
+            <div className="py-8 text-center text-red-400">{error}</div>
           ) : results.length === 0 ? (
             <div className="py-12 text-center text-zinc-500">
               No emails found for "{query}"
