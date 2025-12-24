@@ -156,7 +156,7 @@ export function MobileSearchEmailCard({ email, onClose, onReply, onForward }: Mo
   }, [bodyContent, isHtml]);
 
   return (
-    <div className="fixed inset-0 z-[60] bg-[#1a1a1a] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-[#1a1a1a] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-zinc-900 border-b border-zinc-800 flex-shrink-0">
         <button 
