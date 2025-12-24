@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { 
   X, Search, Paperclip, Mail, Send, Archive, Trash2, Loader2,
-  ChevronLeft, Reply, Forward, Clock, User
+  ChevronLeft, ChevronRight, Maximize2, Minimize2
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { SearchableEmail } from './types';
@@ -113,16 +113,16 @@ function formatDate(dateStr: string): string {
   }
 }
 
-// Format full date for detail view
-function formatFullDate(dateStr: string): string {
+// Format full date for detail header
+function formatDetailDate(dateStr: string): string {
   if (!dateStr) return '';
   try {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long', 
+      weekday: 'short',
+      month: 'short', 
       day: 'numeric',
+      year: 'numeric',
       hour: 'numeric',
       minute: '2-digit'
     });
@@ -142,108 +142,6 @@ function SourceIcon({ source }: { source: string }) {
   }
 }
 
-// Email Detail Component
-function EmailDetail({ 
-  email, 
-  loading, 
-  onBack 
-}: { 
-  email: FullEmail | null; 
-  loading: boolean;
-  onBack: () => void;
-}) {
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 text-[#8FA8A3] animate-spin" />
-      </div>
-    );
-  }
-
-  if (!email) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-zinc-500">
-        Select an email to view
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-zinc-700/50">
-        {/* Back button for mobile */}
-        <button 
-          onClick={onBack}
-          className="lg:hidden flex items-center gap-1 text-zinc-400 hover:text-white mb-2"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          <span className="text-sm">Back to results</span>
-        </button>
-        
-        {/* Subject */}
-        <h2 className="text-lg font-medium text-white mb-2">
-          {email.subject || '(no subject)'}
-        </h2>
-        
-        {/* Sender info */}
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0">
-            <User className="w-5 h-5 text-zinc-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-white">{email.sender}</span>
-              <span className="text-zinc-500 text-sm truncate">&lt;{email.sender_email}&gt;</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-zinc-500">
-              <span>to {email.recipients?.join(', ') || 'me'}</span>
-            </div>
-          </div>
-          <div className="flex-shrink-0 text-right">
-            <div className="text-xs text-zinc-500">{formatFullDate(email.date)}</div>
-            <div className="flex items-center gap-1 mt-1">
-              <span className={`px-1.5 py-0.5 rounded text-xs ${
-                email.source === 'inbox' ? 'bg-blue-500/10 text-blue-400' :
-                email.source === 'sent' ? 'bg-green-500/10 text-green-400' :
-                email.source === 'done' ? 'bg-zinc-500/10 text-zinc-400' :
-                'bg-red-500/10 text-red-400'
-              }`}>
-                {email.source}
-              </span>
-              {email.has_attachment && (
-                <Paperclip className="w-3.5 h-3.5 text-zinc-500" />
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Email Body */}
-      <div className="flex-1 overflow-y-auto p-4 search-results-scroll">
-        {email.body_html ? (
-          <div 
-            className="prose prose-invert prose-sm max-w-none
-              prose-p:text-zinc-300 prose-p:my-2
-              prose-a:text-[#8FA8A3] prose-a:no-underline hover:prose-a:underline
-              prose-strong:text-white
-              prose-headings:text-white
-              prose-li:text-zinc-300
-              prose-blockquote:border-zinc-600 prose-blockquote:text-zinc-400"
-            dangerouslySetInnerHTML={{ __html: email.body_html }}
-          />
-        ) : email.body_text ? (
-          <pre className="whitespace-pre-wrap text-sm text-zinc-300 font-sans">
-            {email.body_text}
-          </pre>
-        ) : (
-          <p className="text-zinc-400">{email.snippet}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const { currentUser } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -258,6 +156,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   // Detail panel state
   const [selectedEmail, setSelectedEmail] = useState<FullEmail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   
   // Fetch emails when user starts typing
   useEffect(() => {
@@ -308,6 +207,25 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   useEffect(() => {
     setSelectedIndex(0);
   }, [results]);
+  
+  // Get current index for navigation
+  const currentEmailIndex = useMemo(() => {
+    if (!selectedEmail) return -1;
+    return results.findIndex(e => e.id === selectedEmail.id);
+  }, [selectedEmail, results]);
+  
+  // Navigate to previous/next email
+  const handlePrevious = () => {
+    if (currentEmailIndex > 0) {
+      handleEmailClick(results[currentEmailIndex - 1]);
+    }
+  };
+  
+  const handleNext = () => {
+    if (currentEmailIndex < results.length - 1) {
+      handleEmailClick(results[currentEmailIndex + 1]);
+    }
+  };
   
   // Fetch full email when selected
   const handleEmailClick = async (email: SearchableEmail) => {
@@ -371,6 +289,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       setQuery('');
       setSelectedIndex(0);
       setSelectedEmail(null);
+      setIsExpanded(false);
     }
   }, [isOpen]);
   
@@ -379,20 +298,20 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const showDetailPanel = selectedEmail !== null;
   
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Custom scrollbar styles */}
       <style>{`
-        .search-results-scroll::-webkit-scrollbar {
+        .search-scroll::-webkit-scrollbar {
           width: 6px;
         }
-        .search-results-scroll::-webkit-scrollbar-track {
+        .search-scroll::-webkit-scrollbar-track {
           background: transparent;
         }
-        .search-results-scroll::-webkit-scrollbar-thumb {
+        .search-scroll::-webkit-scrollbar-thumb {
           background: #3f3f46;
           border-radius: 3px;
         }
-        .search-results-scroll::-webkit-scrollbar-thumb:hover {
+        .search-scroll::-webkit-scrollbar-thumb:hover {
           background: #52525b;
         }
       `}</style>
@@ -400,35 +319,44 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       
-      {/* Modal - wider when detail is shown */}
-      <div className={`relative mx-4 bg-zinc-900 rounded-xl shadow-2xl border border-zinc-700/50 overflow-hidden transition-all duration-200 ${
-        showDetailPanel ? 'w-full max-w-5xl h-[85vh]' : 'w-full max-w-2xl'
+      {/* Modal */}
+      <div className={`relative bg-zinc-900 rounded-xl shadow-2xl border border-zinc-700/50 overflow-hidden flex flex-col transition-all duration-200 ${
+        showDetailPanel 
+          ? isExpanded 
+            ? 'w-full h-full max-w-none rounded-none' 
+            : 'w-full max-w-6xl h-[80vh]'
+          : 'w-full max-w-2xl max-h-[80vh]'
       }`}>
         
-        <div className={`flex h-full ${showDetailPanel ? 'divide-x divide-zinc-700/50' : ''}`}>
-          {/* Left Panel - Search & Results */}
-          <div className={`flex flex-col ${showDetailPanel ? 'w-2/5' : 'w-full'}`}>
-            {/* Search Input */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-700/50">
-              <Search className="w-5 h-5 text-zinc-400 flex-shrink-0" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search emails..."
-                className="flex-1 bg-transparent text-white placeholder-zinc-500 outline-none text-base"
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <button onClick={onClose} className="p-1.5 hover:bg-zinc-700/50 rounded">
-                <X className="w-5 h-5 text-zinc-400" />
-              </button>
-            </div>
-            
-            {/* Results List */}
+        {/* Top Search Bar - Always visible */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-700/50 bg-zinc-900 flex-shrink-0">
+          <Search className="w-5 h-5 text-zinc-400 flex-shrink-0" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search emails... (from:name, subject:text, has:attachment)"
+            className="flex-1 bg-transparent text-white placeholder-zinc-500 outline-none text-base"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button onClick={onClose} className="p-1.5 hover:bg-zinc-700/50 rounded">
+            <X className="w-5 h-5 text-zinc-400" />
+          </button>
+        </div>
+        
+        {/* Content Area */}
+        <div className={`flex flex-1 min-h-0 ${showDetailPanel ? 'divide-x divide-zinc-700/50' : ''}`}>
+          
+          {/* Left Panel - Results List */}
+          <div className={`flex flex-col min-h-0 ${
+            showDetailPanel 
+              ? isExpanded ? 'w-[280px]' : 'w-[320px]' 
+              : 'w-full'
+          }`}>
             <div 
-              className="search-results-scroll flex-1 overflow-y-auto"
+              className="search-scroll flex-1 overflow-y-auto"
               style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}
             >
               {!query.trim() ? (
@@ -456,7 +384,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     <div
                       key={email.id}
                       onClick={() => handleEmailClick(email)}
-                      className={`px-4 py-3 cursor-pointer transition-colors ${
+                      className={`px-3 py-2.5 cursor-pointer transition-colors ${
                         selectedEmail?.id === email.id 
                           ? 'bg-zinc-800' 
                           : index === selectedIndex 
@@ -464,13 +392,13 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                             : 'hover:bg-zinc-800/30'
                       }`}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${
+                      <div className="flex items-start gap-2">
+                        <div className={`w-1.5 h-1.5 mt-2 rounded-full flex-shrink-0 ${
                           email.is_read ? 'bg-transparent' : 'bg-[#8FA8A3]'
                         }`} />
                         
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <div className="flex items-center justify-between gap-2">
                             <span className={`truncate text-sm ${email.is_read ? 'text-zinc-300' : 'text-white font-medium'}`}>
                               {email.sender || email.sender_email}
                             </span>
@@ -479,7 +407,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                             </span>
                           </div>
                           
-                          <div className={`truncate text-sm ${email.is_read ? 'text-zinc-400' : 'text-zinc-200'}`}>
+                          <div className={`truncate text-sm mt-0.5 ${email.is_read ? 'text-zinc-400' : 'text-zinc-200'}`}>
                             {email.subject || '(no subject)'}
                           </div>
                           
@@ -489,7 +417,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                             </div>
                           )}
                           
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1.5 mt-1">
                             <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${
                               email.source === 'inbox' ? 'bg-blue-500/10 text-blue-400' :
                               email.source === 'sent' ? 'bg-green-500/10 text-green-400' :
@@ -507,35 +435,146 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       </div>
                     </div>
                   ))}
-                  
-                  {results.length > 50 && (
-                    <div className="py-3 text-center text-sm text-zinc-500">
-                      Showing 50 of {results.length} results
-                    </div>
-                  )}
                 </div>
               )}
             </div>
             
             {/* Footer */}
-            <div className="px-4 py-2 border-t border-zinc-700/50 text-xs text-zinc-500 flex items-center justify-between">
-              <span>{results.length > 0 && `${results.length} results`}</span>
-              <span className="flex items-center gap-2">
-                <span><kbd className="px-1 py-0.5 bg-zinc-800 rounded">↑↓</kbd></span>
-                <span><kbd className="px-1 py-0.5 bg-zinc-800 rounded">↵</kbd></span>
-                <span><kbd className="px-1 py-0.5 bg-zinc-800 rounded">esc</kbd></span>
-              </span>
+            <div className="px-3 py-2 border-t border-zinc-700/50 text-xs text-zinc-500 flex-shrink-0">
+              {results.length > 0 ? `${results.length} results` : ''}
             </div>
           </div>
           
-          {/* Right Panel - Email Detail */}
+          {/* Right Panel - Email Detail (like ThreadDetail) */}
           {showDetailPanel && (
-            <div className="w-3/5 flex flex-col bg-zinc-900">
-              <EmailDetail 
-                email={selectedEmail}
-                loading={detailLoading}
-                onBack={() => setSelectedEmail(null)}
-              />
+            <div className="flex-1 flex flex-col min-h-0 bg-[#1a1a1a]">
+              {/* Detail Header Bar - Like ThreadDetail */}
+              <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-700/50 bg-zinc-900/50 flex-shrink-0">
+                <h2 className="text-sm font-medium text-white truncate flex-1 mr-4">
+                  {selectedEmail.subject || '(no subject)'}
+                </h2>
+                
+                <div className="flex items-center gap-1">
+                  {/* Navigation */}
+                  <button 
+                    onClick={handlePrevious}
+                    disabled={currentEmailIndex <= 0}
+                    className="p-1.5 hover:bg-zinc-700/50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Previous"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-zinc-400" />
+                  </button>
+                  <button 
+                    onClick={handleNext}
+                    disabled={currentEmailIndex >= results.length - 1}
+                    className="p-1.5 hover:bg-zinc-700/50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Next"
+                  >
+                    <ChevronRight className="w-4 h-4 text-zinc-400" />
+                  </button>
+                  
+                  {/* Expand/Collapse */}
+                  <button 
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="p-1.5 hover:bg-zinc-700/50 rounded"
+                    title={isExpanded ? 'Collapse' : 'Expand'}
+                  >
+                    {isExpanded ? (
+                      <Minimize2 className="w-4 h-4 text-zinc-400" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4 text-zinc-400" />
+                    )}
+                  </button>
+                  
+                  {/* Close Detail */}
+                  <button 
+                    onClick={() => setSelectedEmail(null)}
+                    className="p-1.5 hover:bg-zinc-700/50 rounded"
+                    title="Close"
+                  >
+                    <X className="w-4 h-4 text-zinc-400" />
+                  </button>
+                </div>
+              </div>
+              
+              {/* Email Content */}
+              {detailLoading ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 text-[#8FA8A3] animate-spin" />
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                  {/* Sender Info Section */}
+                  <div className="px-6 py-4 border-b border-zinc-800 flex-shrink-0">
+                    <div className="flex items-start gap-3">
+                      {/* Avatar */}
+                      <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-medium text-zinc-300">
+                          {(selectedEmail.sender || selectedEmail.sender_email || '?')[0].toUpperCase()}
+                        </span>
+                      </div>
+                      
+                      {/* Sender Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-white">
+                            {selectedEmail.sender || 'Unknown'}
+                          </span>
+                          <span className="text-zinc-500 text-sm">
+                            &lt;{selectedEmail.sender_email}&gt;
+                          </span>
+                          <span className={`px-1.5 py-0.5 rounded text-xs ${
+                            selectedEmail.source === 'inbox' ? 'bg-blue-500/10 text-blue-400' :
+                            selectedEmail.source === 'sent' ? 'bg-green-500/10 text-green-400' :
+                            selectedEmail.source === 'done' ? 'bg-zinc-500/10 text-zinc-400' :
+                            'bg-red-500/10 text-red-400'
+                          }`}>
+                            {selectedEmail.source}
+                          </span>
+                        </div>
+                        <div className="text-sm text-zinc-500 mt-0.5">
+                          to {selectedEmail.recipients?.length > 0 
+                            ? selectedEmail.recipients.join(', ')
+                            : 'me'
+                          }
+                        </div>
+                      </div>
+                      
+                      {/* Date */}
+                      <div className="text-sm text-zinc-500 flex-shrink-0">
+                        {formatDetailDate(selectedEmail.date)}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Email Body - Scrollable */}
+                  <div 
+                    className="search-scroll flex-1 overflow-y-auto p-6"
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}
+                  >
+                    {selectedEmail.body_html ? (
+                      <div 
+                        className="prose prose-invert prose-sm max-w-none
+                          prose-p:text-zinc-300 prose-p:my-2 prose-p:leading-relaxed
+                          prose-a:text-[#8FA8A3] prose-a:no-underline hover:prose-a:underline
+                          prose-strong:text-white
+                          prose-headings:text-white
+                          prose-li:text-zinc-300
+                          prose-img:rounded-lg prose-img:max-w-full
+                          prose-blockquote:border-zinc-600 prose-blockquote:text-zinc-400
+                          [&_table]:text-zinc-300 [&_td]:p-2 [&_th]:p-2"
+                        dangerouslySetInnerHTML={{ __html: selectedEmail.body_html }}
+                      />
+                    ) : selectedEmail.body_text ? (
+                      <pre className="whitespace-pre-wrap text-sm text-zinc-300 font-sans leading-relaxed">
+                        {selectedEmail.body_text}
+                      </pre>
+                    ) : (
+                      <p className="text-zinc-400">{selectedEmail.snippet}</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
