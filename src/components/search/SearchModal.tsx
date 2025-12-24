@@ -5,7 +5,7 @@ import { X, Search, Paperclip, Mail, Send, Archive, Trash2, Loader2 } from 'luci
 import { useAuth } from '@/context/AuthContext';
 import { SearchableEmail } from './types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 interface SearchModalProps {
   isOpen: boolean;
