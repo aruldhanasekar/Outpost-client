@@ -552,8 +552,8 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     className="search-scroll flex-1 overflow-y-auto p-6"
                     style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}
                   >
-                    {/* Email content container */}
-                    <div className="bg-white rounded-lg p-6 min-h-[200px]">
+                    {/* Email content container - dynamic size */}
+                    <div className="bg-white rounded-lg p-6">
                       {selectedEmail.body_html ? (
                         <div 
                           className="prose prose-sm max-w-none
