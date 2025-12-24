@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { 
   X, Search, Paperclip, Mail, Send, Archive, Trash2, Loader2,
-  ChevronLeft, ChevronRight, Maximize2, Minimize2
+  ChevronLeft, ChevronRight, Maximize2, Minimize2, Reply, Forward, Download
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { SearchableEmail } from './types';
@@ -22,6 +22,13 @@ interface FullEmail extends SearchableEmail {
   body_text?: string;
   cc?: string[];
   bcc?: string[];
+  attachments?: Array<{
+    id?: string;
+    filename: string;
+    mimeType?: string;
+    size?: number;
+    url?: string;
+  }>;
 }
 
 // Parse search query into operators and keywords
@@ -247,6 +254,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           body_text: fullEmail.body_text || fullEmail.bodyText || fullEmail.body_plain,
           cc: fullEmail.cc || [],
           bcc: fullEmail.bcc || [],
+          attachments: fullEmail.attachments || [],
         });
       }
     } catch (err) {
@@ -540,9 +548,24 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                         </div>
                       </div>
                       
-                      {/* Date */}
-                      <div className="text-sm text-zinc-500 flex-shrink-0">
-                        {formatDetailDate(selectedEmail.date)}
+                      {/* Date and Actions */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {/* Reply/Forward buttons */}
+                        <button 
+                          className="p-1.5 hover:bg-zinc-700/50 rounded text-zinc-400 hover:text-white"
+                          title="Reply"
+                        >
+                          <Reply className="w-4 h-4" />
+                        </button>
+                        <button 
+                          className="p-1.5 hover:bg-zinc-700/50 rounded text-zinc-400 hover:text-white"
+                          title="Forward"
+                        >
+                          <Forward className="w-4 h-4" />
+                        </button>
+                        <span className="text-sm text-zinc-500 ml-2">
+                          {formatDetailDate(selectedEmail.date)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -573,6 +596,32 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                         </pre>
                       ) : (
                         <p className="text-zinc-600">{selectedEmail.snippet}</p>
+                      )}
+                      
+                      {/* Attachments Section */}
+                      {selectedEmail.attachments && selectedEmail.attachments.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-zinc-200">
+                          <div className="flex flex-wrap gap-2">
+                            {selectedEmail.attachments.map((attachment, idx) => (
+                              <a
+                                key={idx}
+                                href={attachment.url || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-3 py-2 bg-zinc-100 hover:bg-zinc-200 rounded-lg text-sm text-zinc-700 transition-colors"
+                              >
+                                <Paperclip className="w-4 h-4 text-zinc-500" />
+                                <span className="max-w-[150px] truncate">{attachment.filename}</span>
+                                {attachment.size && (
+                                  <span className="text-zinc-400 text-xs">
+                                    {(attachment.size / 1024).toFixed(1)} KB
+                                  </span>
+                                )}
+                                <Download className="w-3.5 h-3.5 text-zinc-400" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
