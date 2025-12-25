@@ -4,8 +4,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ProfileDropdown from "@/components/ProfileDropdown";
+import { useAuth } from "@/context/AuthContext";
+
+const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 export type PageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'trash' | 'label';
+
+interface Label {
+  id: string;
+  name: string;
+  type: string;
+  threads_count?: number;
+}
 
 interface SidebarProps {
   activePage: PageType;
@@ -25,17 +35,41 @@ const menuItems: { id: PageType; label: string; path: string }[] = [
   { id: 'trash', label: 'Trash', path: '/trash' },
 ];
 
-// Sample user-created labels (later: fetch from Gmail API)
-const sampleLabels = [
-  { id: 'team', name: 'Team' },
-  { id: 'invoice', name: 'Invoice' },
-  { id: 'projects', name: 'Projects' },
-  { id: 'clients', name: 'Clients' },
-];
-
 export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLetter }: SidebarProps) => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [isNavOpen, setIsNavOpen] = useState(false);
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [labelsLoading, setLabelsLoading] = useState(false);
+
+  // Fetch labels from API
+  useEffect(() => {
+    const fetchLabels = async () => {
+      if (!currentUser || !isNavOpen) return;
+      
+      setLabelsLoading(true);
+      try {
+        const token = await currentUser.getIdToken();
+        const response = await fetch(`${API_URL}/api/labels`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setLabels(data.labels || []);
+        }
+      } catch (err) {
+        console.error('Error fetching labels:', err);
+      } finally {
+        setLabelsLoading(false);
+      }
+    };
+
+    fetchLabels();
+  }, [currentUser, isNavOpen]);
 
   // Handle menu item click
   const handleMenuItemClick = (path: string) => {
@@ -44,8 +78,8 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
   };
 
   // Handle label click
-  const handleLabelClick = (labelId: string) => {
-    navigate(`/label/${labelId}`);
+  const handleLabelClick = (labelName: string) => {
+    navigate(`/label/${encodeURIComponent(labelName)}`);
     setIsNavOpen(false);
   };
 
@@ -135,23 +169,41 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
               Labels
             </div>
             
+            {/* Labels Loading State */}
+            {labelsLoading && (
+              <div className="px-4 py-2 text-sm text-gray-400">
+                Loading...
+              </div>
+            )}
+            
             {/* Label Items */}
-            {sampleLabels.map((label) => {
-              const isActive = activePage === 'label' && activeLabel === label.id;
+            {!labelsLoading && labels.length === 0 && (
+              <div className="px-4 py-2 text-sm text-gray-400">
+                No labels
+              </div>
+            )}
+            
+            {!labelsLoading && labels.map((label) => {
+              const isActive = activePage === 'label' && activeLabel?.toLowerCase() === label.name.toLowerCase();
               
               return (
                 <button
                   key={label.id}
-                  onClick={() => handleLabelClick(label.id)}
+                  onClick={() => handleLabelClick(label.name)}
                   className={`
-                    w-full flex items-center px-4 py-2.5 rounded-full mb-1 text-sm font-medium transition-colors
+                    w-full flex items-center justify-between px-4 py-2.5 rounded-full mb-1 text-sm font-medium transition-colors
                     ${isActive 
                       ? 'bg-[#8FA8A3] text-black' 
                       : 'text-gray-700 hover:bg-gray-200 hover:text-[#8FA8A3]'
                     }
                   `}
                 >
-                  {label.name}
+                  <span className="truncate">{label.name}</span>
+                  {label.threads_count !== undefined && label.threads_count > 0 && (
+                    <span className={`text-xs ml-2 ${isActive ? 'text-black/60' : 'text-gray-400'}`}>
+                      {label.threads_count}
+                    </span>
+                  )}
                 </button>
               );
             })}

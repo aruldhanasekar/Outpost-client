@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate, useParams } from "react-router-dom";
-import { Loader2, SendHorizontal, Menu, X, Tag } from "lucide-react";
+import { Loader2, SendHorizontal, Menu, X } from "lucide-react";
 import {
   Thread,
   Email,
@@ -31,7 +31,7 @@ import { Sidebar } from "@/components/layout";
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 // Hook to fetch threads by label
-function useLabelThreads(userId: string | undefined, labelName: string | undefined) {
+function useLabelThreads(userId: string | undefined, labelName: string | undefined, getToken: () => Promise<string>) {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,16 +47,24 @@ function useLabelThreads(userId: string | undefined, labelName: string | undefin
       setError(null);
       
       try {
-        // TODO: Replace with actual API call to fetch threads by label
-        // For now, return empty array (sample implementation)
-        // const response = await fetch(`${API_URL}/api/labels/${labelName}/threads`, {
-        //   headers: { 'Authorization': `Bearer ${token}` }
-        // });
-        // const data = await response.json();
-        // setThreads(data.threads || []);
+        const token = await getToken();
+        const response = await fetch(`${API_URL}/api/labels/${encodeURIComponent(labelName)}/threads`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         
-        // Sample: empty for now until backend endpoint is ready
-        setThreads([]);
+        if (!response.ok) {
+          if (response.status === 404) {
+            setThreads([]);
+            return;
+          }
+          throw new Error(`Failed to fetch: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setThreads(data.threads || []);
       } catch (err) {
         console.error('Error fetching label threads:', err);
         setError('Failed to load emails');
@@ -66,7 +74,7 @@ function useLabelThreads(userId: string | undefined, labelName: string | undefin
     };
 
     fetchThreads();
-  }, [userId, labelName]);
+  }, [userId, labelName, getToken]);
 
   return { threads, loading, error };
 }
@@ -146,7 +154,7 @@ const LabelPage = () => {
     threads: labelThreads, 
     loading: labelLoading, 
     error: labelError 
-  } = useLabelThreads(currentUser?.uid, labelName);
+  } = useLabelThreads(currentUser?.uid, labelName, getAuthToken);
   
   // Fetch emails for selected thread
   const { 
@@ -721,7 +729,6 @@ const LabelPage = () => {
                 </button>
                 {/* Label name as title */}
                 <div className="flex items-center gap-2 min-w-0">
-                  <Tag className="w-4 h-4 text-[#8FA8A3] flex-shrink-0" />
                   <span className="text-white font-medium truncate">{displayLabelName}</span>
                 </div>
               </div>
@@ -758,8 +765,7 @@ const LabelPage = () => {
                 </div>
                 {/* Label name as title instead of category tabs */}
                 <div className="flex items-center gap-2 pb-4">
-                  <Tag className="w-5 h-5 text-[#8FA8A3]" />
-                  <h1 className="text-xl font-semibold text-white">{displayLabelName}</h1>
+                  <h1 className="text-base font-semibold text-white">{displayLabelName}</h1>
                   <span className="text-sm text-zinc-500">({currentThreads.length})</span>
                 </div>
               </div>
