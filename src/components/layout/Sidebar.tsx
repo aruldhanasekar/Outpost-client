@@ -16,6 +16,7 @@ export type PageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'tra
 interface Label {
   id: string;
   name: string;
+  display_name: string;
   type: string;
   threads_count?: number;
 }
@@ -242,7 +243,7 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
             )}
             
             {!labelsLoading && labels.map((label) => {
-              const isActive = activePage === 'label' && activeLabel?.toLowerCase() === label.name.toLowerCase();
+              const isActive = activePage === 'label' && activeLabel?.toLowerCase() === label.display_name.toLowerCase();
               
               return (
                 <div
@@ -254,9 +255,9 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
                       : 'text-gray-700 hover:bg-gray-200 hover:text-[#8FA8A3]'
                     }
                   `}
-                  onClick={() => handleLabelClick(label.name)}
+                  onClick={() => handleLabelClick(label.display_name)}
                 >
-                  <span className="truncate">{label.name}</span>
+                  <span className="truncate">{label.display_name}</span>
                   <div className="flex items-center gap-1">
                     {label.threads_count !== undefined && label.threads_count > 0 && (
                       <span className={`text-xs ${isActive ? 'text-black/60' : 'text-gray-400'} group-hover/label:hidden`}>
@@ -296,7 +297,7 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
       {deleteModal.label && (
         <DeleteLabelModal
           isOpen={deleteModal.isOpen}
-          labelName={deleteModal.label.name}
+          labelName={deleteModal.label.display_name}
           labelId={deleteModal.label.id}
           onClose={() => setDeleteModal({ isOpen: false, label: null })}
           onConfirm={handleDeleteLabel}
