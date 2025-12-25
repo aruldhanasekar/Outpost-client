@@ -298,15 +298,15 @@ const ContextMenu = ({
                       onToggleLabel(label.id, label.name, isApplied);
                       onClose();
                     }}
-                    className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer"
+                    className="flex items-center w-full px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer"
                   >
                     <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0 mr-2"
                       style={{ backgroundColor: label.color }}
                     />
-                    <span className="flex-1 truncate">{label.name}</span>
+                    <span className="truncate">{label.name}</span>
                     {isApplied && (
-                      <Check className="w-4 h-4 text-[#8FA8A3]" />
+                      <Check className="w-4 h-4 text-[#8FA8A3] ml-auto flex-shrink-0" />
                     )}
                   </button>
                 );
