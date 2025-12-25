@@ -28,7 +28,13 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   
+  // Label name validation state
+  const [existingLabels, setExistingLabels] = useState<string[]>([]);
+  const [labelNameError, setLabelNameError] = useState<string | null>(null);
+  const [isCheckingName, setIsCheckingName] = useState(false);
+  
   const emailInputRef = useRef<HTMLInputElement>(null);
+  const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Handle open/close with animation
   useEffect(() => {
@@ -49,10 +55,39 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
         setSelectedEmails([]);
         setEmailQuery('');
         setEmailSuggestions([]);
+        setLabelNameError(null);
       }, 200);
       return () => clearTimeout(timeout);
     }
   }, [isOpen]);
+
+  // Fetch existing labels when modal opens
+  useEffect(() => {
+    const fetchLabels = async () => {
+      if (!currentUser || !isOpen) return;
+      
+      try {
+        const token = await currentUser.getIdToken();
+        const response = await fetch(`${API_URL}/api/labels`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Store display names (case-insensitive comparison later)
+          const labels = (data.labels || []).map((l: { display_name: string }) => l.display_name.toLowerCase());
+          setExistingLabels(labels);
+        }
+      } catch (err) {
+        console.error('Error fetching labels:', err);
+      }
+    };
+
+    fetchLabels();
+  }, [currentUser, isOpen]);
 
   // Fetch all unique emails from inbox on mount
   useEffect(() => {
@@ -82,6 +117,41 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
 
     fetchEmails();
   }, [currentUser, isOpen]);
+
+  // Debounced label name validation
+  useEffect(() => {
+    // Clear previous timeout
+    if (nameCheckTimeoutRef.current) {
+      clearTimeout(nameCheckTimeoutRef.current);
+    }
+    
+    // Clear error if empty
+    if (!labelName.trim()) {
+      setLabelNameError(null);
+      setIsCheckingName(false);
+      return;
+    }
+    
+    setIsCheckingName(true);
+    
+    // Debounce: wait 300ms after user stops typing
+    nameCheckTimeoutRef.current = setTimeout(() => {
+      const nameToCheck = labelName.trim().toLowerCase();
+      
+      if (existingLabels.includes(nameToCheck)) {
+        setLabelNameError('Label name already exists');
+      } else {
+        setLabelNameError(null);
+      }
+      setIsCheckingName(false);
+    }, 300);
+    
+    return () => {
+      if (nameCheckTimeoutRef.current) {
+        clearTimeout(nameCheckTimeoutRef.current);
+      }
+    };
+  }, [labelName, existingLabels]);
 
   // Filter suggestions based on query
   useEffect(() => {
@@ -147,7 +217,7 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
 
   // Handle create label
   const handleCreate = async () => {
-    if (!labelName.trim() || !currentUser) return;
+    if (!labelName.trim() || !currentUser || labelNameError) return;
     
     setIsCreating(true);
     try {
@@ -178,6 +248,9 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
       setIsCreating(false);
     }
   };
+
+  // Check if form is valid
+  const isFormValid = labelName.trim() && !labelNameError && !isCheckingName;
 
   if (!isVisible) return null;
 
@@ -219,9 +292,17 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
               value={labelName}
               onChange={(e) => setLabelName(e.target.value)}
               placeholder="e.g. Team, Invoices, Projects"
-              className="w-full px-4 py-3 bg-[#1a1a1a] border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-[#8FA8A3] transition-colors"
+              className={`w-full px-4 py-3 bg-[#1a1a1a] border rounded-xl text-white placeholder-zinc-500 focus:outline-none transition-colors ${
+                labelNameError 
+                  ? 'border-red-500 focus:border-red-500' 
+                  : 'border-zinc-700 focus:border-[#8FA8A3]'
+              }`}
               autoFocus
             />
+            {/* Error message */}
+            {labelNameError && (
+              <p className="mt-1.5 text-sm text-red-500">{labelNameError}</p>
+            )}
           </div>
           
           {/* Auto Label Toggle */}
@@ -307,9 +388,9 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
           {/* Create Button */}
           <button
             onClick={handleCreate}
-            disabled={!labelName.trim() || isCreating}
+            disabled={!isFormValid || isCreating}
             className={`w-full py-3 rounded-xl font-medium transition-colors ${
-              labelName.trim() && !isCreating
+              isFormValid && !isCreating
                 ? 'bg-[#8FA8A3] text-white hover:bg-[#7a9691]'
                 : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
             }`}
