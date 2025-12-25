@@ -3,8 +3,10 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Plus } from "lucide-react";
 import ProfileDropdown from "@/components/ProfileDropdown";
 import { useAuth } from "@/context/AuthContext";
+import { CreateLabelModal } from "@/components/labels/CreateLabelModal";
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
@@ -41,6 +43,7 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [labels, setLabels] = useState<Label[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(false);
+  const [isCreateLabelOpen, setIsCreateLabelOpen] = useState(false);
 
   // Fetch labels from API
   useEffect(() => {
@@ -165,8 +168,25 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
             <div className="my-3 mx-2 border-t border-gray-300" />
             
             {/* Labels Section Header */}
-            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              Labels
+            <div className="flex items-center justify-between px-4 py-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Labels
+              </span>
+              <div className="relative group">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCreateLabelOpen(true);
+                  }}
+                  className="p-1 text-gray-400 hover:text-[#8FA8A3] hover:bg-gray-200 rounded transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  Create label
+                </div>
+              </div>
             </div>
             
             {/* Labels Loading State */}
@@ -210,6 +230,12 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
           </nav>
         </div>
       )}
+      
+      {/* Create Label Modal */}
+      <CreateLabelModal
+        isOpen={isCreateLabelOpen}
+        onClose={() => setIsCreateLabelOpen(false)}
+      />
     </>
   );
 };
