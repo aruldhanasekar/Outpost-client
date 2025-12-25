@@ -17,7 +17,7 @@ interface LabelChipProps {
 
 const LabelChip = ({ label }: LabelChipProps) => (
   <span
-    className="px-2 py-0.5 text-xs rounded-full backdrop-blur-sm border border-white/20 text-white whitespace-nowrap"
+    className="px-2 py-0.5 text-xs rounded-full backdrop-blur-sm text-white whitespace-nowrap"
     style={{ backgroundColor: `${label.color}CC` }} // CC = 80% opacity
   >
     {label.name}
