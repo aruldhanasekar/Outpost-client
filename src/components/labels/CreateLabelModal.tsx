@@ -243,7 +243,7 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
           
           {/* Email Addresses (shown when auto label is ON) */}
           {autoLabel && (
-            <div className="mb-5">
+            <div className="mb-5 relative">
               <label className="block text-sm text-zinc-400 mb-2">
                 Email addresses
               </label>
@@ -280,9 +280,9 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
                 </div>
               </div>
               
-              {/* Suggestions Dropdown */}
+              {/* Suggestions Dropdown - Absolute positioned */}
               {emailSuggestions.length > 0 && (
-                <div className="mt-1 bg-[#1a1a1a] border border-zinc-700 rounded-xl overflow-hidden">
+                <div className="absolute left-0 right-0 mt-1 bg-[#1a1a1a] border border-zinc-700 rounded-xl overflow-hidden z-10 shadow-lg">
                   {emailSuggestions.map((email) => (
                     <button
                       key={email}
@@ -297,7 +297,7 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
               
               {/* Loading state */}
               {suggestionsLoading && emailQuery && (
-                <div className="mt-1 px-4 py-2 text-sm text-zinc-500">
+                <div className="absolute left-0 right-0 mt-1 px-4 py-2 text-sm text-zinc-500 bg-[#1a1a1a] border border-zinc-700 rounded-xl z-10">
                   Loading...
                 </div>
               )}
