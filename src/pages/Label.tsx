@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate, useParams } from "react-router-dom";
-import { Loader2, SendHorizontal, Menu, X } from "lucide-react";
+import { Loader2, SendHorizontal, Menu, X, Pencil } from "lucide-react";
 import {
   Thread,
   Email,
@@ -27,6 +27,7 @@ import {
 import { UndoToast } from "@/components/ui/UndoToast";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
 import { Sidebar } from "@/components/layout";
+import { EditLabelModal } from "@/components/labels/EditLabelModal";
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
@@ -136,6 +137,15 @@ const LabelPage = () => {
   // Undo restore state
   const [undoComposeData, setUndoComposeData] = useState<UndoEmailData | null>(null);
 
+  // Edit label modal state
+  const [isEditLabelOpen, setIsEditLabelOpen] = useState(false);
+  const [labelDetails, setLabelDetails] = useState<{
+    id: string;
+    name: string;
+    auto_label?: boolean;
+    auto_label_emails?: string[];
+  } | null>(null);
+
   // Ref for tracking last key pressed
   const lastKeyRef = useRef<string | null>(null);
 
@@ -166,7 +176,33 @@ const LabelPage = () => {
   );
 
   // ==================== COMPUTED STATE ====================
-  
+
+  // Fetch label details (for edit modal)
+  useEffect(() => {
+    const fetchLabelDetails = async () => {
+      if (!currentUser || !labelName) return;
+      
+      try {
+        const token = await currentUser.getIdToken();
+        const response = await fetch(`${API_URL}/api/labels/by-name/${encodeURIComponent(labelName)}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setLabelDetails(data);
+        }
+      } catch (err) {
+        console.error('Error fetching label details:', err);
+      }
+    };
+
+    fetchLabelDetails();
+  }, [currentUser, labelName]);
+
   // Get threads with local state applied
   const currentThreads = useMemo(() => {
     return labelThreads
@@ -730,6 +766,14 @@ const LabelPage = () => {
                 {/* Label name as title */}
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-white font-medium truncate">{displayLabelName}</span>
+                  {/* Edit button for mobile */}
+                  <button
+                    onClick={() => setIsEditLabelOpen(true)}
+                    className="p-1 text-zinc-400 hover:text-white"
+                    title="Edit label"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
               <div className="flex items-center">
@@ -764,9 +808,17 @@ const LabelPage = () => {
                   </div>
                 </div>
                 {/* Label name as title instead of category tabs */}
-                <div className="flex items-center gap-2 pb-4">
+                <div className="flex items-center gap-2 pb-4 group">
                   <h1 className="text-base font-semibold text-white">{displayLabelName}</h1>
                   <span className="text-sm text-zinc-500">({currentThreads.length})</span>
+                  {/* Edit button - shows on hover */}
+                  <button
+                    onClick={() => setIsEditLabelOpen(true)}
+                    className="p-1 text-zinc-500 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                    title="Edit label"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
               <div className="flex items-center gap-1 pb-4">
@@ -1163,6 +1215,22 @@ const LabelPage = () => {
           onClose={() => setIsSearchOpen(false)}
           userEmail={currentUser?.email || ''}
         />
+        
+        {/* Edit Label Modal */}
+        {labelDetails && (
+          <EditLabelModal
+            isOpen={isEditLabelOpen}
+            onClose={() => setIsEditLabelOpen(false)}
+            onLabelUpdated={() => {
+              // Refresh page to get updated label name
+              window.location.reload();
+            }}
+            labelId={labelDetails.id}
+            labelName={labelDetails.name}
+            initialAutoLabel={labelDetails.auto_label}
+            initialAutoLabelEmails={labelDetails.auto_label_emails}
+          />
+        )}
         
       </div>
     </>
