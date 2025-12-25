@@ -3,10 +3,11 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import ProfileDropdown from "@/components/ProfileDropdown";
 import { useAuth } from "@/context/AuthContext";
 import { CreateLabelModal } from "@/components/labels/CreateLabelModal";
+import { DeleteLabelModal } from "@/components/labels/DeleteLabelModal";
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
@@ -44,35 +45,72 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
   const [labels, setLabels] = useState<Label[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(false);
   const [isCreateLabelOpen, setIsCreateLabelOpen] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; label: Label | null }>({
+    isOpen: false,
+    label: null
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch labels from API
-  useEffect(() => {
-    const fetchLabels = async () => {
-      if (!currentUser || !isNavOpen) return;
-      
-      setLabelsLoading(true);
-      try {
-        const token = await currentUser.getIdToken();
-        const response = await fetch(`${API_URL}/api/labels`, {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setLabels(data.labels || []);
+  const fetchLabels = async () => {
+    if (!currentUser) return;
+    
+    setLabelsLoading(true);
+    try {
+      const token = await currentUser.getIdToken();
+      const response = await fetch(`${API_URL}/api/labels`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      } catch (err) {
-        console.error('Error fetching labels:', err);
-      } finally {
-        setLabelsLoading(false);
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setLabels(data.labels || []);
       }
-    };
+    } catch (err) {
+      console.error('Error fetching labels:', err);
+    } finally {
+      setLabelsLoading(false);
+    }
+  };
 
-    fetchLabels();
+  // Fetch labels when nav opens
+  useEffect(() => {
+    if (isNavOpen) {
+      fetchLabels();
+    }
   }, [currentUser, isNavOpen]);
+
+  // Handle delete label
+  const handleDeleteLabel = async (labelId: string) => {
+    if (!currentUser) return;
+    
+    setIsDeleting(true);
+    try {
+      const token = await currentUser.getIdToken();
+      const response = await fetch(`${API_URL}/api/labels/${labelId}`, {
+        method: 'DELETE',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        // Remove from local state
+        setLabels(prev => prev.filter(l => l.id !== labelId));
+        setDeleteModal({ isOpen: false, label: null });
+      } else {
+        console.error('Failed to delete label');
+      }
+    } catch (err) {
+      console.error('Error deleting label:', err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Handle menu item click
   const handleMenuItemClick = (path: string) => {
@@ -207,24 +245,40 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
               const isActive = activePage === 'label' && activeLabel?.toLowerCase() === label.name.toLowerCase();
               
               return (
-                <button
+                <div
                   key={label.id}
-                  onClick={() => handleLabelClick(label.name)}
                   className={`
-                    w-full flex items-center justify-between px-4 py-2.5 rounded-full mb-1 text-sm font-medium transition-colors
+                    group/label w-full flex items-center justify-between px-4 py-2.5 rounded-full mb-1 text-sm font-medium transition-colors cursor-pointer
                     ${isActive 
                       ? 'bg-[#8FA8A3] text-black' 
                       : 'text-gray-700 hover:bg-gray-200 hover:text-[#8FA8A3]'
                     }
                   `}
+                  onClick={() => handleLabelClick(label.name)}
                 >
                   <span className="truncate">{label.name}</span>
-                  {label.threads_count !== undefined && label.threads_count > 0 && (
-                    <span className={`text-xs ml-2 ${isActive ? 'text-black/60' : 'text-gray-400'}`}>
-                      {label.threads_count}
-                    </span>
-                  )}
-                </button>
+                  <div className="flex items-center gap-1">
+                    {label.threads_count !== undefined && label.threads_count > 0 && (
+                      <span className={`text-xs ${isActive ? 'text-black/60' : 'text-gray-400'} group-hover/label:hidden`}>
+                        {label.threads_count}
+                      </span>
+                    )}
+                    {/* Delete button - show on hover */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteModal({ isOpen: true, label });
+                      }}
+                      className={`p-1 rounded opacity-0 group-hover/label:opacity-100 transition-opacity ${
+                        isActive 
+                          ? 'hover:bg-black/10 text-black/60 hover:text-black' 
+                          : 'hover:bg-gray-300 text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               );
             })}
           </nav>
@@ -235,7 +289,20 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
       <CreateLabelModal
         isOpen={isCreateLabelOpen}
         onClose={() => setIsCreateLabelOpen(false)}
+        onLabelCreated={fetchLabels}
       />
+      
+      {/* Delete Label Modal */}
+      {deleteModal.label && (
+        <DeleteLabelModal
+          isOpen={deleteModal.isOpen}
+          labelName={deleteModal.label.name}
+          labelId={deleteModal.label.id}
+          onClose={() => setDeleteModal({ isOpen: false, label: null })}
+          onConfirm={handleDeleteLabel}
+          isDeleting={isDeleting}
+        />
+      )}
     </>
   );
 };
