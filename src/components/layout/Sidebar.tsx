@@ -1,11 +1,13 @@
 // components/layout/Sidebar.tsx
 // Desktop sidebar - White sidebar with mail icon and expandable navigation panel
+// v2.0: Uses LabelsContext for persistent labels state across navigation
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2 } from "lucide-react";
 import ProfileDropdown from "@/components/ProfileDropdown";
 import { useAuth } from "@/context/AuthContext";
+import { useLabels } from "@/context/LabelsContext";
 import { CreateLabelModal } from "@/components/labels/CreateLabelModal";
 import { DeleteLabelModal } from "@/components/labels/DeleteLabelModal";
 
@@ -42,10 +44,9 @@ const menuItems: { id: PageType; label: string; path: string }[] = [
 export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLetter }: SidebarProps) => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { labels, loading: labelsLoading, fetchLabels, refreshLabels, removeLabel } = useLabels();
+  
   const [isNavOpen, setIsNavOpen] = useState(false);
-  const [labels, setLabels] = useState<Label[]>([]);
-  const [labelsLoading, setLabelsLoading] = useState(false);
-  const [hasFetchedLabels, setHasFetchedLabels] = useState(false);
   const [isCreateLabelOpen, setIsCreateLabelOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; label: Label | null }>({
     isOpen: false,
@@ -53,38 +54,12 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
   });
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Fetch labels from API
-  const fetchLabels = async () => {
-    if (!currentUser) return;
-    
-    setLabelsLoading(true);
-    try {
-      const token = await currentUser.getIdToken();
-      const response = await fetch(`${API_URL}/api/labels`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setLabels(data.labels || []);
-      }
-    } catch (err) {
-      console.error('Error fetching labels:', err);
-    } finally {
-      setLabelsLoading(false);
-      setHasFetchedLabels(true);
-    }
-  };
-
-  // Fetch labels when nav opens (only first time)
+  // Fetch labels when nav opens (uses context which handles caching)
   useEffect(() => {
-    if (isNavOpen && !hasFetchedLabels) {
+    if (isNavOpen) {
       fetchLabels();
     }
-  }, [currentUser, isNavOpen, hasFetchedLabels]);
+  }, [isNavOpen, fetchLabels]);
 
   // Handle delete label
   const handleDeleteLabel = async (labelId: string) => {
@@ -102,8 +77,8 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
       });
       
       if (response.ok) {
-        // Remove from local state
-        setLabels(prev => prev.filter(l => l.id !== labelId));
+        // Remove from context state
+        removeLabel(labelId);
         setDeleteModal({ isOpen: false, label: null });
       } else {
         console.error('Failed to delete label');
@@ -230,21 +205,22 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
               </div>
             </div>
             
-            {/* Labels Loading State */}
-            {labelsLoading && (
+            {/* Labels Loading State - only show if loading AND no labels cached */}
+            {labelsLoading && labels.length === 0 && (
               <div className="px-4 py-2 text-sm text-gray-400">
                 Loading...
               </div>
             )}
             
-            {/* Label Items */}
+            {/* No Labels State */}
             {!labelsLoading && labels.length === 0 && (
               <div className="px-4 py-2 text-sm text-gray-400">
                 No labels
               </div>
             )}
             
-            {!labelsLoading && labels.map((label) => {
+            {/* Label Items - show even while loading if we have cached labels */}
+            {labels.length > 0 && labels.map((label) => {
               const isActive = activePage === 'label' && activeLabel?.toLowerCase() === label.display_name.toLowerCase();
               
               return (
@@ -292,7 +268,7 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
       <CreateLabelModal
         isOpen={isCreateLabelOpen}
         onClose={() => setIsCreateLabelOpen(false)}
-        onLabelCreated={fetchLabels}
+        onLabelCreated={refreshLabels}
       />
       
       {/* Delete Label Modal */}

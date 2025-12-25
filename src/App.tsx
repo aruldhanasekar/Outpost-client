@@ -18,12 +18,14 @@ import Terms from "@/pages/Terms";
 // import Blogs from "@/pages/Blogs";
 import Payment from "@/pages/Payment";
 import Label from "@/pages/Label";
+import { LabelsProvider } from '@/context/LabelsContext';
 
 const queryClient = new QueryClient();
 
 const App = () => (
 
     <QueryClientProvider client={queryClient}>
+      <LabelsProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -133,6 +135,7 @@ const App = () => (
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+      </LabelsProvider>
     </QueryClientProvider>
 );
 
