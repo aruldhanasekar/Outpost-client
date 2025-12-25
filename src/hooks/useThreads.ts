@@ -96,7 +96,10 @@ export function useThreads(
             // Optional fields
             category: data.category || category,
             email_count: data.email_count || (data.email_ids?.length || 1),
-          });
+            
+            // Labels for auto-labeling display
+            labels: data.labels || [],
+          } as Thread);
         });
         
         // Sort by last_email_date descending (most recent first)
