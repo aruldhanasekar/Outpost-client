@@ -17,6 +17,7 @@ import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 // import Blogs from "@/pages/Blogs";
 import Payment from "@/pages/Payment";
+import Label from "@/pages/Label";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +111,13 @@ const App = () => (
             <Route path="/trash/:messageId" element={
               <ProtectedRoute>
                 <Trash />
+              </ProtectedRoute>
+            } />
+
+            {/* ✅ PROTECTED ROUTE: Label */}
+            <Route path="/label/:labelName" element={
+              <ProtectedRoute>
+                <Label />
               </ProtectedRoute>
             } />
 
