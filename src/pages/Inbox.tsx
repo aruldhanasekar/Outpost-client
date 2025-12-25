@@ -183,7 +183,7 @@ const InboxPage = () => {
         
         if (response.ok) {
           const data = await response.json();
-          const labels = (data.labels || []).map((l: any) => ({
+          const labels = (data.labels || []).map((l: { id: string; display_name: string; color?: string }) => ({
             id: l.id,
             name: l.display_name,
             color: l.color || '#8FA8A3'
@@ -824,114 +824,120 @@ const InboxPage = () => {
   // ==================== CONTEXT MENU HANDLERS ====================
 
   // Handle reply from context menu
-  const handleContextReply = useCallback(async (thread: Thread) => {
-    setSelectedThread(thread);
+const handleContextReply = useCallback(async (thread: Thread) => {
+  setSelectedThread(thread);
+  
+  try {
+    const token = await currentUser?.getIdToken();
+    if (!token || !thread.email_ids?.length) return;
     
-    try {
-      const token = await currentUser?.getIdToken();
-      if (!token || !thread.email_ids?.length) return;
-      
-      const emailId = thread.email_ids[thread.email_ids.length - 1];
-      const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const emailData = await response.json();
-        const email: Email = {
-          id: emailData.id,
-          threadId: emailData.thread_id,
-          subject: emailData.subject,
-          senderName: emailData.sender_name,
-          senderEmail: emailData.sender_email,
-          to: emailData.to || [],
-          cc: emailData.cc || [],
-          body: emailData.body_html || emailData.body_text || '',
-          timestamp: emailData.date,
-          isRead: emailData.is_read,
-          message_id: emailData.message_id
-        };
-        setReplyToEmail(email);
-        setReplyMode('reply');
-        setIsReplyOpen(true);
-      }
-    } catch (err) {
-      console.error('Error fetching email for reply:', err);
+    const emailId = thread.email_ids[thread.email_ids.length - 1];
+    const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const email: Email = {
+        id: data.id,
+        sender: data.sender_name || data.from || '',
+        senderEmail: data.sender_email || '',
+        subject: data.subject || '',
+        preview: data.snippet || '',
+        body: data.body_html || data.body_text || '',
+        time: '',
+        date: data.date || '',
+        isRead: data.is_read || false,
+        hasAttachment: data.hasAttachment || false,
+        thread_id: data.thread_id,
+        to: data.to || [],
+        message_id: data.message_id
+      };
+      setReplyToEmail(email);
+      setReplyMode('reply');
+      setIsReplyOpen(true);
     }
-  }, [currentUser]);
+  } catch (err) {
+    console.error('Error fetching email for reply:', err);
+  }
+}, [currentUser]);
 
   // Handle reply all from context menu
-  const handleContextReplyAll = useCallback(async (thread: Thread) => {
-    setSelectedThread(thread);
+const handleContextReplyAll = useCallback(async (thread: Thread) => {
+  setSelectedThread(thread);
+  
+  try {
+    const token = await currentUser?.getIdToken();
+    if (!token || !thread.email_ids?.length) return;
     
-    try {
-      const token = await currentUser?.getIdToken();
-      if (!token || !thread.email_ids?.length) return;
-      
-      const emailId = thread.email_ids[thread.email_ids.length - 1];
-      const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const emailData = await response.json();
-        const email: Email = {
-          id: emailData.id,
-          threadId: emailData.thread_id,
-          subject: emailData.subject,
-          senderName: emailData.sender_name,
-          senderEmail: emailData.sender_email,
-          to: emailData.to || [],
-          cc: emailData.cc || [],
-          body: emailData.body_html || emailData.body_text || '',
-          timestamp: emailData.date,
-          isRead: emailData.is_read,
-          message_id: emailData.message_id
-        };
-        setReplyToEmail(email);
-        setReplyMode('replyAll');
-        setIsReplyOpen(true);
-      }
-    } catch (err) {
-      console.error('Error fetching email for reply all:', err);
+    const emailId = thread.email_ids[thread.email_ids.length - 1];
+    const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const email: Email = {
+        id: data.id,
+        sender: data.sender_name || data.from || '',
+        senderEmail: data.sender_email || '',
+        subject: data.subject || '',
+        preview: data.snippet || '',
+        body: data.body_html || data.body_text || '',
+        time: '',
+        date: data.date || '',
+        isRead: data.is_read || false,
+        hasAttachment: data.hasAttachment || false,
+        thread_id: data.thread_id,
+        to: data.to || [],
+        message_id: data.message_id
+      };
+      setReplyToEmail(email);
+      setReplyMode('replyAll');
+      setIsReplyOpen(true);
     }
-  }, [currentUser]);
+  } catch (err) {
+    console.error('Error fetching email for reply all:', err);
+  }
+}, [currentUser]);
 
   // Handle forward from context menu
-  const handleContextForward = useCallback(async (thread: Thread) => {
-    setSelectedThread(thread);
+const handleContextForward = useCallback(async (thread: Thread) => {
+  setSelectedThread(thread);
+  
+  try {
+    const token = await currentUser?.getIdToken();
+    if (!token || !thread.email_ids?.length) return;
     
-    try {
-      const token = await currentUser?.getIdToken();
-      if (!token || !thread.email_ids?.length) return;
-      
-      const emailId = thread.email_ids[thread.email_ids.length - 1];
-      const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const emailData = await response.json();
-        const email: Email = {
-          id: emailData.id,
-          threadId: emailData.thread_id,
-          subject: emailData.subject,
-          senderName: emailData.sender_name,
-          senderEmail: emailData.sender_email,
-          to: emailData.to || [],
-          cc: emailData.cc || [],
-          body: emailData.body_html || emailData.body_text || '',
-          timestamp: emailData.date,
-          isRead: emailData.is_read,
-          message_id: emailData.message_id
-        };
-        setForwardEmail(email);
-        setIsForwardOpen(true);
-      }
-    } catch (err) {
-      console.error('Error fetching email for forward:', err);
+    const emailId = thread.email_ids[thread.email_ids.length - 1];
+    const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const email: Email = {
+        id: data.id,
+        sender: data.sender_name || data.from || '',
+        senderEmail: data.sender_email || '',
+        subject: data.subject || '',
+        preview: data.snippet || '',
+        body: data.body_html || data.body_text || '',
+        time: '',
+        date: data.date || '',
+        isRead: data.is_read || false,
+        hasAttachment: data.hasAttachment || false,
+        thread_id: data.thread_id,
+        to: data.to || [],
+        message_id: data.message_id
+      };
+      setForwardEmail(email);
+      setIsForwardOpen(true);
     }
-  }, [currentUser]);
+  } catch (err) {
+    console.error('Error fetching email for forward:', err);
+  }
+}, [currentUser]);
 
   // Handle mark as read from context menu
   const handleContextMarkRead = useCallback(async (thread: Thread) => {
@@ -1011,7 +1017,7 @@ const InboxPage = () => {
       
       if (response.ok) {
         const data = await response.json();
-        const labels = (data.labels || []).map((l: any) => ({
+        const labels = (data.labels || []).map((l: { id: string; display_name: string; color?: string }) => ({
           id: l.id,
           name: l.display_name,
           color: l.color || '#8FA8A3'
