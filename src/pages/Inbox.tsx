@@ -22,6 +22,7 @@ import {
   ForwardModal,
 } from "@/components/inbox";
 import { SearchModal } from "@/components/search";
+import { CreateLabelModal } from "@/components/labels/CreateLabelModal";
 import { UndoEmailData } from "@/components/inbox/ComposeModal";
 import { useThreads } from "@/hooks/useThreads";
 import { 
@@ -35,6 +36,8 @@ import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
 import { Sidebar } from "@/components/layout";
 import ComposioConnectionOverlay from "@/components/ComposioConnectionOverlay";
 import SyncLoadingOverlay from "@/components/SyncLoadingOverlay";
+
+const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 const InboxPage = () => {
   const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
@@ -101,6 +104,12 @@ const InboxPage = () => {
   // Undo restore state - stores data to restore when undo is clicked
   const [undoComposeData, setUndoComposeData] = useState<UndoEmailData | null>(null);
 
+  // Labels state for context menu
+  const [allLabels, setAllLabels] = useState<Array<{ id: string; name: string; color: string }>>([]);
+  
+  // Create label modal state (for context menu)
+  const [isCreateLabelOpen, setIsCreateLabelOpen] = useState(false);
+
   // v4.0: Ref for tracking last key pressed (for R+A combo)
   const lastKeyRef = useRef<string | null>(null);
 
@@ -157,6 +166,37 @@ const InboxPage = () => {
     currentUser?.uid,
     selectedThread?.email_ids || []
   );
+
+  // Fetch all labels for context menu
+  useEffect(() => {
+    const fetchLabels = async () => {
+      if (!currentUser) return;
+      
+      try {
+        const token = await currentUser.getIdToken();
+        const response = await fetch(`${API_URL}/api/labels`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const labels = (data.labels || []).map((l: any) => ({
+            id: l.id,
+            name: l.display_name,
+            color: l.color || '#8FA8A3'
+          }));
+          setAllLabels(labels);
+        }
+      } catch (err) {
+        console.error('Error fetching labels:', err);
+      }
+    };
+
+    fetchLabels();
+  }, [currentUser]);
 
   // ==================== COMPUTED STATE ====================
   
@@ -781,6 +821,208 @@ const InboxPage = () => {
     setIsForwardOpen(true);
   }, []);
 
+  // ==================== CONTEXT MENU HANDLERS ====================
+
+  // Handle reply from context menu
+  const handleContextReply = useCallback(async (thread: Thread) => {
+    setSelectedThread(thread);
+    
+    try {
+      const token = await currentUser?.getIdToken();
+      if (!token || !thread.email_ids?.length) return;
+      
+      const emailId = thread.email_ids[thread.email_ids.length - 1];
+      const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const emailData = await response.json();
+        const email: Email = {
+          id: emailData.id,
+          threadId: emailData.thread_id,
+          subject: emailData.subject,
+          senderName: emailData.sender_name,
+          senderEmail: emailData.sender_email,
+          to: emailData.to || [],
+          cc: emailData.cc || [],
+          body: emailData.body_html || emailData.body_text || '',
+          timestamp: emailData.date,
+          isRead: emailData.is_read,
+          message_id: emailData.message_id
+        };
+        setReplyToEmail(email);
+        setReplyMode('reply');
+        setIsReplyOpen(true);
+      }
+    } catch (err) {
+      console.error('Error fetching email for reply:', err);
+    }
+  }, [currentUser]);
+
+  // Handle reply all from context menu
+  const handleContextReplyAll = useCallback(async (thread: Thread) => {
+    setSelectedThread(thread);
+    
+    try {
+      const token = await currentUser?.getIdToken();
+      if (!token || !thread.email_ids?.length) return;
+      
+      const emailId = thread.email_ids[thread.email_ids.length - 1];
+      const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const emailData = await response.json();
+        const email: Email = {
+          id: emailData.id,
+          threadId: emailData.thread_id,
+          subject: emailData.subject,
+          senderName: emailData.sender_name,
+          senderEmail: emailData.sender_email,
+          to: emailData.to || [],
+          cc: emailData.cc || [],
+          body: emailData.body_html || emailData.body_text || '',
+          timestamp: emailData.date,
+          isRead: emailData.is_read,
+          message_id: emailData.message_id
+        };
+        setReplyToEmail(email);
+        setReplyMode('replyAll');
+        setIsReplyOpen(true);
+      }
+    } catch (err) {
+      console.error('Error fetching email for reply all:', err);
+    }
+  }, [currentUser]);
+
+  // Handle forward from context menu
+  const handleContextForward = useCallback(async (thread: Thread) => {
+    setSelectedThread(thread);
+    
+    try {
+      const token = await currentUser?.getIdToken();
+      if (!token || !thread.email_ids?.length) return;
+      
+      const emailId = thread.email_ids[thread.email_ids.length - 1];
+      const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const emailData = await response.json();
+        const email: Email = {
+          id: emailData.id,
+          threadId: emailData.thread_id,
+          subject: emailData.subject,
+          senderName: emailData.sender_name,
+          senderEmail: emailData.sender_email,
+          to: emailData.to || [],
+          cc: emailData.cc || [],
+          body: emailData.body_html || emailData.body_text || '',
+          timestamp: emailData.date,
+          isRead: emailData.is_read,
+          message_id: emailData.message_id
+        };
+        setForwardEmail(email);
+        setIsForwardOpen(true);
+      }
+    } catch (err) {
+      console.error('Error fetching email for forward:', err);
+    }
+  }, [currentUser]);
+
+  // Handle mark as read from context menu
+  const handleContextMarkRead = useCallback(async (thread: Thread) => {
+    setLocalReadThreads(prev => new Set(prev).add(thread.thread_id));
+    setLocalUnreadThreads(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(thread.thread_id);
+      return newSet;
+    });
+    
+    const emailIds = thread.email_ids || [];
+    if (emailIds.length > 0) {
+      batchMarkAsRead(emailIds).catch(console.error);
+    }
+  }, []);
+
+  // Handle mark as unread from context menu
+  const handleContextMarkUnread = useCallback(async (thread: Thread) => {
+    setLocalUnreadThreads(prev => new Set(prev).add(thread.thread_id));
+    setLocalReadThreads(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(thread.thread_id);
+      return newSet;
+    });
+    
+    const emailIds = thread.email_ids || [];
+    if (emailIds.length > 0) {
+      batchMarkAsUnread(emailIds).catch(console.error);
+    }
+  }, []);
+
+  // Handle toggle label from context menu
+  const handleToggleLabel = useCallback(async (thread: Thread, labelId: string, labelName: string, isApplied: boolean) => {
+    try {
+      const token = await currentUser?.getIdToken();
+      if (!token) return;
+      
+      const endpoint = isApplied 
+        ? `${API_URL}/api/labels/remove-from-thread`
+        : `${API_URL}/api/labels/apply-to-thread`;
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          thread_id: thread.thread_id,
+          label_id: labelId,
+          label_name: labelName
+        })
+      });
+      
+      if (response.ok) {
+        console.log('✅ Label toggled successfully');
+      }
+    } catch (err) {
+      console.error('Error toggling label:', err);
+    }
+  }, [currentUser]);
+
+  // Handle create label from context menu
+  const handleCreateLabelFromContext = useCallback(() => {
+    setIsCreateLabelOpen(true);
+  }, []);
+
+  // Handle label created - refresh labels list
+  const handleLabelCreatedFromContext = useCallback(async () => {
+    if (!currentUser) return;
+    
+    try {
+      const token = await currentUser.getIdToken();
+      const response = await fetch(`${API_URL}/api/labels`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const labels = (data.labels || []).map((l: any) => ({
+          id: l.id,
+          name: l.display_name,
+          color: l.color || '#8FA8A3'
+        }));
+        setAllLabels(labels);
+      }
+    } catch (err) {
+      console.error('Error refreshing labels:', err);
+    }
+  }, [currentUser]);
+
   // ==================== KEYBOARD SHORTCUTS ====================
   
   // Existing keyboard shortcuts for checkbox selection
@@ -1182,6 +1424,14 @@ const InboxPage = () => {
                   onCheckChange={handleCheckChange}
                   onMarkDone={handleMarkThreadDone}
                   onDelete={handleDeleteThread}
+                  allLabels={allLabels}
+                  onReply={handleContextReply}
+                  onReplyAll={handleContextReplyAll}
+                  onForward={handleContextForward}
+                  onMarkRead={handleContextMarkRead}
+                  onMarkUnread={handleContextMarkUnread}
+                  onToggleLabel={handleToggleLabel}
+                  onCreateLabel={handleCreateLabelFromContext}
                 />
               )}
             </div>
@@ -1547,6 +1797,13 @@ const InboxPage = () => {
           isOpen={isSearchOpen}
           onClose={() => setIsSearchOpen(false)}
           userEmail={currentUser?.email || ''}
+        />
+        
+        {/* Create Label Modal (from context menu) */}
+        <CreateLabelModal
+          isOpen={isCreateLabelOpen}
+          onClose={() => setIsCreateLabelOpen(false)}
+          onLabelCreated={handleLabelCreatedFromContext}
         />
         
       </div>
