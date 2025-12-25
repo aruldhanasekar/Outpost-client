@@ -45,6 +45,7 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [labels, setLabels] = useState<Label[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(false);
+  const [hasFetchedLabels, setHasFetchedLabels] = useState(false);
   const [isCreateLabelOpen, setIsCreateLabelOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; label: Label | null }>({
     isOpen: false,
@@ -74,15 +75,16 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
       console.error('Error fetching labels:', err);
     } finally {
       setLabelsLoading(false);
+      setHasFetchedLabels(true);
     }
   };
 
-  // Fetch labels when nav opens
+  // Fetch labels when nav opens (only first time)
   useEffect(() => {
-    if (isNavOpen) {
+    if (isNavOpen && !hasFetchedLabels) {
       fetchLabels();
     }
-  }, [currentUser, isNavOpen]);
+  }, [currentUser, isNavOpen, hasFetchedLabels]);
 
   // Handle delete label
   const handleDeleteLabel = async (labelId: string) => {
