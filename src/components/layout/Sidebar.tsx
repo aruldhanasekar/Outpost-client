@@ -5,10 +5,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ProfileDropdown from "@/components/ProfileDropdown";
 
-export type PageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'trash';
+export type PageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'trash' | 'label';
 
 interface SidebarProps {
   activePage: PageType;
+  activeLabel?: string;
   userEmail?: string;
   userName?: string;
   avatarLetter?: string;
@@ -24,13 +25,27 @@ const menuItems: { id: PageType; label: string; path: string }[] = [
   { id: 'trash', label: 'Trash', path: '/trash' },
 ];
 
-export const Sidebar = ({ activePage, userEmail, userName, avatarLetter }: SidebarProps) => {
+// Sample user-created labels (later: fetch from Gmail API)
+const sampleLabels = [
+  { id: 'team', name: 'Team' },
+  { id: 'invoice', name: 'Invoice' },
+  { id: 'projects', name: 'Projects' },
+  { id: 'clients', name: 'Clients' },
+];
+
+export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLetter }: SidebarProps) => {
   const navigate = useNavigate();
   const [isNavOpen, setIsNavOpen] = useState(false);
 
   // Handle menu item click
   const handleMenuItemClick = (path: string) => {
     navigate(path);
+    setIsNavOpen(false);
+  };
+
+  // Handle label click
+  const handleLabelClick = (labelId: string) => {
+    navigate(`/label/${labelId}`);
     setIsNavOpen(false);
   };
 
@@ -87,10 +102,11 @@ export const Sidebar = ({ activePage, userEmail, userName, avatarLetter }: Sideb
       {/* Desktop: Second Sidebar - Navigation Panel */}
       {isNavOpen && (
         <div 
-          className="hidden lg:block fixed top-4 bottom-20 left-14 w-[200px] bg-[#f7f7f7] rounded-2xl z-20 shadow-xl py-3"
+          className="hidden lg:block fixed top-4 bottom-20 left-14 w-[200px] bg-[#f7f7f7] rounded-2xl z-20 shadow-xl py-3 overflow-y-auto"
           onMouseLeave={handleMouseLeave}
         >
           <nav className="px-2">
+            {/* Main Menu Items */}
             {menuItems.map((item) => {
               const isActive = activePage === item.id;
               
@@ -107,6 +123,35 @@ export const Sidebar = ({ activePage, userEmail, userName, avatarLetter }: Sideb
                   `}
                 >
                   {item.label}
+                </button>
+              );
+            })}
+            
+            {/* Divider */}
+            <div className="my-3 mx-2 border-t border-gray-300" />
+            
+            {/* Labels Section Header */}
+            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Labels
+            </div>
+            
+            {/* Label Items */}
+            {sampleLabels.map((label) => {
+              const isActive = activePage === 'label' && activeLabel === label.id;
+              
+              return (
+                <button
+                  key={label.id}
+                  onClick={() => handleLabelClick(label.id)}
+                  className={`
+                    w-full flex items-center px-4 py-2.5 rounded-full mb-1 text-sm font-medium transition-colors
+                    ${isActive 
+                      ? 'bg-[#8FA8A3] text-black' 
+                      : 'text-gray-700 hover:bg-gray-200 hover:text-[#8FA8A3]'
+                    }
+                  `}
+                >
+                  {label.name}
                 </button>
               );
             })}
