@@ -1,5 +1,6 @@
 // ThreadList.tsx - Thread list for URGENT/IMPORTANT/OTHERS categories
 // v2.1: Removed date separators
+// v2.2: Added context menu props
 
 import { Loader2 } from 'lucide-react';
 import { Thread } from './promiseTypes';
@@ -17,6 +18,15 @@ interface ThreadListProps {
   onMarkDone?: (thread: Thread) => void;
   onDelete?: (thread: Thread) => void;
   emptyMessage?: string;
+  // New props for context menu
+  allLabels?: Array<{ id: string; name: string; color: string }>;
+  onReply?: (thread: Thread) => void;
+  onReplyAll?: (thread: Thread) => void;
+  onForward?: (thread: Thread) => void;
+  onMarkRead?: (thread: Thread) => void;
+  onMarkUnread?: (thread: Thread) => void;
+  onToggleLabel?: (thread: Thread, labelId: string, labelName: string, isApplied: boolean) => void;
+  onCreateLabel?: () => void;
 }
 
 export function ThreadList({ 
@@ -30,7 +40,16 @@ export function ThreadList({
   onCheckChange,
   onMarkDone,
   onDelete,
-  emptyMessage = 'No threads in this category'
+  emptyMessage = 'No threads in this category',
+  // New props
+  allLabels = [],
+  onReply,
+  onReplyAll,
+  onForward,
+  onMarkRead,
+  onMarkUnread,
+  onToggleLabel,
+  onCreateLabel
 }: ThreadListProps) {
   // Loading state
   if (loading) {
@@ -77,6 +96,15 @@ export function ThreadList({
           onCheckChange={onCheckChange}
           onMarkDone={onMarkDone}
           onDelete={onDelete}
+          // New props for context menu
+          allLabels={allLabels}
+          onReply={onReply}
+          onReplyAll={onReplyAll}
+          onForward={onForward}
+          onMarkRead={onMarkRead}
+          onMarkUnread={onMarkUnread}
+          onToggleLabel={onToggleLabel}
+          onCreateLabel={onCreateLabel}
         />
       ))}
     </div>
