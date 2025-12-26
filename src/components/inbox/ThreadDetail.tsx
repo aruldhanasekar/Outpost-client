@@ -9,7 +9,8 @@ import {
   updateThreadCategory, 
   checkSenderRule, 
   createTriageRule, 
-  deleteTriageRuleBySender 
+  deleteTriageRuleBySender,
+  updateTriageRuleBySender
 } from '@/services/emailApi';
 import OutpostLogo from '@/assets/Outpost.png';
 
@@ -205,6 +206,35 @@ function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: C
     try {
       // Update thread document directly using thread_id
       await updateThreadCategory(thread.thread_id, category);
+      
+      // Also update any active sender rules to the new category
+      const activeRules = Object.entries(senderRules).filter(([_, rule]) => rule.hasRule);
+      if (activeRules.length > 0) {
+        console.log(`📋 Updating ${activeRules.length} sender rules to ${category}`);
+        
+        // Update all active rules in parallel
+        await Promise.all(
+          activeRules.map(async ([senderEmail]) => {
+            try {
+              await updateTriageRuleBySender(senderEmail, category);
+              console.log(`✅ Updated rule: ${senderEmail} → ${category}`);
+            } catch (err) {
+              console.error(`Failed to update rule for ${senderEmail}:`, err);
+            }
+          })
+        );
+        
+        // Update local state
+        setSenderRules(prev => {
+          const updated = { ...prev };
+          activeRules.forEach(([email]) => {
+            if (updated[email]) {
+              updated[email] = { ...updated[email], category };
+            }
+          });
+          return updated;
+        });
+      }
       
       // Notify parent
       if (onCategoryChange) {

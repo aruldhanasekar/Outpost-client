@@ -1074,3 +1074,32 @@ export async function deleteTriageRuleBySender(senderEmail: string): Promise<{
 
   return response.json();
 }
+
+/**
+ * Update a sender triage rule's category by sender email
+ */
+export async function updateTriageRuleBySender(senderEmail: string, category: string): Promise<{
+  status: string;
+  message: string;
+  sender_email: string;
+  old_category: string;
+  new_category: string;
+}> {
+  const token = await getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/triage-rules/by-sender/${encodeURIComponent(senderEmail)}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ category }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || `API error: ${response.status}`);
+  }
+
+  return response.json();
+}
