@@ -3,6 +3,7 @@
 // ✅ Composio endpoints implemented for all functions
 // ✅ Label API functions added
 // ✅ Contacts API function added
+// ✅ Fixed: localStorage fallback for auth method detection
 
 import { auth } from '../firebase.config';
 
@@ -17,19 +18,39 @@ async function getAuthToken(): Promise<string> {
   return user.getIdToken();
 }
 
-// Get auth method from Firebase custom claims
+// Get auth method - check claims first, fallback to localStorage
 async function getAuthMethod(): Promise<'direct' | 'composio'> {
   const user = auth.currentUser;
   if (!user) return 'direct';
   
   try {
+    // Check custom claims first
     const idTokenResult = await user.getIdTokenResult();
-    const authMethod = idTokenResult.claims.auth_method as string;
+    const claimsAuthMethod = idTokenResult.claims.auth_method as string;
     
-    // Default to 'direct' if not set
-    return authMethod === 'composio' ? 'composio' : 'direct';
+    if (claimsAuthMethod === 'composio') {
+      return 'composio';
+    }
+    
+    // Fallback: Check localStorage (set after Composio finalization)
+    const storedAuthMethod = localStorage.getItem('outpost_auth_method');
+    if (storedAuthMethod === 'composio') {
+      console.log('🔄 Auth method from localStorage: composio (claims not yet propagated)');
+      // Force token refresh to get updated claims
+      await user.getIdToken(true);
+      return 'composio';
+    }
+    
+    return 'direct';
   } catch (error) {
-    console.error('Failed to get auth method from claims:', error);
+    console.error('Failed to get auth method:', error);
+    
+    // Last resort fallback to localStorage
+    const storedAuthMethod = localStorage.getItem('outpost_auth_method');
+    if (storedAuthMethod === 'composio') {
+      return 'composio';
+    }
+    
     return 'direct';
   }
 }
@@ -66,6 +87,39 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
   }
 
   return response.json();
+}
+
+// ======================================================
+// AUTH METHOD HELPERS (for use in Composio finalization)
+// ======================================================
+
+/**
+ * Set auth method in localStorage after Composio finalization.
+ * Call this after successful /auth/composio/finalize response.
+ */
+export function setAuthMethodComposio(): void {
+  localStorage.setItem('outpost_auth_method', 'composio');
+  console.log('✅ Auth method set to composio in localStorage');
+}
+
+/**
+ * Clear auth method from localStorage (on logout).
+ */
+export function clearAuthMethod(): void {
+  localStorage.removeItem('outpost_auth_method');
+  console.log('🧹 Auth method cleared from localStorage');
+}
+
+/**
+ * Force refresh the Firebase ID token to get updated custom claims.
+ * Call this after Composio finalization.
+ */
+export async function refreshAuthToken(): Promise<void> {
+  const user = auth.currentUser;
+  if (user) {
+    await user.getIdToken(true);
+    console.log('🔄 Firebase token refreshed');
+  }
 }
 
 // ======================================================
