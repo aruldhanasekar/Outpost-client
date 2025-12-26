@@ -22,17 +22,17 @@ import {
   batchMarkAsDone, 
   batchMarkAsRead,
   batchMarkAsUnread,
-  batchDelete
+  batchDelete,
+  getLabelByName,
+  getLabelThreads
 } from "@/services/emailApi";
 import { UndoToast } from "@/components/ui/UndoToast";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
 import { Sidebar } from "@/components/layout";
 import { EditLabelModal } from "@/components/labels/EditLabelModal";
 
-const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
-
-// Hook to fetch threads by label
-function useLabelThreads(userId: string | undefined, labelName: string | undefined, getToken: () => Promise<string>) {
+// Hook to fetch threads by label - uses emailApi for automatic routing
+function useLabelThreads(userId: string | undefined, labelName: string | undefined) {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,34 +48,24 @@ function useLabelThreads(userId: string | undefined, labelName: string | undefin
       setError(null);
       
       try {
-        const token = await getToken();
-        const response = await fetch(`${API_URL}/api/labels/${encodeURIComponent(labelName)}/threads`, {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            setThreads([]);
-            return;
-          }
-          throw new Error(`Failed to fetch: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        setThreads(data.threads || []);
+        // ✅ Uses getLabelThreads() which automatically routes to correct endpoint
+        const data = await getLabelThreads(labelName);
+        setThreads((data.threads || []) as unknown as Thread[]);
       } catch (err) {
         console.error('Error fetching label threads:', err);
-        setError('Failed to load emails');
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.includes('404')) {
+          setThreads([]);
+        } else {
+          setError('Failed to load emails');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchThreads();
-  }, [userId, labelName, getToken]);
+  }, [userId, labelName]);
 
   return { threads, loading, error };
 }
@@ -164,7 +154,7 @@ const LabelPage = () => {
     threads: labelThreads, 
     loading: labelLoading, 
     error: labelError 
-  } = useLabelThreads(currentUser?.uid, labelName, getAuthToken);
+  } = useLabelThreads(currentUser?.uid, labelName);
   
   // Fetch emails for selected thread
   const { 
@@ -183,18 +173,9 @@ const LabelPage = () => {
       if (!currentUser || !labelName) return;
       
       try {
-        const token = await currentUser.getIdToken();
-        const response = await fetch(`${API_URL}/api/labels/by-name/${encodeURIComponent(labelName)}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setLabelDetails(data);
-        }
+        // ✅ Uses getLabelByName() which automatically routes to correct endpoint
+        const data = await getLabelByName(labelName);
+        setLabelDetails(data);
       } catch (err) {
         console.error('Error fetching label details:', err);
       }
