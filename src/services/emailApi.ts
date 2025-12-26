@@ -2,6 +2,7 @@
 // ✅ Automatic endpoint routing based on auth_method
 // ✅ Composio endpoints implemented for all functions
 // ✅ Label API functions added
+// ✅ Contacts API function added
 
 import { auth } from '../firebase.config';
 
@@ -228,6 +229,23 @@ export async function getEmail(emailId: string): Promise<{
   attachments: unknown[];
 }> {
   return apiCall(`/api/emails/${emailId}`, {
+    method: 'GET',
+  });
+}
+
+/**
+ * Get contacts (unique email addresses from inbox)
+ * - Used for auto-label email suggestions
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/contacts
+ * - Composio: /api/composio/emails/contacts
+ */
+export async function getContacts(): Promise<{
+  emails: string[];
+  count: number;
+}> {
+  return apiCall('/api/emails/contacts', {
     method: 'GET',
   });
 }

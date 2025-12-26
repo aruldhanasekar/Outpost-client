@@ -1,11 +1,11 @@
 // components/labels/CreateLabelModal.tsx
 // Modal for creating labels with optional auto-labeling by email addresses
+// ✅ Updated to use emailApi.ts for automatic Direct Auth / Composio routing
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-
-const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+import { getLabels, createLabel, getContacts } from '@/services/emailApi';
 
 interface CreateLabelModalProps {
   isOpen: boolean;
@@ -67,20 +67,10 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
       if (!currentUser || !isOpen) return;
       
       try {
-        const token = await currentUser.getIdToken();
-        const response = await fetch(`${API_URL}/api/labels`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          // Store display names (case-insensitive comparison later)
-          const labels = (data.labels || []).map((l: { display_name: string }) => l.display_name.toLowerCase());
-          setExistingLabels(labels);
-        }
+        const data = await getLabels();
+        // Store display names (case-insensitive comparison later)
+        const labels = (data.labels || []).map((l) => (l.display_name || l.name).toLowerCase());
+        setExistingLabels(labels);
       } catch (err) {
         console.error('Error fetching labels:', err);
       }
@@ -96,18 +86,8 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
       
       setSuggestionsLoading(true);
       try {
-        const token = await currentUser.getIdToken();
-        const response = await fetch(`${API_URL}/api/emails/contacts`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setAllEmails(data.emails || []);
-        }
+        const data = await getContacts();
+        setAllEmails(data.emails || []);
       } catch (err) {
         console.error('Error fetching contacts:', err);
       } finally {
@@ -221,27 +201,14 @@ export function CreateLabelModal({ isOpen, onClose, onLabelCreated }: CreateLabe
     
     setIsCreating(true);
     try {
-      const token = await currentUser.getIdToken();
-      const response = await fetch(`${API_URL}/api/labels/create`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: labelName.trim(),
-          auto_label: autoLabel,
-          auto_label_emails: autoLabel ? selectedEmails : []
-        })
+      await createLabel({
+        name: labelName.trim(),
+        auto_label: autoLabel,
+        auto_label_emails: autoLabel ? selectedEmails : []
       });
       
-      if (response.ok) {
-        onLabelCreated?.();
-        onClose();
-      } else {
-        const error = await response.json();
-        console.error('Failed to create label:', error);
-      }
+      onLabelCreated?.();
+      onClose();
     } catch (err) {
       console.error('Error creating label:', err);
     } finally {

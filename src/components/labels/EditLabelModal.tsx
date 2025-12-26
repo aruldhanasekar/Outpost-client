@@ -1,11 +1,11 @@
 // components/labels/EditLabelModal.tsx
 // Modal for editing label name and auto-labeling email addresses
+// ✅ Updated to use emailApi.ts for automatic Direct Auth / Composio routing
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-
-const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+import { getLabels, updateLabel, getContacts } from '@/services/emailApi';
 
 interface EditLabelModalProps {
   isOpen: boolean;
@@ -86,23 +86,13 @@ export function EditLabelModal({
       if (!currentUser || !isOpen) return;
       
       try {
-        const token = await currentUser.getIdToken();
-        const response = await fetch(`${API_URL}/api/labels`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          // Store display names (case-insensitive comparison later)
-          // Exclude current label name from the list
-          const labels = (data.labels || [])
-            .map((l: { display_name: string }) => l.display_name.toLowerCase())
-            .filter((name: string) => name !== initialLabelName.toLowerCase());
-          setExistingLabels(labels);
-        }
+        const data = await getLabels();
+        // Store display names (case-insensitive comparison later)
+        // Exclude current label name from the list
+        const labels = (data.labels || [])
+          .map((l) => (l.display_name || l.name).toLowerCase())
+          .filter((name: string) => name !== initialLabelName.toLowerCase());
+        setExistingLabels(labels);
       } catch (err) {
         console.error('Error fetching labels:', err);
       }
@@ -118,18 +108,8 @@ export function EditLabelModal({
       
       setSuggestionsLoading(true);
       try {
-        const token = await currentUser.getIdToken();
-        const response = await fetch(`${API_URL}/api/emails/contacts`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setAllEmails(data.emails || []);
-        }
+        const data = await getContacts();
+        setAllEmails(data.emails || []);
       } catch (err) {
         console.error('Error fetching contacts:', err);
       } finally {
@@ -250,27 +230,14 @@ export function EditLabelModal({
     
     setIsSaving(true);
     try {
-      const token = await currentUser.getIdToken();
-      const response = await fetch(`${API_URL}/api/labels/${labelId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: labelName.trim(),
-          auto_label: autoLabel,
-          auto_label_emails: autoLabel ? selectedEmails : []
-        })
+      await updateLabel(labelId, {
+        name: labelName.trim(),
+        auto_label: autoLabel,
+        auto_label_emails: autoLabel ? selectedEmails : []
       });
       
-      if (response.ok) {
-        onLabelUpdated?.();
-        onClose();
-      } else {
-        const error = await response.json();
-        console.error('Failed to update label:', error);
-      }
+      onLabelUpdated?.();
+      onClose();
     } catch (err) {
       console.error('Error updating label:', err);
     } finally {
