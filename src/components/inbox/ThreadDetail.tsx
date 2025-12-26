@@ -268,15 +268,21 @@ function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: C
   ];
 
   return (
-    <div ref={dropdownRef} className="relative">
+    <div ref={dropdownRef} className="relative group">
       {/* Logo trigger button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-        title="Change category"
       >
-        <img src={OutpostLogo} alt="Outpost" className="w-7 h-7" />
+        <img src={OutpostLogo} alt="Outpost" className="w-5 h-5" />
       </button>
+      
+      {/* Custom tooltip - hide when dropdown is open */}
+      {!isOpen && (
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 bg-zinc-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+          Change category
+        </div>
+      )}
       
       {/* Dropdown menu */}
       {isOpen && (
