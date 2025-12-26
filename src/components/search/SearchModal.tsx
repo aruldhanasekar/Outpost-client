@@ -1,4 +1,5 @@
 // SearchModal.tsx - Search modal with instant results and detail panel
+// ✅ Uses /api/search/* endpoints (works for both Direct Auth and Composio users)
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { 
@@ -219,7 +220,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       
       try {
         const token = await currentUser.getIdToken();
-        const response = await fetch(`${API_URL}/api/emails/searchable?limit=300`, {
+        const response = await fetch(`${API_URL}/api/search/emails?limit=300`, {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         
@@ -285,7 +286,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     try {
       const token = await currentUser?.getIdToken();
       const response = await fetch(
-        `${API_URL}/api/emails/${email.source}/${email.id}`,
+        `${API_URL}/api/search/email/${email.source}/${email.id}`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
       
