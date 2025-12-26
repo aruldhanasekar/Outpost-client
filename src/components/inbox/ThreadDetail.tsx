@@ -272,10 +272,10 @@ function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: C
       {/* Logo trigger button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        className="p-1 rounded-lg transition-colors"
         title="Change category"
       >
-        <img src={OutpostLogo} alt="Outpost" className="w-7 h-7" />
+        <img src={OutpostLogo} alt="Outpost" className="w-9 h-9" />
       </button>
       
       {/* Dropdown menu */}
