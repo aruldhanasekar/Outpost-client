@@ -67,7 +67,7 @@ const InboxPage = () => {
   const [localDoneThreads, setLocalDoneThreads] = useState<Set<string>>(new Set());
   const [localDeletedThreads, setLocalDeletedThreads] = useState<Set<string>>(new Set());
   const [localThreadLabels, setLocalThreadLabels] = useState<Map<string, Array<{ id: string; name: string; color: string }>>>(new Map());
-  const [localMovedThreads, setLocalMovedThreads] = useState<Map<string, string>>(new Map()); // threadId -> newCategory
+  const [localMovedThreads, setLocalMovedThreads] = useState<Map<string, { from: string; to: string }>>(new Map()); // threadId -> { from, to }
   
   // Checked threads state (for bulk selection)
   const [checkedThreads, setCheckedThreads] = useState<Set<string>>(new Set());
@@ -224,7 +224,11 @@ const InboxPage = () => {
   return threads
     .filter(thread => !localDoneThreads.has(thread.thread_id))
     .filter(thread => !localDeletedThreads.has(thread.thread_id))
-    .filter(thread => !localMovedThreads.has(thread.thread_id)) // Hide moved threads
+    .filter(thread => {
+      // Only hide thread if we're viewing the source category it was moved FROM
+      const moveInfo = localMovedThreads.get(thread.thread_id);
+      return !(moveInfo && activeCategory.toUpperCase() === moveInfo.from);
+    })
     .map(thread => ({
       ...thread,
       // Apply local read/unread state
@@ -757,12 +761,12 @@ const InboxPage = () => {
   
   // Called when user changes email category via dropdown
   const handleThreadCategoryOverride = useCallback((threadId: string, newCategory: string) => {
-    console.log(`📁 Category changed: ${threadId} → ${newCategory}`);
+    console.log(`📁 Category changed: ${threadId} → ${newCategory} (from ${activeCategory.toUpperCase()})`);
     
-    // Add to localMovedThreads so it disappears from current list
+    // Add to localMovedThreads with source category so it only hides from source
     setLocalMovedThreads(prev => {
       const newMap = new Map(prev);
-      newMap.set(threadId, newCategory);
+      newMap.set(threadId, { from: activeCategory.toUpperCase(), to: newCategory });
       return newMap;
     });
     
@@ -785,7 +789,7 @@ const InboxPage = () => {
     setTimeout(() => {
       setToast(prev => ({ ...prev, show: false }));
     }, 3000);
-  }, []);
+  }, [activeCategory]);
 
   // ==================== EMAIL SEND HANDLERS ====================
   
