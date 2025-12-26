@@ -824,120 +824,120 @@ const InboxPage = () => {
   // ==================== CONTEXT MENU HANDLERS ====================
 
   // Handle reply from context menu
-const handleContextReply = useCallback(async (thread: Thread) => {
-  setSelectedThread(thread);
-  
-  try {
-    const token = await currentUser?.getIdToken();
-    if (!token || !thread.email_ids?.length) return;
+  const handleContextReply = useCallback(async (thread: Thread) => {
+    setSelectedThread(thread);
     
-    const emailId = thread.email_ids[thread.email_ids.length - 1];
-    const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      const email: Email = {
-        id: data.id,
-        sender: data.sender_name || data.from || '',
-        senderEmail: data.sender_email || '',
-        subject: data.subject || '',
-        preview: data.snippet || '',
-        body: data.body_html || data.body_text || '',
-        time: '',
-        date: data.date || '',
-        isRead: data.is_read || false,
-        hasAttachment: data.hasAttachment || false,
-        thread_id: data.thread_id,
-        to: data.to || [],
-        message_id: data.message_id
-      };
-      setReplyToEmail(email);
-      setReplyMode('reply');
-      setIsReplyOpen(true);
+    try {
+      const token = await currentUser?.getIdToken();
+      if (!token || !thread.email_ids?.length) return;
+      
+      const emailId = thread.email_ids[thread.email_ids.length - 1];
+      const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const email: Email = {
+          id: data.id,
+          sender: data.sender_name || data.from || '',
+          senderEmail: data.sender_email || '',
+          subject: data.subject || '',
+          preview: data.snippet || '',
+          body: data.body_html || data.body_text || '',
+          time: '',
+          date: data.date || '',
+          isRead: data.is_read || false,
+          hasAttachment: data.hasAttachment || false,
+          thread_id: data.thread_id,
+          to: data.to || [],
+          message_id: data.message_id
+        };
+        setReplyToEmail(email);
+        setReplyMode('reply');
+        setIsReplyOpen(true);
+      }
+    } catch (err) {
+      console.error('Error fetching email for reply:', err);
     }
-  } catch (err) {
-    console.error('Error fetching email for reply:', err);
-  }
-}, [currentUser]);
+  }, [currentUser]);
 
   // Handle reply all from context menu
-const handleContextReplyAll = useCallback(async (thread: Thread) => {
-  setSelectedThread(thread);
-  
-  try {
-    const token = await currentUser?.getIdToken();
-    if (!token || !thread.email_ids?.length) return;
+  const handleContextReplyAll = useCallback(async (thread: Thread) => {
+    setSelectedThread(thread);
     
-    const emailId = thread.email_ids[thread.email_ids.length - 1];
-    const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      const email: Email = {
-        id: data.id,
-        sender: data.sender_name || data.from || '',
-        senderEmail: data.sender_email || '',
-        subject: data.subject || '',
-        preview: data.snippet || '',
-        body: data.body_html || data.body_text || '',
-        time: '',
-        date: data.date || '',
-        isRead: data.is_read || false,
-        hasAttachment: data.hasAttachment || false,
-        thread_id: data.thread_id,
-        to: data.to || [],
-        message_id: data.message_id
-      };
-      setReplyToEmail(email);
-      setReplyMode('replyAll');
-      setIsReplyOpen(true);
+    try {
+      const token = await currentUser?.getIdToken();
+      if (!token || !thread.email_ids?.length) return;
+      
+      const emailId = thread.email_ids[thread.email_ids.length - 1];
+      const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const email: Email = {
+          id: data.id,
+          sender: data.sender_name || data.from || '',
+          senderEmail: data.sender_email || '',
+          subject: data.subject || '',
+          preview: data.snippet || '',
+          body: data.body_html || data.body_text || '',
+          time: '',
+          date: data.date || '',
+          isRead: data.is_read || false,
+          hasAttachment: data.hasAttachment || false,
+          thread_id: data.thread_id,
+          to: data.to || [],
+          message_id: data.message_id
+        };
+        setReplyToEmail(email);
+        setReplyMode('replyAll');
+        setIsReplyOpen(true);
+      }
+    } catch (err) {
+      console.error('Error fetching email for reply all:', err);
     }
-  } catch (err) {
-    console.error('Error fetching email for reply all:', err);
-  }
-}, [currentUser]);
+  }, [currentUser]);
 
   // Handle forward from context menu
-const handleContextForward = useCallback(async (thread: Thread) => {
-  setSelectedThread(thread);
-  
-  try {
-    const token = await currentUser?.getIdToken();
-    if (!token || !thread.email_ids?.length) return;
+  const handleContextForward = useCallback(async (thread: Thread) => {
+    setSelectedThread(thread);
     
-    const emailId = thread.email_ids[thread.email_ids.length - 1];
-    const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      const email: Email = {
-        id: data.id,
-        sender: data.sender_name || data.from || '',
-        senderEmail: data.sender_email || '',
-        subject: data.subject || '',
-        preview: data.snippet || '',
-        body: data.body_html || data.body_text || '',
-        time: '',
-        date: data.date || '',
-        isRead: data.is_read || false,
-        hasAttachment: data.hasAttachment || false,
-        thread_id: data.thread_id,
-        to: data.to || [],
-        message_id: data.message_id
-      };
-      setForwardEmail(email);
-      setIsForwardOpen(true);
+    try {
+      const token = await currentUser?.getIdToken();
+      if (!token || !thread.email_ids?.length) return;
+      
+      const emailId = thread.email_ids[thread.email_ids.length - 1];
+      const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const email: Email = {
+          id: data.id,
+          sender: data.sender_name || data.from || '',
+          senderEmail: data.sender_email || '',
+          subject: data.subject || '',
+          preview: data.snippet || '',
+          body: data.body_html || data.body_text || '',
+          time: '',
+          date: data.date || '',
+          isRead: data.is_read || false,
+          hasAttachment: data.hasAttachment || false,
+          thread_id: data.thread_id,
+          to: data.to || [],
+          message_id: data.message_id
+        };
+        setForwardEmail(email);
+        setIsForwardOpen(true);
+      }
+    } catch (err) {
+      console.error('Error fetching email for forward:', err);
     }
-  } catch (err) {
-    console.error('Error fetching email for forward:', err);
-  }
-}, [currentUser]);
+  }, [currentUser]);
 
   // Handle mark as read from context menu
   const handleContextMarkRead = useCallback(async (thread: Thread) => {
