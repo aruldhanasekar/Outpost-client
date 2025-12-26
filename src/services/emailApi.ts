@@ -1,6 +1,7 @@
 // services/emailApi.ts - API calls for email actions
 // ✅ Automatic endpoint routing based on auth_method
 // ✅ Composio endpoints implemented for all functions
+// ✅ Label API functions added
 
 import { auth } from '../firebase.config';
 
@@ -37,11 +38,16 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
   const token = await getAuthToken();
   const authMethod = await getAuthMethod();
   
-  // Route: Replace /api/emails with correct prefix based on auth method
+  // Route: Replace /api/emails and /api/labels with correct prefix based on auth method
   let routedEndpoint = endpoint;
-  if (authMethod === 'composio' && endpoint.startsWith('/api/emails')) {
-    routedEndpoint = endpoint.replace('/api/emails', '/api/composio/emails');
-    console.log(`🔀 Routing to Composio: ${endpoint} → ${routedEndpoint}`);
+  if (authMethod === 'composio') {
+    if (endpoint.startsWith('/api/emails')) {
+      routedEndpoint = endpoint.replace('/api/emails', '/api/composio/emails');
+      console.log(`🔀 Routing to Composio: ${endpoint} → ${routedEndpoint}`);
+    } else if (endpoint.startsWith('/api/labels')) {
+      routedEndpoint = endpoint.replace('/api/labels', '/api/composio/labels');
+      console.log(`🔀 Routing to Composio: ${endpoint} → ${routedEndpoint}`);
+    }
   }
   
   const response = await fetch(`${API_BASE_URL}${routedEndpoint}`, {
@@ -191,6 +197,38 @@ export async function restoreEmail(emailId: string): Promise<{
 }> {
   return apiCall(`/api/emails/${emailId}/restore`, {
     method: 'POST',
+  });
+}
+
+/**
+ * Get single email by ID
+ * - Fetches email from Firestore
+ * - Used for reply/forward from context menu
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/{emailId}
+ * - Composio: /api/composio/emails/{emailId}
+ */
+export async function getEmail(emailId: string): Promise<{
+  id: string;
+  thread_id: string;
+  message_id: string;
+  subject: string;
+  sender_name: string;
+  sender_email: string;
+  from: string;
+  to: string[];
+  cc: string[];
+  date: string;
+  snippet: string;
+  body_html: string;
+  body_text: string;
+  is_read: boolean;
+  hasAttachment: boolean;
+  attachments: unknown[];
+}> {
+  return apiCall(`/api/emails/${emailId}`, {
+    method: 'GET',
   });
 }
 
@@ -382,6 +420,22 @@ export interface TrackingStats {
   accuracy_note: string;
 }
 
+// Label types
+export interface Label {
+  id: string;
+  name: string;
+  display_name: string;
+  color: string;
+  message_count?: number;
+  threads_count?: number;
+}
+
+export interface LabelListResponse {
+  status: string;
+  labels: Label[];
+  total: number;
+}
+
 // ======================================================
 // EMAIL SEND FUNCTIONS
 // ✅ Composio endpoints implemented
@@ -484,6 +538,185 @@ export async function getEmailStatus(emailId: string): Promise<EmailStatus> {
  */
 export async function getEmailTracking(emailId: string): Promise<TrackingStats> {
   return apiCall(`/api/emails/${emailId}/tracking`, {
+    method: 'GET',
+  });
+}
+
+// ======================================================
+// LABEL API FUNCTIONS
+// ✅ Automatic routing handles Direct Auth vs Composio
+// ======================================================
+
+/**
+ * Get all user labels
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/labels
+ * - Composio: /api/composio/labels
+ */
+export async function getLabels(): Promise<LabelListResponse> {
+  return apiCall('/api/labels', {
+    method: 'GET',
+  });
+}
+
+/**
+ * Create a new label
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/labels/create
+ * - Composio: /api/composio/labels/create
+ */
+export async function createLabel(data: {
+  name: string;
+  auto_label?: boolean;
+  auto_label_emails?: string[];
+}): Promise<{
+  status: string;
+  label_id: string;
+  label_name: string;
+  gmail_label_name?: string;
+  color: string;
+  auto_label?: boolean;
+  auto_label_emails?: string[];
+}> {
+  return apiCall('/api/labels/create', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Apply label to thread
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/labels/apply-to-thread
+ * - Composio: /api/composio/labels/apply-to-thread
+ */
+export async function applyLabelToThread(data: {
+  thread_id: string;
+  label_id: string;
+  label_name: string;
+}): Promise<{
+  status: string;
+  message: string;
+}> {
+  return apiCall('/api/labels/apply-to-thread', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Remove label from thread
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/labels/remove-from-thread
+ * - Composio: /api/composio/labels/remove-from-thread
+ */
+export async function removeLabelFromThread(data: {
+  thread_id: string;
+  label_id: string;
+  label_name: string;
+}): Promise<{
+  status: string;
+  message: string;
+}> {
+  return apiCall('/api/labels/remove-from-thread', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update label
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/labels/{labelId}
+ * - Composio: /api/composio/labels/{labelId}
+ */
+export async function updateLabel(labelId: string, data: {
+  name?: string;
+  auto_label?: boolean;
+  auto_label_emails?: string[];
+}): Promise<{
+  status: string;
+  label_id: string;
+  updated: Record<string, unknown>;
+}> {
+  return apiCall(`/api/labels/${labelId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete label
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/labels/{labelId}
+ * - Composio: /api/composio/labels/{labelId}
+ */
+export async function deleteLabel(labelId: string): Promise<{
+  status: string;
+  label_id: string;
+  message: string;
+}> {
+  return apiCall(`/api/labels/${labelId}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Get label details
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/labels/{labelId}/details
+ * - Composio: /api/composio/labels/{labelId}/details
+ */
+export async function getLabelDetails(labelId: string): Promise<{
+  id: string;
+  name: string;
+  display_name: string;
+  gmail_label_id?: string;
+  auto_label: boolean;
+  auto_label_emails: string[];
+  color: string;
+}> {
+  return apiCall(`/api/labels/${labelId}/details`, {
+    method: 'GET',
+  });
+}
+
+/**
+ * Search emails
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/labels/search
+ * - Composio: /api/composio/labels/search
+ */
+export async function searchEmails(query: string, maxResults: number = 20): Promise<{
+  status: string;
+  emails: Array<{
+    id: string;
+    thread_id: string;
+    subject: string;
+    sender_name: string;
+    sender_email: string;
+    snippet: string;
+    date: string;
+    is_read: boolean;
+    has_attachment: boolean;
+    category: string;
+  }>;
+  total: number;
+  query: string;
+}> {
+  const params = new URLSearchParams();
+  params.append('q', query);
+  params.append('max_results', maxResults.toString());
+  
+  return apiCall(`/api/labels/search?${params}`, {
     method: 'GET',
   });
 }

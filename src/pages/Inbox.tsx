@@ -29,7 +29,11 @@ import {
   batchMarkAsDone, 
   batchMarkAsRead,
   batchMarkAsUnread,
-  batchDelete
+  batchDelete,
+  getLabels,
+  getEmail,
+  applyLabelToThread,
+  removeLabelFromThread
 } from "@/services/emailApi";
 import { UndoToast } from "@/components/ui/UndoToast";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
@@ -174,28 +178,18 @@ const InboxPage = () => {
       if (!currentUser) return;
       
       try {
-        const token = await currentUser.getIdToken();
-        const response = await fetch(`${API_URL}/api/labels`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          const labels = (data.labels || []).map((l: { id: string; display_name: string; color?: string }) => ({
-            id: l.id,
-            name: l.display_name,
-            color: l.color || '#8FA8A3'
-          }));
-          setAllLabels(labels);
-        }
+        const data = await getLabels();
+        const labels = (data.labels || []).map((l) => ({
+          id: l.id,
+          name: l.display_name || l.name,
+          color: l.color || '#8FA8A3'
+        }));
+        setAllLabels(labels);
       } catch (err) {
         console.error('Error fetching labels:', err);
       }
     };
-
+    
     fetchLabels();
   }, [currentUser]);
 
@@ -831,43 +825,31 @@ const InboxPage = () => {
 
   // Handle reply from context menu
   const handleContextReply = useCallback(async (thread: Thread) => {
-  console.log('📧 Context Reply triggered for thread:', thread.thread_id);
-  setSelectedThread(thread);
-  
-  try {
-    const token = await currentUser?.getIdToken();
-    if (!token) {
-      console.error('No auth token');
-      return;
-    }
+    console.log('📧 Context Reply triggered for thread:', thread.thread_id);
+    setSelectedThread(thread);
+    
     if (!thread.email_ids?.length) {
       console.error('No email_ids in thread');
       return;
     }
     
-    const emailId = thread.email_ids[thread.email_ids.length - 1];
-    console.log('📧 Fetching email:', emailId);
-    
-    const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    console.log('📧 Response status:', response.status);
-
-    const extractEmail = (str: string): string => {
+    const extractEmailAddr = (str: string): string => {
       if (!str) return '';
       const match = str.match(/<([^>]+)>/);
       return match ? match[1] : str;
     };
     
-    if (response.ok) {
-      const data = await response.json();
+    try {
+      const emailId = thread.email_ids[thread.email_ids.length - 1];
+      console.log('📧 Fetching email:', emailId);
+      
+      const data = await getEmail(emailId);
       console.log('📧 Email data received:', data);
       
       const email: Email = {
         id: data.id,
         sender: data.sender_name || data.from || '',
-        senderEmail: data.sender_email || extractEmail(data.from) || '',
+        senderEmail: data.sender_email || extractEmailAddr(data.from) || '',
         subject: data.subject || '',
         preview: data.snippet || '',
         body: data.body_html || data.body_text || '',
@@ -884,52 +866,38 @@ const InboxPage = () => {
       setReplyMode('reply');
       setIsReplyOpen(true);
       console.log('📧 Reply modal should open now');
-    } else {
-      console.error('📧 API error:', response.status, await response.text());
+    } catch (err) {
+      console.error('📧 Error fetching email for reply:', err);
     }
-  } catch (err) {
-    console.error('📧 Error fetching email for reply:', err);
-  }
-}, [currentUser]);
+  }, []);
 
   // Handle reply all from context menu
   const handleContextReplyAll = useCallback(async (thread: Thread) => {
-  console.log('📧 Context Reply All triggered for thread:', thread.thread_id);
-  setSelectedThread(thread);
+    console.log('📧 Context Reply All triggered for thread:', thread.thread_id);
+    setSelectedThread(thread);
 
-  // Helper to extract email from "Name <email>" format
-  const extractEmail = (str: string): string => {
-    if (!str) return '';
-    const match = str.match(/<([^>]+)>/);
-    return match ? match[1] : str;
-  };
-  
-  try {
-    const token = await currentUser?.getIdToken();
-    if (!token) {
-      console.error('No auth token');
-      return;
-    }
     if (!thread.email_ids?.length) {
       console.error('No email_ids in thread');
       return;
     }
+
+    const extractEmailAddr = (str: string): string => {
+      if (!str) return '';
+      const match = str.match(/<([^>]+)>/);
+      return match ? match[1] : str;
+    };
     
-    const emailId = thread.email_ids[thread.email_ids.length - 1];
-    console.log('📧 Fetching email:', emailId);
-    
-    const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
+    try {
+      const emailId = thread.email_ids[thread.email_ids.length - 1];
+      console.log('📧 Fetching email:', emailId);
+      
+      const data = await getEmail(emailId);
       console.log('📧 Email data received:', data);
       
       const email: Email = {
         id: data.id,
         sender: data.sender_name || data.from || '',
-        senderEmail: data.sender_email || extractEmail(data.from) || '',
+        senderEmail: data.sender_email || extractEmailAddr(data.from) || '',
         subject: data.subject || '',
         preview: data.snippet || '',
         body: data.body_html || data.body_text || '',
@@ -946,39 +914,26 @@ const InboxPage = () => {
       setReplyMode('replyAll');
       setIsReplyOpen(true);
       console.log('📧 Reply All modal should open now');
-    } else {
-      console.error('📧 API error:', response.status, await response.text());
+    } catch (err) {
+      console.error('📧 Error fetching email for reply all:', err);
     }
-  } catch (err) {
-    console.error('📧 Error fetching email for reply all:', err);
-  }
-}, [currentUser]);
+  }, []);
 
   // Handle forward from context menu
   const handleContextForward = useCallback(async (thread: Thread) => {
-  console.log('📧 Context Forward triggered for thread:', thread.thread_id);
-  setSelectedThread(thread);
-  
-  try {
-    const token = await currentUser?.getIdToken();
-    if (!token) {
-      console.error('No auth token');
-      return;
-    }
+    console.log('📧 Context Forward triggered for thread:', thread.thread_id);
+    setSelectedThread(thread);
+    
     if (!thread.email_ids?.length) {
       console.error('No email_ids in thread');
       return;
     }
     
-    const emailId = thread.email_ids[thread.email_ids.length - 1];
-    console.log('📧 Fetching email:', emailId);
-    
-    const response = await fetch(`${API_URL}/api/emails/${emailId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
+    try {
+      const emailId = thread.email_ids[thread.email_ids.length - 1];
+      console.log('📧 Fetching email:', emailId);
+      
+      const data = await getEmail(emailId);
       console.log('📧 Email data received:', data);
       
       const email: Email = {
@@ -1000,13 +955,10 @@ const InboxPage = () => {
       setForwardEmail(email);
       setIsForwardOpen(true);
       console.log('📧 Forward modal should open now');
-    } else {
-      console.error('📧 API error:', response.status, await response.text());
+    } catch (err) {
+      console.error('📧 Error fetching email for forward:', err);
     }
-  } catch (err) {
-    console.error('📧 Error fetching email for forward:', err);
-  }
-}, [currentUser]);
+  }, []);
 
   // Handle mark as read from context menu
   const handleContextMarkRead = useCallback(async (thread: Thread) => {
@@ -1046,98 +998,72 @@ const InboxPage = () => {
 
   // Handle label created - refresh labels list
   const handleLabelCreatedFromContext = useCallback(async () => {
-    if (!currentUser) return;
-    
     try {
-      const token = await currentUser.getIdToken();
-      const response = await fetch(`${API_URL}/api/labels`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const labels = (data.labels || []).map((l: { id: string; display_name: string; color?: string }) => ({
-          id: l.id,
-          name: l.display_name,
-          color: l.color || '#8FA8A3'
-        }));
-        setAllLabels(labels);
-      }
+      const data = await getLabels();
+      const labels = (data.labels || []).map((l) => ({
+        id: l.id,
+        name: l.display_name || l.name,
+        color: l.color || '#8FA8A3'
+      }));
+      setAllLabels(labels);
     } catch (err) {
       console.error('Error refreshing labels:', err);
     }
-  }, [currentUser]);
+  }, []);
 
   const handleToggleLabel = useCallback(async (thread: Thread, labelId: string, labelName: string, isApplied: boolean) => {
-  console.log('🏷️ Toggle label:', labelName, 'isApplied:', isApplied, 'thread:', thread.thread_id);
-  
-  // Find the label object from allLabels
-  const labelObj = allLabels.find(l => l.id === labelId);
-  if (!labelObj) {
-    console.error('Label not found:', labelId);
-    return;
-  }
-  
-  // Optimistic UI update
-  setLocalThreadLabels(prev => {
-    const newMap = new Map(prev);
-    const currentLabels = newMap.get(thread.thread_id) || (thread as Thread & { labels?: Array<{ id: string; name: string; color: string }> }).labels || [];
+    console.log('🏷️ Toggle label:', labelName, 'isApplied:', isApplied, 'thread:', thread.thread_id);
     
-    if (isApplied) {
-      // Remove label
-      const updatedLabels = currentLabels.filter((l) => l.id !== labelId);
-      newMap.set(thread.thread_id, updatedLabels);
-    } else {
-      // Add label
-      const updatedLabels = [...currentLabels, labelObj];
-      newMap.set(thread.thread_id, updatedLabels);
+    // Find the label object from allLabels
+    const labelObj = allLabels.find(l => l.id === labelId);
+    if (!labelObj) {
+      console.error('Label not found:', labelId);
+      return;
     }
     
-    return newMap;
-  });
-  
-  try {
-    const token = await currentUser?.getIdToken();
-    if (!token) return;
-    
-    const endpoint = isApplied 
-      ? `${API_URL}/api/labels/remove-from-thread`
-      : `${API_URL}/api/labels/apply-to-thread`;
-    
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        thread_id: thread.thread_id,
-        label_id: labelId,
-        label_name: labelName
-      })
+    // Optimistic UI update
+    setLocalThreadLabels(prev => {
+      const newMap = new Map(prev);
+      const currentLabels = newMap.get(thread.thread_id) || (thread as Thread & { labels?: Array<{ id: string; name: string; color: string }> }).labels || [];
+      
+      if (isApplied) {
+        // Remove label
+        const updatedLabels = currentLabels.filter((l) => l.id !== labelId);
+        newMap.set(thread.thread_id, updatedLabels);
+      } else {
+        // Add label
+        const updatedLabels = [...currentLabels, labelObj];
+        newMap.set(thread.thread_id, updatedLabels);
+      }
+      
+      return newMap;
     });
     
-    if (response.ok) {
+    try {
+      if (isApplied) {
+        await removeLabelFromThread({
+          thread_id: thread.thread_id,
+          label_id: labelId,
+          label_name: labelName
+        });
+      } else {
+        await applyLabelToThread({
+          thread_id: thread.thread_id,
+          label_id: labelId,
+          label_name: labelName
+        });
+      }
       console.log('✅ Label toggled successfully');
-    } else {
-      console.error('❌ Label toggle failed:', response.status);
-      // Revert optimistic update on failure
+    } catch (err) {
+      console.error('❌ Label toggle failed:', err);
+      // Revert optimistic update on error
       setLocalThreadLabels(prev => {
         const newMap = new Map(prev);
         newMap.delete(thread.thread_id);
         return newMap;
       });
     }
-  } catch (err) {
-    console.error('Error toggling label:', err);
-    // Revert optimistic update on error
-    setLocalThreadLabels(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(thread.thread_id);
-      return newMap;
-    });
-  }
-}, [currentUser, allLabels]);
+  }, [allLabels]);
 
   // ==================== KEYBOARD SHORTCUTS ====================
   
