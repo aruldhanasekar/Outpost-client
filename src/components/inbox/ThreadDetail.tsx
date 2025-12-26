@@ -262,9 +262,9 @@ function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: C
   };
   
   const categories = [
-    { id: 'URGENT', label: 'Urgent', color: 'bg-red-500' },
-    { id: 'IMPORTANT', label: 'Important', color: 'bg-yellow-500' },
-    { id: 'OTHERS', label: 'Others', color: 'bg-gray-500' }
+    { id: 'URGENT', label: 'Urgent' },
+    { id: 'IMPORTANT', label: 'Important' },
+    { id: 'OTHERS', label: 'Others' }
   ];
 
   return (
@@ -286,26 +286,25 @@ function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: C
       
       {/* Dropdown menu */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-64 bg-zinc-800 rounded-lg shadow-xl border border-zinc-700 z-50 overflow-hidden">
           {/* Category selection */}
-          <div className="p-3 border-b border-gray-100">
-            <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Category</p>
+          <div className="p-3 border-b border-zinc-700">
+            <p className="text-xs text-zinc-400 uppercase tracking-wider mb-2">Category</p>
             <div className="space-y-1">
               {categories.map(cat => (
                 <button
                   key={cat.id}
                   onClick={() => handleCategorySelect(cat.id)}
                   disabled={updating}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-md transition-colors ${
                     selectedCategory === cat.id 
-                      ? 'bg-gray-100' 
-                      : 'hover:bg-gray-50'
+                      ? 'bg-zinc-700' 
+                      : 'hover:bg-zinc-700/50'
                   } ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <div className={`w-3 h-3 rounded-full ${cat.color}`} />
-                  <span className="text-sm text-gray-700">{cat.label}</span>
+                  <span className="text-sm text-zinc-200">{cat.label}</span>
                   {selectedCategory === cat.id && (
-                    <Check className="w-4 h-4 text-gray-600 ml-auto" />
+                    <Check className="w-4 h-4 text-zinc-300" />
                   )}
                 </button>
               ))}
@@ -315,7 +314,7 @@ function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: C
           {/* Sender rules */}
           {uniqueSenders.length > 0 && (
             <div className="p-3">
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
+              <p className="text-xs text-zinc-400 uppercase tracking-wider mb-2">
                 Always triage emails from
               </p>
               <div className="space-y-2">
@@ -325,15 +324,15 @@ function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: C
                   return (
                     <div key={email} className="flex items-center justify-between">
                       <div className="flex-1 min-w-0 mr-2">
-                        <p className="text-sm text-gray-700 truncate">{name}</p>
-                        <p className="text-xs text-gray-400 truncate">{email}</p>
+                        <p className="text-sm text-zinc-200 truncate">{name}</p>
+                        <p className="text-xs text-zinc-500 truncate">{email}</p>
                       </div>
                       <button
                         onClick={() => handleSenderRuleToggle(email, name, ruleState.hasRule)}
                         disabled={ruleState.loading}
                         className={`relative w-10 h-5 rounded-full transition-colors ${
                           ruleState.loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                        } ${ruleState.hasRule ? 'bg-blue-500' : 'bg-gray-300'}`}
+                        } ${ruleState.hasRule ? 'bg-[#8FA8A3]' : 'bg-zinc-600'}`}
                       >
                         <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
                           ruleState.hasRule ? 'translate-x-5' : 'translate-x-0.5'
@@ -344,7 +343,7 @@ function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: C
                 })}
               </div>
               {Object.values(senderRules).some(r => r.hasRule) && (
-                <p className="text-xs text-gray-400 mt-2 italic">
+                <p className="text-xs text-zinc-500 mt-2 italic">
                   New emails from toggled senders will be categorized as {selectedCategory}
                 </p>
               )}
