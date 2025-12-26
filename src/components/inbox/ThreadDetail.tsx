@@ -11,7 +11,7 @@ import {
   createTriageRule, 
   deleteTriageRuleBySender 
 } from '@/services/emailApi';
-import OutpostLogo from '@/assets/outpost_logo.svg';
+import OutpostLogo from '@/assets/Outpost.png';
 
 
 
