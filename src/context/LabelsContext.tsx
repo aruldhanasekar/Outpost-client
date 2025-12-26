@@ -1,16 +1,16 @@
 // context/LabelsContext.tsx
 // Global context for labels - persists across page navigation
+// ✅ Updated to use emailApi.ts for automatic Direct Auth / Composio routing
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
-
-const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+import { getLabels } from '@/services/emailApi';
 
 interface Label {
   id: string;
   name: string;
   display_name: string;
-  type: string;
+  type?: string;  // Made optional to match emailApi Label type
   threads_count?: number;
   color?: string;
   auto_label?: boolean;
@@ -35,7 +35,7 @@ export function LabelsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
 
-  // Fetch labels from API
+  // Fetch labels from API (uses emailApi routing)
   const fetchLabels = useCallback(async () => {
     if (!currentUser) return;
     
@@ -44,18 +44,9 @@ export function LabelsProvider({ children }: { children: ReactNode }) {
     
     setLoading(true);
     try {
-      const token = await currentUser.getIdToken();
-      const response = await fetch(`${API_URL}/api/labels`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setLabels(data.labels || []);
-      }
+      // ✅ Uses getLabels() which automatically routes to correct endpoint
+      const data = await getLabels();
+      setLabels(data.labels || []);
     } catch (err) {
       console.error('Error fetching labels:', err);
     } finally {
@@ -70,18 +61,9 @@ export function LabelsProvider({ children }: { children: ReactNode }) {
     
     setLoading(true);
     try {
-      const token = await currentUser.getIdToken();
-      const response = await fetch(`${API_URL}/api/labels`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setLabels(data.labels || []);
-      }
+      // ✅ Uses getLabels() which automatically routes to correct endpoint
+      const data = await getLabels();
+      setLabels(data.labels || []);
     } catch (err) {
       console.error('Error refreshing labels:', err);
     } finally {

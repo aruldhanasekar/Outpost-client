@@ -1,6 +1,7 @@
 // components/layout/Sidebar.tsx
 // Desktop sidebar - White sidebar with mail icon and expandable navigation panel
 // v2.0: Uses LabelsContext for persistent labels state across navigation
+// ✅ Updated to use emailApi.ts for automatic Direct Auth / Composio routing
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -10,8 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLabels } from "@/context/LabelsContext";
 import { CreateLabelModal } from "@/components/labels/CreateLabelModal";
 import { DeleteLabelModal } from "@/components/labels/DeleteLabelModal";
-
-const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+import { deleteLabel } from "@/services/emailApi";
 
 export type PageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'trash' | 'label';
 
@@ -19,7 +19,7 @@ interface Label {
   id: string;
   name: string;
   display_name: string;
-  type: string;
+  type?: string;
   threads_count?: number;
 }
 
@@ -61,28 +61,18 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
     }
   }, [isNavOpen, fetchLabels]);
 
-  // Handle delete label
+  // Handle delete label - ✅ Uses deleteLabel() from emailApi
   const handleDeleteLabel = async (labelId: string) => {
     if (!currentUser) return;
     
     setIsDeleting(true);
     try {
-      const token = await currentUser.getIdToken();
-      const response = await fetch(`${API_URL}/api/labels/${labelId}`, {
-        method: 'DELETE',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // ✅ Uses deleteLabel() which automatically routes to correct endpoint
+      await deleteLabel(labelId);
       
-      if (response.ok) {
-        // Remove from context state
-        removeLabel(labelId);
-        setDeleteModal({ isOpen: false, label: null });
-      } else {
-        console.error('Failed to delete label');
-      }
+      // Remove from context state
+      removeLabel(labelId);
+      setDeleteModal({ isOpen: false, label: null });
     } catch (err) {
       console.error('Error deleting label:', err);
     } finally {
