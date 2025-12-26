@@ -893,12 +893,11 @@ export async function searchEmails(query: string, maxResults: number = 20): Prom
 // ======================================================
 
 /**
- * Update email category (manual override)
- * Uses /api/category/ endpoint (not /api/emails/) to avoid Composio routing
+ * Update thread category (manual override)
+ * Uses /api/category/ endpoint to update thread document
  */
-export async function updateEmailCategory(emailId: string, category: string): Promise<{
+export async function updateThreadCategory(threadId: string, category: string): Promise<{
   status: string;
-  email_id: string;
   thread_id: string;
   original_category: string;
   new_category: string;
@@ -907,7 +906,7 @@ export async function updateEmailCategory(emailId: string, category: string): Pr
 }> {
   const token = await getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/category/${emailId}`, {
+  const response = await fetch(`${API_BASE_URL}/api/category/${threadId}`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -925,20 +924,19 @@ export async function updateEmailCategory(emailId: string, category: string): Pr
 }
 
 /**
- * Get email category info
+ * Get thread category info
  */
-export async function getEmailCategory(emailId: string): Promise<{
+export async function getThreadCategory(threadId: string): Promise<{
   status: string;
-  email_id: string;
+  thread_id: string;
   category: string;
   user_category: string | null;
   user_category_at: string | null;
   category_source: string;
-  effective_category: string;
 }> {
   const token = await getAuthToken();
   
-  const response = await fetch(`${API_BASE_URL}/api/category/${emailId}`, {
+  const response = await fetch(`${API_BASE_URL}/api/category/${threadId}`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,

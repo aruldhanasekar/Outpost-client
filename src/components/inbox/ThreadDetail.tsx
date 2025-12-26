@@ -6,7 +6,7 @@ import { getTrackingByMessageId, TrackingStats } from '@/services/trackingApi';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
 import { stripQuotedReply } from '@/utils/emailHelpers';
 import { 
-  updateEmailCategory, 
+  updateThreadCategory, 
   checkSenderRule, 
   createTriageRule, 
   deleteTriageRuleBySender 
@@ -203,13 +203,8 @@ function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: C
     setSelectedCategory(category);
     
     try {
-      // Get first email ID from thread to update
-      const emailId = thread.email_ids?.[0] || emails[0]?.id;
-      if (!emailId) {
-        throw new Error('No email ID found');
-      }
-      
-      await updateEmailCategory(emailId, category);
+      // Update thread document directly using thread_id
+      await updateThreadCategory(thread.thread_id, category);
       
       // Notify parent
       if (onCategoryChange) {
