@@ -853,6 +853,12 @@ const InboxPage = () => {
     });
     
     console.log('📧 Response status:', response.status);
+
+    const extractEmail = (str: string): string => {
+      if (!str) return '';
+      const match = str.match(/<([^>]+)>/);
+      return match ? match[1] : str;
+    };
     
     if (response.ok) {
       const data = await response.json();
@@ -861,7 +867,7 @@ const InboxPage = () => {
       const email: Email = {
         id: data.id,
         sender: data.sender_name || data.from || '',
-        senderEmail: data.sender_email || data.from || '',
+        senderEmail: data.sender_email || extractEmail(data.from) || '',
         subject: data.subject || '',
         preview: data.snippet || '',
         body: data.body_html || data.body_text || '',
@@ -890,6 +896,13 @@ const InboxPage = () => {
   const handleContextReplyAll = useCallback(async (thread: Thread) => {
   console.log('📧 Context Reply All triggered for thread:', thread.thread_id);
   setSelectedThread(thread);
+
+  // Helper to extract email from "Name <email>" format
+  const extractEmail = (str: string): string => {
+    if (!str) return '';
+    const match = str.match(/<([^>]+)>/);
+    return match ? match[1] : str;
+  };
   
   try {
     const token = await currentUser?.getIdToken();
@@ -916,8 +929,7 @@ const InboxPage = () => {
       const email: Email = {
         id: data.id,
         sender: data.sender_name || data.from || '',
-        senderEmail: data.sender_email || data.from || '',
-
+        senderEmail: data.sender_email || extractEmail(data.from) || '',
         subject: data.subject || '',
         preview: data.snippet || '',
         body: data.body_html || data.body_text || '',
