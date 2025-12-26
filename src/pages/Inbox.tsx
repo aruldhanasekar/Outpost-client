@@ -861,7 +861,7 @@ const InboxPage = () => {
       const email: Email = {
         id: data.id,
         sender: data.sender_name || data.from || '',
-        senderEmail: data.sender_email || '',
+        senderEmail: data.sender_email || data.from || '',
         subject: data.subject || '',
         preview: data.snippet || '',
         body: data.body_html || data.body_text || '',
@@ -916,7 +916,8 @@ const InboxPage = () => {
       const email: Email = {
         id: data.id,
         sender: data.sender_name || data.from || '',
-        senderEmail: data.sender_email || '',
+        senderEmail: data.sender_email || data.from || '',
+
         subject: data.subject || '',
         preview: data.snippet || '',
         body: data.body_html || data.body_text || '',
