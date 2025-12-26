@@ -887,3 +887,192 @@ export async function searchEmails(query: string, maxResults: number = 20): Prom
     method: 'GET',
   });
 }
+
+// ======================================================
+// CATEGORY OVERRIDE API FUNCTIONS
+// ======================================================
+
+/**
+ * Update email category (manual override)
+ * Uses /api/category/ endpoint (not /api/emails/) to avoid Composio routing
+ */
+export async function updateEmailCategory(emailId: string, category: string): Promise<{
+  status: string;
+  email_id: string;
+  thread_id: string;
+  original_category: string;
+  new_category: string;
+  category_source: string;
+  updated_at: string;
+}> {
+  const token = await getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/category/${emailId}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ category }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || `API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get email category info
+ */
+export async function getEmailCategory(emailId: string): Promise<{
+  status: string;
+  email_id: string;
+  category: string;
+  user_category: string | null;
+  user_category_at: string | null;
+  category_source: string;
+  effective_category: string;
+}> {
+  const token = await getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/category/${emailId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || `API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+// ======================================================
+// TRIAGE RULES API FUNCTIONS (Sender Rules)
+// ======================================================
+
+export interface TriageRule {
+  id: string;
+  sender_email: string;
+  sender_name: string;
+  category: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/**
+ * Get all triage rules for the user
+ */
+export async function getTriageRules(): Promise<{
+  status: string;
+  rules: TriageRule[];
+  count: number;
+}> {
+  const token = await getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/triage-rules`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || `API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Check if a sender rule exists
+ */
+export async function checkSenderRule(senderEmail: string): Promise<{
+  status: string;
+  exists: boolean;
+  rule: TriageRule | null;
+}> {
+  const token = await getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/triage-rules/check/${encodeURIComponent(senderEmail)}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || `API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Create a sender triage rule
+ */
+export async function createTriageRule(data: {
+  sender_email: string;
+  sender_name?: string;
+  category: string;
+}): Promise<{
+  status: string;
+  message: string;
+  rule: TriageRule;
+}> {
+  const token = await getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/triage-rules`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || `API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete a sender triage rule by sender email
+ */
+export async function deleteTriageRuleBySender(senderEmail: string): Promise<{
+  status: string;
+  message: string;
+  deleted_rule_id: string;
+  sender_email: string;
+}> {
+  const token = await getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/triage-rules/by-sender/${encodeURIComponent(senderEmail)}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || `API error: ${response.status}`);
+  }
+
+  return response.json();
+}

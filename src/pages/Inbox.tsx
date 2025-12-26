@@ -67,6 +67,7 @@ const InboxPage = () => {
   const [localDoneThreads, setLocalDoneThreads] = useState<Set<string>>(new Set());
   const [localDeletedThreads, setLocalDeletedThreads] = useState<Set<string>>(new Set());
   const [localThreadLabels, setLocalThreadLabels] = useState<Map<string, Array<{ id: string; name: string; color: string }>>>(new Map());
+  const [localMovedThreads, setLocalMovedThreads] = useState<Map<string, string>>(new Map()); // threadId -> newCategory
   
   // Checked threads state (for bulk selection)
   const [checkedThreads, setCheckedThreads] = useState<Set<string>>(new Set());
@@ -223,6 +224,7 @@ const InboxPage = () => {
   return threads
     .filter(thread => !localDoneThreads.has(thread.thread_id))
     .filter(thread => !localDeletedThreads.has(thread.thread_id))
+    .filter(thread => !localMovedThreads.has(thread.thread_id)) // Hide moved threads
     .map(thread => ({
       ...thread,
       // Apply local read/unread state
@@ -243,6 +245,7 @@ const InboxPage = () => {
   awaitingThreads,
   localDoneThreads,
   localDeletedThreads,
+  localMovedThreads,
   localReadThreads,
   localUnreadThreads,
   localThreadLabels  // Add this dependency
@@ -748,6 +751,40 @@ const InboxPage = () => {
   
   const handleCloseToast = useCallback(() => {
     setToast(prev => ({ ...prev, show: false }));
+  }, []);
+
+  // ==================== CATEGORY OVERRIDE HANDLER ====================
+  
+  // Called when user changes email category via dropdown
+  const handleThreadCategoryOverride = useCallback((threadId: string, newCategory: string) => {
+    console.log(`📁 Category changed: ${threadId} → ${newCategory}`);
+    
+    // Add to localMovedThreads so it disappears from current list
+    setLocalMovedThreads(prev => {
+      const newMap = new Map(prev);
+      newMap.set(threadId, newCategory);
+      return newMap;
+    });
+    
+    // Show toast
+    const categoryLabels: Record<string, string> = {
+      'URGENT': 'Urgent',
+      'IMPORTANT': 'Important',
+      'OTHERS': 'Others'
+    };
+    
+    setToast({
+      show: true,
+      message: `Moved to ${categoryLabels[newCategory] || newCategory}`,
+      threadIds: [threadId],
+      emailIds: [],
+      timeoutId: null
+    });
+    
+    // Auto-hide toast after 3 seconds
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 3000);
   }, []);
 
   // ==================== EMAIL SEND HANDLERS ====================
@@ -1504,6 +1541,7 @@ const InboxPage = () => {
                   onReply={handleReply}
                   onForward={handleForward}
                   getAuthToken={getAuthToken}
+                  onCategoryChange={handleThreadCategoryOverride}
                 />
               )}
               
@@ -1700,6 +1738,7 @@ const InboxPage = () => {
                     onReply={handleReply}
                     onForward={handleForward}
                     getAuthToken={getAuthToken}
+                    onCategoryChange={handleThreadCategoryOverride}
                   />
                 </div>
                 

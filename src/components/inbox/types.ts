@@ -3,6 +3,7 @@
 // v2.1: Added CategoryCounts for unread badges
 // v2.2: Added message_id for email tracking in inbox threads
 // v2.3: Added Attachment interface and attachments field for email attachments
+// v2.4: Added user_category fields for manual category override
 
 // Category type
 export type Category = "urgent" | "important" | "promises" | "awaiting" | "others";
@@ -51,6 +52,10 @@ export interface Email {
   thread_id?: string; // Optional: Gmail thread ID for thread view
   to?: string[];      // v2.0: Recipients for participants panel
   message_id?: string; // v2.2: Gmail message ID for tracking lookup
+  // v2.4: Category override fields
+  user_category?: string;      // User override category (URGENT/IMPORTANT/OTHERS)
+  user_category_at?: string;   // When user changed it
+  category_source?: string;    // 'ai' | 'user' | 'sender_rule'
 }
 
 // Tracking status for sent emails within inbox threads

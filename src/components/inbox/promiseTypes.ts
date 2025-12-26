@@ -44,7 +44,11 @@ export interface Thread {
   
   // Optional fields
   category?: string;
+  user_category?: string;          // v2.2: User override category
   email_count?: number;
+  
+  // v2.2: Labels for thread
+  labels?: Array<{ id: string; name: string; color: string }>;
 }
 
 // Helper: Calculate deadline status text

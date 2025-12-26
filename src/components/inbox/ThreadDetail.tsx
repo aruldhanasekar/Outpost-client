@@ -1,10 +1,17 @@
-import { useRef, useEffect, useState } from 'react';
-import { X, Check, Trash2, Loader2, Reply, Forward, Paperclip, Download } from 'lucide-react';
+import { useRef, useEffect, useState, useMemo } from 'react';
+import { X, Check, Trash2, Loader2, Reply, Forward, Paperclip, Download, ChevronDown } from 'lucide-react';
 import { Thread } from '@/hooks/useThreads';
 import { Email } from './types';
 import { getTrackingByMessageId, TrackingStats } from '@/services/trackingApi';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
 import { stripQuotedReply } from '@/utils/emailHelpers';
+import { 
+  updateEmailCategory, 
+  checkSenderRule, 
+  createTriageRule, 
+  deleteTriageRuleBySender 
+} from '@/services/emailApi';
+import OutpostLogo from '@/assets/outpost_logo.svg';
 
 
 
@@ -103,6 +110,246 @@ const RightArrowIcon = () => (
   </svg>
 );
 
+// ======================================================
+// CATEGORY DROPDOWN COMPONENT
+// ======================================================
+interface CategoryDropdownProps {
+  thread: Thread;
+  emails: Email[];
+  userEmail: string;
+  onCategoryChange?: (threadId: string, newCategory: string) => void;
+}
+
+interface SenderRuleState {
+  [senderEmail: string]: {
+    hasRule: boolean;
+    loading: boolean;
+    category?: string;
+  };
+}
+
+function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: CategoryDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    thread.user_category || thread.category || 'OTHERS'
+  );
+  const [updating, setUpdating] = useState(false);
+  const [senderRules, setSenderRules] = useState<SenderRuleState>({});
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Get unique senders from thread emails (excluding user's own email)
+  const uniqueSenders = useMemo(() => {
+    const senders = new Map<string, string>(); // email -> name
+    emails.forEach(email => {
+      if (email.senderEmail && email.senderEmail.toLowerCase() !== userEmail.toLowerCase()) {
+        senders.set(email.senderEmail.toLowerCase(), email.sender || email.senderEmail);
+      }
+    });
+    return Array.from(senders.entries()).map(([email, name]) => ({ email, name }));
+  }, [emails, userEmail]);
+  
+  // Check sender rules when dropdown opens
+  useEffect(() => {
+    if (isOpen && uniqueSenders.length > 0) {
+      uniqueSenders.forEach(async ({ email }) => {
+        if (senderRules[email] !== undefined) return; // Already checked
+        
+        setSenderRules(prev => ({
+          ...prev,
+          [email]: { hasRule: false, loading: true }
+        }));
+        
+        try {
+          const result = await checkSenderRule(email);
+          setSenderRules(prev => ({
+            ...prev,
+            [email]: { 
+              hasRule: result.exists, 
+              loading: false,
+              category: result.rule?.category
+            }
+          }));
+        } catch (err) {
+          console.error('Error checking sender rule:', err);
+          setSenderRules(prev => ({
+            ...prev,
+            [email]: { hasRule: false, loading: false }
+          }));
+        }
+      });
+    }
+  }, [isOpen, uniqueSenders, senderRules]);
+  
+  // Close on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+  
+  // Handle category change
+  const handleCategorySelect = async (category: string) => {
+    if (category === selectedCategory || updating) return;
+    
+    setUpdating(true);
+    const previousCategory = selectedCategory;
+    setSelectedCategory(category);
+    
+    try {
+      // Get first email ID from thread to update
+      const emailId = thread.email_ids?.[0] || emails[0]?.id;
+      if (!emailId) {
+        throw new Error('No email ID found');
+      }
+      
+      await updateEmailCategory(emailId, category);
+      
+      // Notify parent
+      if (onCategoryChange) {
+        onCategoryChange(thread.thread_id, category);
+      }
+      
+      setIsOpen(false);
+    } catch (err) {
+      console.error('Error updating category:', err);
+      setSelectedCategory(previousCategory);
+    } finally {
+      setUpdating(false);
+    }
+  };
+  
+  // Handle sender rule toggle
+  const handleSenderRuleToggle = async (senderEmail: string, senderName: string, currentlyHasRule: boolean) => {
+    setSenderRules(prev => ({
+      ...prev,
+      [senderEmail]: { ...prev[senderEmail], loading: true }
+    }));
+    
+    try {
+      if (currentlyHasRule) {
+        // Delete rule
+        await deleteTriageRuleBySender(senderEmail);
+        setSenderRules(prev => ({
+          ...prev,
+          [senderEmail]: { hasRule: false, loading: false }
+        }));
+      } else {
+        // Create rule with current category
+        await createTriageRule({
+          sender_email: senderEmail,
+          sender_name: senderName,
+          category: selectedCategory
+        });
+        setSenderRules(prev => ({
+          ...prev,
+          [senderEmail]: { hasRule: true, loading: false, category: selectedCategory }
+        }));
+      }
+    } catch (err) {
+      console.error('Error toggling sender rule:', err);
+      setSenderRules(prev => ({
+        ...prev,
+        [senderEmail]: { ...prev[senderEmail], loading: false }
+      }));
+    }
+  };
+  
+  const categories = [
+    { id: 'URGENT', label: 'Urgent', color: 'bg-red-500' },
+    { id: 'IMPORTANT', label: 'Important', color: 'bg-yellow-500' },
+    { id: 'OTHERS', label: 'Others', color: 'bg-gray-500' }
+  ];
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      {/* Logo trigger button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        title="Change category"
+      >
+        <img src={OutpostLogo} alt="Outpost" className="w-5 h-5" />
+      </button>
+      
+      {/* Dropdown menu */}
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden">
+          {/* Category selection */}
+          <div className="p-3 border-b border-gray-100">
+            <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Category</p>
+            <div className="space-y-1">
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => handleCategorySelect(cat.id)}
+                  disabled={updating}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                    selectedCategory === cat.id 
+                      ? 'bg-gray-100' 
+                      : 'hover:bg-gray-50'
+                  } ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className={`w-3 h-3 rounded-full ${cat.color}`} />
+                  <span className="text-sm text-gray-700">{cat.label}</span>
+                  {selectedCategory === cat.id && (
+                    <Check className="w-4 h-4 text-gray-600 ml-auto" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Sender rules */}
+          {uniqueSenders.length > 0 && (
+            <div className="p-3">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
+                Always triage emails from
+              </p>
+              <div className="space-y-2">
+                {uniqueSenders.map(({ email, name }) => {
+                  const ruleState = senderRules[email] || { hasRule: false, loading: false };
+                  
+                  return (
+                    <div key={email} className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0 mr-2">
+                        <p className="text-sm text-gray-700 truncate">{name}</p>
+                        <p className="text-xs text-gray-400 truncate">{email}</p>
+                      </div>
+                      <button
+                        onClick={() => handleSenderRuleToggle(email, name, ruleState.hasRule)}
+                        disabled={ruleState.loading}
+                        className={`relative w-10 h-5 rounded-full transition-colors ${
+                          ruleState.loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                        } ${ruleState.hasRule ? 'bg-blue-500' : 'bg-gray-300'}`}
+                      >
+                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                          ruleState.hasRule ? 'translate-x-5' : 'translate-x-0.5'
+                        }`} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {Object.values(senderRules).some(r => r.hasRule) && (
+                <p className="text-xs text-gray-400 mt-2 italic">
+                  New emails from toggled senders will be categorized as {selectedCategory}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Helper: Check if URL is a Composio attachment URL (needs auth)
 const isComposioAttachmentUrl = (url: string | undefined): boolean => {
   if (!url) return false;
@@ -130,6 +377,7 @@ interface ThreadDetailProps {
   onReply?: (email: Email) => void;      // v3.0: Reply handler
   onReplyAll?: (email: Email) => void;   // v4.0: Reply All handler
   onForward?: (email: Email) => void;    // v3.0: Forward handler
+  onCategoryChange?: (threadId: string, newCategory: string) => void; // v5.0: Category override
 }
 
 // Collapsed email row component
@@ -549,7 +797,8 @@ export function ThreadDetail({
   getAuthToken,
   onReply,
   onReplyAll,
-  onForward
+  onForward,
+  onCategoryChange
 }: ThreadDetailProps) {
   // State for tracking which emails are expanded (by email id)
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
@@ -671,6 +920,16 @@ export function ThreadDetail({
           {thread.gmail_subject}
         </h2>
         <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Category Dropdown */}
+          {mode === 'inbox' && (
+            <CategoryDropdownMenu
+              thread={thread}
+              emails={emails}
+              userEmail={userEmail}
+              onCategoryChange={onCategoryChange}
+            />
+          )}
+          
           {/* Navigation Arrows */}
           {(onPrevious || onNext) && (
             <>
