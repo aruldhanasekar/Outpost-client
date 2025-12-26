@@ -275,7 +275,7 @@ function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: C
         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         title="Change category"
       >
-        <img src={OutpostLogo} alt="Outpost" className="w-5 h-5" />
+        <img src={OutpostLogo} alt="Outpost" className="w-7 h-7" />
       </button>
       
       {/* Dropdown menu */}
