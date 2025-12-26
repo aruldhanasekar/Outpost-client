@@ -4,6 +4,7 @@
 // ✅ Label API functions added
 // ✅ Contacts API function added
 // ✅ Fixed: localStorage fallback for auth method detection
+// ✅ Added: getLabelByName and getLabelThreads for Label page
 
 import { auth } from '../firebase.config';
 
@@ -305,14 +306,12 @@ export async function getContacts(): Promise<{
 }
 
 // ======================================================
-// BATCH API FUNCTIONS
-// Automatic routing based on auth_method
+// BATCH OPERATIONS
+// Automatic routing handles Direct Auth vs Composio
 // ======================================================
 
 /**
  * Batch mark emails as read
- * - Updates Firestore: is_read = true for all emails
- * - Updates Gmail: removes UNREAD label from all emails
  * 
  * Automatically routes to:
  * - Direct Auth: /api/emails/batch/read
@@ -334,8 +333,6 @@ export async function batchMarkAsRead(emailIds: string[]): Promise<{
 
 /**
  * Batch mark emails as unread
- * - Updates Firestore: is_read = false for all emails
- * - Updates Gmail: adds UNREAD label to all emails
  * 
  * Automatically routes to:
  * - Direct Auth: /api/emails/batch/unread
@@ -357,8 +354,6 @@ export async function batchMarkAsUnread(emailIds: string[]): Promise<{
 
 /**
  * Batch mark emails as done
- * - Updates Firestore: user_marked_done = true, visibility flags = false
- * - Updates Gmail: removes INBOX label (archives emails)
  * 
  * Automatically routes to:
  * - Direct Auth: /api/emails/batch/done
@@ -370,6 +365,7 @@ export async function batchMarkAsDone(emailIds: string[]): Promise<{
   success_count: number;
   failed_count: number;
   failed_ids: string[];
+  threads_updated?: number;
 }> {
   return apiCall('/api/emails/batch/done', {
     method: 'POST',
@@ -379,8 +375,6 @@ export async function batchMarkAsDone(emailIds: string[]): Promise<{
 
 /**
  * Batch delete emails
- * - Updates Firestore: deleted = true, visibility flags = false
- * - Updates Gmail: adds TRASH label (moves to trash)
  * 
  * Automatically routes to:
  * - Direct Auth: /api/emails/batch
@@ -392,10 +386,77 @@ export async function batchDelete(emailIds: string[]): Promise<{
   success_count: number;
   failed_count: number;
   failed_ids: string[];
+  threads_updated?: number;
 }> {
   return apiCall('/api/emails/batch', {
     method: 'DELETE',
     body: JSON.stringify({ email_ids: emailIds }),
+  });
+}
+
+// ======================================================
+// REPLY/FORWARD FUNCTIONS
+// ======================================================
+
+/**
+ * Reply to an email
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/reply
+ * - Composio: /api/composio/emails/reply
+ */
+export async function replyToEmail(data: {
+  thread_id: string;
+  in_reply_to?: string;
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject: string;
+  body_html: string;
+  body_text?: string;
+  scheduled_at?: string | null;
+  tracking_enabled?: boolean;
+  attachment_ids?: string[];
+}): Promise<{
+  status: string;
+  message: string;
+  email_id: string;
+  thread_id: string;
+}> {
+  return apiCall('/api/emails/reply', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Forward an email
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/emails/forward
+ * - Composio: /api/composio/emails/forward
+ */
+export async function forwardEmail(data: {
+  thread_id: string;
+  original_message_id?: string;
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject: string;
+  body_html: string;
+  body_text?: string;
+  scheduled_at?: string | null;
+  tracking_enabled?: boolean;
+  attachment_ids?: string[];
+}): Promise<{
+  status: string;
+  message: string;
+  email_id: string;
+  thread_id: string;
+}> {
+  return apiCall('/api/emails/forward', {
+    method: 'POST',
+    body: JSON.stringify(data),
   });
 }
 
@@ -410,89 +471,68 @@ export interface SendEmailRequest {
   subject: string;
   body_html: string;
   body_text?: string;
-  scheduled_at?: string | null;  // ISO string for Send Later
+  scheduled_at?: string | null;
   tracking_enabled?: boolean;
-  attachment_ids?: string[];  // S3 attachment IDs
+  attachment_ids?: string[];
 }
 
 export interface SendEmailResponse {
-  status: 'queued' | 'scheduled';
+  status: string;
+  message: string;
   email_id: string;
+  scheduled_at?: string;
   can_undo: boolean;
-  undo_until: string | null;
-  tracking_id: string | null;
+  undo_until?: string;
 }
 
 export interface CancelEmailResponse {
-  status: 'success';
+  status: string;
   message: string;
   email_id: string;
-}
-
-export interface EmailStatus {
-  id: string;
-  status: 'queued' | 'scheduled' | 'sending' | 'sent' | 'failed' | 'cancelled';
-  to: string[];
-  subject: string;
-  created_at: string;
-  sent_at: string | null;
-  scheduled_at: string | null;
-  gmail_message_id: string | null;
-  gmail_thread_id: string | null;
-  attempt_count: number;
-  last_error: {
-    type: string;
-    message: string;
-    timestamp: string;
-  } | null;
-  opened: boolean;
-  open_count: number;
-  first_opened_at: string | null;
-  tracking_enabled: boolean;
+  was_sent: boolean;
 }
 
 export interface OutboxEmail {
   id: string;
   to: string[];
+  cc?: string[];
+  bcc?: string[];
   subject: string;
-  status: string;
+  snippet: string;
+  status: 'queued' | 'sending' | 'sent' | 'failed' | 'cancelled';
   created_at: string;
-  sent_at: string | null;
-  scheduled_at: string | null;
-  opened: boolean;
-  open_count: number;
+  scheduled_at?: string;
+  sent_at?: string;
+  error?: string;
+  tracking_enabled?: boolean;
 }
 
 export interface OutboxResponse {
+  status: string;
   emails: OutboxEmail[];
-  count: number;
+  total: number;
+}
+
+export interface EmailStatus {
+  id: string;
+  status: 'queued' | 'sending' | 'sent' | 'failed' | 'cancelled';
+  created_at: string;
+  scheduled_at?: string;
+  sent_at?: string;
+  error?: string;
+  can_undo: boolean;
+  undo_until?: string;
 }
 
 export interface TrackingStats {
+  email_id: string;
   tracking_enabled: boolean;
-  opened: boolean;
-  open_count: number;
-  first_opened_at: string | null;
-  opens: Array<{
-    timestamp: string;
-    country: string;
-    device_type: string;
-    device: string;
-    os: string;
-    email_client: string;
-  }>;
-  clicks: Array<{
-    timestamp: string;
-    url: string;
-    country: string;
-    device_type: string;
-    email_client: string;
-  }>;
-  likely_read: boolean;
-  accuracy_note: string;
+  opens: number;
+  last_opened?: string;
+  clicks: number;
+  clicked_links?: { url: string; count: number; last_clicked: string }[];
 }
 
-// Label types
 export interface Label {
   id: string;
   name: string;
@@ -740,7 +780,7 @@ export async function deleteLabel(labelId: string): Promise<{
 }
 
 /**
- * Get label details
+ * Get label details by ID
  * 
  * Automatically routes to:
  * - Direct Auth: /api/labels/{labelId}/details
@@ -756,6 +796,61 @@ export async function getLabelDetails(labelId: string): Promise<{
   color: string;
 }> {
   return apiCall(`/api/labels/${labelId}/details`, {
+    method: 'GET',
+  });
+}
+
+/**
+ * Get label by name
+ * Used by Label page to get label info
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/labels/by-name/{labelName}
+ * - Composio: /api/composio/labels/by-name/{labelName}
+ */
+export async function getLabelByName(labelName: string): Promise<{
+  id: string;
+  name: string;
+  display_name: string;
+  gmail_label_id?: string;
+  auto_label: boolean;
+  auto_label_emails: string[];
+  color: string;
+}> {
+  return apiCall(`/api/labels/by-name/${encodeURIComponent(labelName)}`, {
+    method: 'GET',
+  });
+}
+
+/**
+ * Get threads by label name
+ * Used by Label page to display threads with a specific label
+ * 
+ * Automatically routes to:
+ * - Direct Auth: /api/labels/{labelName}/threads
+ * - Composio: /api/composio/labels/{labelName}/threads
+ */
+export async function getLabelThreads(labelName: string): Promise<{
+  status: string;
+  threads: Array<{
+    thread_id: string;
+    gmail_subject: string;
+    last_email_date: string;
+    last_email_sender: string;
+    last_email_sender_email: string;
+    last_email_snippet: string;
+    email_count: number;
+    is_read: boolean;
+    status: string;
+    category: string;
+    labels: Array<{ id: string; name: string; color?: string }>;
+  }>;
+  total: number;
+  label_name: string;
+  label_id: string;
+  label_color: string;
+}> {
+  return apiCall(`/api/labels/${encodeURIComponent(labelName)}/threads`, {
     method: 'GET',
   });
 }
