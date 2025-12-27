@@ -545,7 +545,7 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
                 
                 {/* Suggestions dropdown */}
                 {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-zinc-700 border border-zinc-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-zinc-700 border border-zinc-600 rounded-lg shadow-xl max-h-60 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     {suggestions.map((sender, index) => (
                       <button
                         key={`${sender.email}-${index}`}
@@ -647,7 +647,7 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
             </div>
           ) : (
             /* Existing Rules Tab */
-            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {isLoadingRules ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 text-zinc-400 animate-spin" />

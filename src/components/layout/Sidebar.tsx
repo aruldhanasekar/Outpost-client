@@ -169,7 +169,8 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
       {/* Desktop: Second Sidebar - Navigation Panel */}
       {isNavOpen && (
         <div 
-          className="hidden lg:block fixed top-4 bottom-20 left-14 w-[200px] bg-[#f7f7f7] rounded-2xl z-20 shadow-xl py-3 overflow-y-auto"
+          className="hidden lg:block fixed top-4 bottom-20 left-14 w-[200px] bg-[#f7f7f7] rounded-2xl z-20 shadow-xl py-3 overflow-y-auto overflow-x-hidden"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           onMouseLeave={handleMouseLeave}
         >
           <nav className="px-2">
