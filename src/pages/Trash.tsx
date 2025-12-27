@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Menu } from "lucide-react";
+import { Loader2, Menu, RotateCcw } from "lucide-react";
 import {
   Email,
   EmailList,
@@ -150,9 +150,10 @@ const TrashPage = () => {
   // Handle global checkbox change
   const handleGlobalCheckChange = useCallback(() => {
     if (checkedEmails.size > 0) {
+      // Deselect all - but stay in selection mode
       setCheckedEmails(new Set());
-      setIsSelectionMode(false);
     } else {
+      // Select all - enter selection mode
       const allIds = new Set(emailsWithLocalState.map(e => e.id));
       setCheckedEmails(allIds);
       setIsSelectionMode(true);
@@ -163,6 +164,38 @@ const TrashPage = () => {
   const handleLongPress = useCallback((email: Email) => {
     setIsSelectionMode(true);
   }, []);
+
+  // Handle batch restore
+  const handleBatchRestore = useCallback(async () => {
+    if (checkedEmails.size === 0) return;
+    
+    const emailIds = Array.from(checkedEmails);
+    
+    // Optimistic UI: Hide emails immediately
+    setLocalRestoredEmails(prev => {
+      const newSet = new Set(prev);
+      emailIds.forEach(id => newSet.add(id));
+      return newSet;
+    });
+    
+    // Clear selection and exit selection mode
+    setCheckedEmails(new Set());
+    setIsSelectionMode(false);
+    
+    // If selected email was in batch, clear selection
+    if (selectedEmail && emailIds.includes(selectedEmail.id)) {
+      setSelectedEmail(null);
+    }
+    
+    // Call API for each email
+    for (const emailId of emailIds) {
+      try {
+        await restoreEmail(emailId);
+      } catch (error) {
+        console.error('Failed to restore email:', emailId, error);
+      }
+    }
+  }, [checkedEmails, selectedEmail]);
 
   // Handle email sent - show undo toast
   const handleEmailSent = useCallback((emailId: string, recipients: string[], emailData: UndoEmailData) => {
@@ -241,6 +274,7 @@ const TrashPage = () => {
             totalCount={emailsWithLocalState.length}
             isAllSelected={checkedEmails.size > 0 && checkedEmails.size === emailsWithLocalState.length}
             onSelectAll={handleGlobalCheckChange}
+            onUndo={handleBatchRestore}
           />
           
           {/* ==================== TOP NAVBAR ==================== */}
@@ -284,14 +318,33 @@ const TrashPage = () => {
 
             {/* Desktop Header */}
             <div className="hidden lg:flex items-center justify-between px-6 pt-4">
-              {/* Page Title + Email Count */}
+              {/* Global Checkbox + Page Title + Email Count */}
               <div className="flex items-center gap-4 pb-4">
+                <div className="h-5 flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={checkedEmails.size > 0 && checkedEmails.size === emailsWithLocalState.length}
+                    onChange={handleGlobalCheckChange}
+                    className="w-4 h-4 rounded bg-transparent cursor-pointer appearance-none border-2 border-gray-400 outline-none focus:outline-none focus:ring-0 relative checked:border-black checked:after:content-['✓'] checked:after:absolute checked:after:text-black checked:after:text-xs checked:after:font-bold checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2"
+                  />
+                </div>
                 <span className="text-[#8FA8A3] font-medium text-sm">Trash</span>
                 <span className="text-zinc-500 text-sm">{emailsWithLocalState.length} emails</span>
               </div>
 
               {/* Action Icons */}
               <div className="flex items-center gap-1 pb-4">
+                {/* Restore Icon - Only show when emails selected */}
+                {checkedEmails.size > 0 && (
+                  <button
+                    onClick={handleBatchRestore}
+                    className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
+                    title="Restore selected"
+                  >
+                    <RotateCcw className="w-5 h-5" />
+                  </button>
+                )}
+                
                 {/* Search Icon */}
                 <button onClick={() => setIsSearchOpen(true)} className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white" title="Search">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">

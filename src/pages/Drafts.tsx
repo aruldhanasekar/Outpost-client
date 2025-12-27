@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Menu } from "lucide-react";
+import { Loader2, Menu, Trash2 } from "lucide-react";
 import {
   Email,
   EmailList,
@@ -20,6 +20,7 @@ import { Sidebar } from "@/components/layout";
 import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
 import { UndoEmailData } from "@/components/inbox/ComposeModal";
+import { batchDelete } from "@/services/emailApi";
 
 // Draft data for compose editing
 interface ComposeDraftData {
@@ -324,9 +325,10 @@ const DraftPage = () => {
   // Handle global checkbox change
   const handleGlobalCheckChange = useCallback(() => {
     if (checkedEmails.size > 0) {
+      // Deselect all - but stay in selection mode
       setCheckedEmails(new Set());
-      setIsSelectionMode(false);
     } else {
+      // Select all - enter selection mode
       const allIds = new Set(emails.map(e => e.id));
       setCheckedEmails(allIds);
       setIsSelectionMode(true);
@@ -337,6 +339,24 @@ const DraftPage = () => {
   const handleLongPress = useCallback((email: Email) => {
     setIsSelectionMode(true);
   }, []);
+
+  // Handle batch delete
+  const handleBatchDelete = useCallback(async () => {
+    if (checkedEmails.size === 0) return;
+    
+    const emailIds = Array.from(checkedEmails);
+    
+    // Clear selection and exit selection mode
+    setCheckedEmails(new Set());
+    setIsSelectionMode(false);
+    
+    // Perform delete
+    try {
+      await batchDelete(emailIds);
+    } catch (error) {
+      console.error('Failed to delete drafts:', error);
+    }
+  }, [checkedEmails]);
 
   if (authLoading) {
     return (
@@ -380,6 +400,7 @@ const DraftPage = () => {
             totalCount={emails.length}
             isAllSelected={checkedEmails.size > 0 && checkedEmails.size === emails.length}
             onSelectAll={handleGlobalCheckChange}
+            onDelete={handleBatchDelete}
           />
           
           {/* Top Navigation Bar */}
@@ -429,6 +450,17 @@ const DraftPage = () => {
               </div>
 
               <div className="flex items-center gap-1 pb-4">
+                {/* Delete Icon - Only show when emails selected */}
+                {checkedEmails.size > 0 && (
+                  <button
+                    onClick={handleBatchDelete}
+                    className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-red-400"
+                    title="Delete selected"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
+                
                 <button onClick={() => setIsSearchOpen(true)} className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white" title="Search">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
                     <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>

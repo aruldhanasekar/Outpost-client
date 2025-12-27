@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Menu } from "lucide-react";
+import { Loader2, Menu, RotateCcw } from "lucide-react";
 import {
   Email,
   EmailList,
@@ -150,9 +150,10 @@ const DonePage = () => {
   // Handle global checkbox change
   const handleGlobalCheckChange = useCallback(() => {
     if (checkedEmails.size > 0) {
+      // Deselect all - but stay in selection mode
       setCheckedEmails(new Set());
-      setIsSelectionMode(false);
     } else {
+      // Select all - enter selection mode
       const allIds = new Set(emailsWithLocalState.map(e => e.id));
       setCheckedEmails(allIds);
       setIsSelectionMode(true);
@@ -163,6 +164,38 @@ const DonePage = () => {
   const handleLongPress = useCallback((email: Email) => {
     setIsSelectionMode(true);
   }, []);
+
+  // Handle batch undo (restore to inbox)
+  const handleBatchUndo = useCallback(async () => {
+    if (checkedEmails.size === 0) return;
+    
+    const emailIds = Array.from(checkedEmails);
+    
+    // Optimistic UI: Hide emails immediately
+    setLocalUndoneEmails(prev => {
+      const newSet = new Set(prev);
+      emailIds.forEach(id => newSet.add(id));
+      return newSet;
+    });
+    
+    // Clear selection and exit selection mode
+    setCheckedEmails(new Set());
+    setIsSelectionMode(false);
+    
+    // If selected email was in batch, clear selection
+    if (selectedEmail && emailIds.includes(selectedEmail.id)) {
+      setSelectedEmail(null);
+    }
+    
+    // Call API for each email
+    for (const emailId of emailIds) {
+      try {
+        await markEmailAsUndone(emailId);
+      } catch (error) {
+        console.error('Failed to undo email:', emailId, error);
+      }
+    }
+  }, [checkedEmails, selectedEmail]);
 
   // Handle email sent - show undo toast
   const handleEmailSent = useCallback((emailId: string, recipients: string[], emailData: UndoEmailData) => {
@@ -243,6 +276,7 @@ const DonePage = () => {
             totalCount={emailsWithLocalState.length}
             isAllSelected={checkedEmails.size > 0 && checkedEmails.size === emailsWithLocalState.length}
             onSelectAll={handleGlobalCheckChange}
+            onUndo={handleBatchUndo}
           />
           
           {/* ==================== TOP NAVBAR ==================== */}
@@ -302,6 +336,17 @@ const DonePage = () => {
 
               {/* Action Icons */}
               <div className="flex items-center gap-1 pb-4">
+                {/* Undo Icon - Only show when emails selected */}
+                {checkedEmails.size > 0 && (
+                  <button
+                    onClick={handleBatchUndo}
+                    className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
+                    title="Move to Inbox"
+                  >
+                    <RotateCcw className="w-5 h-5" />
+                  </button>
+                )}
+                
                 {/* Search Icon */}
                 <button onClick={() => setIsSearchOpen(true)} className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white" title="Search">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">

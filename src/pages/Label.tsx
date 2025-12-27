@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate, useParams } from "react-router-dom";
-import { Loader2, Menu, Pencil } from "lucide-react";
+import { Loader2, Menu, Pencil, Mail, MailOpen, Check, Trash2 } from "lucide-react";
 import {
   Thread,
   Email,
@@ -297,9 +297,10 @@ const LabelPage = () => {
   
   const handleGlobalCheckChange = useCallback(() => {
     if (checkedThreads.size > 0) {
+      // Deselect all - but stay in selection mode
       setCheckedThreads(new Set());
-      setIsSelectionMode(false);
     } else {
+      // Select all - enter selection mode
       const allIds = new Set(currentThreads.map(t => t.thread_id));
       setCheckedThreads(allIds);
       setIsSelectionMode(true);
@@ -784,6 +785,46 @@ const LabelPage = () => {
                 </div>
               </div>
               <div className="flex items-center gap-1 pb-4">
+                {/* Batch Action Icons - Only show when threads selected */}
+                {checkedThreads.size > 0 && (
+                  <>
+                    {/* Mark Read */}
+                    <button
+                      onClick={handleBatchMarkAsRead}
+                      className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
+                      title="Mark as read"
+                    >
+                      <MailOpen className="w-5 h-5" />
+                    </button>
+                    {/* Mark Unread */}
+                    <button
+                      onClick={handleBatchMarkAsUnread}
+                      className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
+                      title="Mark as unread"
+                    >
+                      <Mail className="w-5 h-5" />
+                    </button>
+                    {/* Mark Done */}
+                    <button
+                      onClick={handleBatchMarkAsDone}
+                      className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
+                      title="Mark as done"
+                    >
+                      <Check className="w-5 h-5" />
+                    </button>
+                    {/* Delete */}
+                    <button
+                      onClick={handleBatchDelete}
+                      className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-red-400"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                    {/* Divider */}
+                    <div className="w-px h-5 bg-zinc-700 mx-1" />
+                  </>
+                )}
+                
                 <button onClick={() => setIsSearchOpen(true)} className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white" title="Search">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
                     <path d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>

@@ -38,10 +38,12 @@ import {
 } from "@/services/emailApi";
 import { UndoToast } from "@/components/ui/UndoToast";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
+import { CategoryMoveToast } from "@/components/ui/CategoryMoveToast";
 import { Sidebar } from "@/components/layout";
 import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import ComposioConnectionOverlay from "@/components/ComposioConnectionOverlay";
 import SyncLoadingOverlay from "@/components/SyncLoadingOverlay";
+import { useCategoryMoveNotifications } from "@/hooks/useCategoryMoveNotifications";
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
@@ -171,6 +173,12 @@ const InboxPage = () => {
     loading: awaitingLoading, 
     error: awaitingError 
   } = useAwaiting(currentUser?.uid);
+
+  // Category move notifications (Promise/Awaiting detection)
+  const { 
+    notifications: categoryMoveNotifications, 
+    dismissNotification: dismissCategoryMoveNotification 
+  } = useCategoryMoveNotifications(currentUser?.uid);
   
   // Fetch emails for selected thread
   const { 
@@ -1873,6 +1881,13 @@ const InboxPage = () => {
             onUndo={handleEmailUndone}
           />
         )}
+        
+        {/* Category Move Toast (Promise/Awaiting notifications) */}
+        <CategoryMoveToast
+          notifications={categoryMoveNotifications}
+          onDismiss={dismissCategoryMoveNotification}
+          autoHideDuration={3000}
+        />
         
         {/* Search Modal */}
         <SearchModal

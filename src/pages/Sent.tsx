@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Menu } from "lucide-react";
+import { Loader2, Menu, Trash2 } from "lucide-react";
 import {
   Email,
   useSentEmails,
@@ -22,6 +22,7 @@ import { Sidebar } from "@/components/layout";
 import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
 import { UndoEmailData } from "@/components/inbox/ComposeModal";
+import { batchDelete } from "@/services/emailApi";
 
 const SentPage = () => {
   const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
@@ -115,9 +116,10 @@ const SentPage = () => {
   // Handle global checkbox change
   const handleGlobalCheckChange = useCallback(() => {
     if (checkedEmails.size > 0) {
+      // Deselect all - but stay in selection mode
       setCheckedEmails(new Set());
-      setIsSelectionMode(false);
     } else {
+      // Select all - enter selection mode
       const allIds = new Set(emails.map(e => e.id));
       setCheckedEmails(allIds);
       setIsSelectionMode(true);
@@ -128,6 +130,24 @@ const SentPage = () => {
   const handleLongPress = useCallback((email: Email) => {
     setIsSelectionMode(true);
   }, []);
+
+  // Handle batch delete
+  const handleBatchDelete = useCallback(async () => {
+    if (checkedEmails.size === 0) return;
+    
+    const emailIds = Array.from(checkedEmails);
+    
+    // Clear selection and exit selection mode
+    setCheckedEmails(new Set());
+    setIsSelectionMode(false);
+    
+    // Perform delete
+    try {
+      await batchDelete(emailIds);
+    } catch (error) {
+      console.error('Failed to delete emails:', error);
+    }
+  }, [checkedEmails]);
 
   // Handle email sent - show undo toast
   const handleEmailSent = useCallback((emailId: string, recipients: string[], emailData: UndoEmailData) => {
@@ -205,6 +225,7 @@ const SentPage = () => {
             totalCount={emails.length}
             isAllSelected={checkedEmails.size > 0 && checkedEmails.size === emails.length}
             onSelectAll={handleGlobalCheckChange}
+            onDelete={handleBatchDelete}
           />
           
           {/* ==================== TOP NAVBAR ==================== */}
@@ -264,6 +285,17 @@ const SentPage = () => {
 
               {/* Action Icons */}
               <div className="flex items-center gap-1 pb-4">
+                {/* Delete Icon - Only show when emails selected */}
+                {checkedEmails.size > 0 && (
+                  <button
+                    onClick={handleBatchDelete}
+                    className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-red-400"
+                    title="Delete selected"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
+                
                 {/* Search Icon */}
                 <button onClick={() => setIsSearchOpen(true)} className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white" title="Search">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
