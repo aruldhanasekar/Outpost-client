@@ -838,6 +838,9 @@ const InboxPage = () => {
   const handleEmailUndone = useCallback(() => {
     console.log('↩️ Email cancelled, storing data for modal');
     
+    // v6.0: Clear optimistic reply since email was cancelled
+    setOptimisticReply(null);
+    
     // Get stored email data
     const emailData = emailUndoToast?.emailData;
     if (!emailData) return;
