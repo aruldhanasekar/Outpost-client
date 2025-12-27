@@ -1,6 +1,7 @@
 // components/rules/SenderRulesModal.tsx
 // Global sender rules modal - accessible from sidebar
 // Dark theme, center modal with tabs for New Rule and Existing Rules
+// Quote-triggered autocomplete: Type "name" to search senders
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Trash2, ChevronDown, Loader2, Search, AlertCircle } from 'lucide-react';
@@ -27,10 +28,55 @@ interface SenderMatch {
   rule_category?: string;
 }
 
+interface SelectedSender {
+  name: string;
+  email: string;
+}
+
 type TabType = 'new' | 'existing';
 type CategoryType = 'URGENT' | 'IMPORTANT' | 'OTHERS';
 
 const CATEGORIES: CategoryType[] = ['URGENT', 'IMPORTANT', 'OTHERS'];
+
+// Chip component with tooltip
+const SenderChip = ({ 
+  sender, 
+  onRemove 
+}: { 
+  sender: SelectedSender; 
+  onRemove: () => void;
+}) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  
+  return (
+    <span className="relative inline-flex items-center">
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#8FA8A3]/20 text-[#8FA8A3] rounded text-sm font-medium cursor-default"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        {sender.name}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="ml-0.5 p-0.5 hover:bg-[#8FA8A3]/30 rounded transition-colors"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </span>
+      
+      {/* Tooltip */}
+      {showTooltip && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-900 text-zinc-200 text-xs rounded whitespace-nowrap z-50 shadow-lg border border-zinc-700">
+          {sender.email}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-zinc-900" />
+        </div>
+      )}
+    </span>
+  );
+};
 
 export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => {
   // Tab state
@@ -38,7 +84,7 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
   
   // New Rule state
   const [inputValue, setInputValue] = useState('');
-  const [selectedSender, setSelectedSender] = useState<SenderMatch | null>(null);
+  const [selectedSender, setSelectedSender] = useState<SelectedSender | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>('URGENT');
   const [suggestions, setSuggestions] = useState<SenderMatch[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -47,6 +93,10 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [noMatchWarning, setNoMatchWarning] = useState(false);
+  
+  // Quote tracking for autocomplete trigger
+  const [isInsideQuote, setIsInsideQuote] = useState(false);
+  const [quoteStartIndex, setQuoteStartIndex] = useState(-1);
   
   // Existing Rules state
   const [rules, setRules] = useState<TriageRule[]>([]);
@@ -73,6 +123,21 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
     }
   }, [isOpen, activeTab]);
 
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setInputValue('');
+      setSelectedSender(null);
+      setSelectedCategory('URGENT');
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setIsInsideQuote(false);
+      setQuoteStartIndex(-1);
+      setError(null);
+      setNoMatchWarning(false);
+    }
+  }, [isOpen]);
+
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -96,55 +161,162 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
     }
   };
 
-  // Debounced search for autocomplete
-  const handleInputChange = useCallback((value: string) => {
-    setInputValue(value);
-    setSelectedSender(null);
-    setNoMatchWarning(false);
-    setError(null);
-    
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    
-    if (value.length < 2) {
+  // Search senders with debounce
+  const searchForSenders = useCallback(async (query: string) => {
+    if (query.length < 1) {
       setSuggestions([]);
-      setShowSuggestions(false);
       return;
     }
     
-    debounceRef.current = setTimeout(async () => {
-      setIsSearching(true);
-      try {
-        const response = await searchSenders(value);
-        setSuggestions(response.matches || []);
-        setShowSuggestions(true);
-      } catch (err) {
-        console.error('Search error:', err);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
+    setIsSearching(true);
+    try {
+      const response = await searchSenders(query);
+      setSuggestions(response.matches || []);
+    } catch (err) {
+      console.error('Search error:', err);
+      setSuggestions([]);
+    } finally {
+      setIsSearching(false);
+    }
   }, []);
 
-  // Handle selecting a suggestion
-  const handleSelectSuggestion = (sender: SenderMatch) => {
-    setSelectedSender(sender);
-    setInputValue(sender.name || sender.email);
-    setShowSuggestions(false);
+  // Handle input change - detect quotes for autocomplete trigger
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart || value.length;
+    
+    setInputValue(value);
+    setError(null);
     setNoMatchWarning(false);
+    
+    // Don't process if we already have a selected sender (chip exists)
+    if (selectedSender) {
+      return;
+    }
+    
+    // Find if we're inside a quote
+    let insideQuote = false;
+    let lastQuoteIndex = -1;
+    
+    for (let i = 0; i < cursorPos; i++) {
+      if (value[i] === '"') {
+        if (!insideQuote) {
+          insideQuote = true;
+          lastQuoteIndex = i;
+        } else {
+          insideQuote = false;
+          lastQuoteIndex = -1;
+        }
+      }
+    }
+    
+    setIsInsideQuote(insideQuote);
+    setQuoteStartIndex(lastQuoteIndex);
+    
+    if (insideQuote && lastQuoteIndex >= 0) {
+      // Extract text after the opening quote
+      const queryText = value.substring(lastQuoteIndex + 1, cursorPos);
+      
+      // Debounce search
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      
+      setShowSuggestions(true);
+      
+      debounceRef.current = setTimeout(() => {
+        searchForSenders(queryText);
+      }, 200);
+    } else {
+      setShowSuggestions(false);
+      setSuggestions([]);
+    }
+  }, [selectedSender, searchForSenders]);
+
+  // Handle selecting a suggestion from dropdown
+  const handleSelectSuggestion = (sender: SenderMatch) => {
+    // Replace the quoted text with the selected sender
+    // Input: 'Email from "Ar' -> 'Email from ' + chip
+    
+    const beforeQuote = inputValue.substring(0, quoteStartIndex);
+    const afterCursor = inputValue.substring(inputRef.current?.selectionStart || inputValue.length);
+    
+    // Find closing quote if exists and remove it
+    const closingQuoteIndex = afterCursor.indexOf('"');
+    const remainingText = closingQuoteIndex >= 0 
+      ? afterCursor.substring(closingQuoteIndex + 1) 
+      : afterCursor;
+    
+    setSelectedSender({
+      name: sender.name,
+      email: sender.email
+    });
+    
+    // Update input to show text before quote + remaining text
+    setInputValue(beforeQuote.trimEnd() + ' ' + remainingText.trimStart());
+    
+    setShowSuggestions(false);
+    setIsInsideQuote(false);
+    setQuoteStartIndex(-1);
+    setSuggestions([]);
+    
+    // Focus back to input
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
-  // Handle Enter key - parse with AI
+  // Handle removing the chip
+  const handleRemoveChip = () => {
+    setSelectedSender(null);
+    setNoMatchWarning(false);
+    inputRef.current?.focus();
+  };
+
+  // Check if input is a direct email address
+  const isDirectEmail = (text: string): boolean => {
+    const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailPattern.test(text.trim());
+  };
+
+  // Handle Enter key - parse with AI or create rule
   const handleKeyDown = async (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && inputValue.trim() && !selectedSender) {
+    if (e.key === 'Enter') {
       e.preventDefault();
-      await parseInput();
+      
+      // If dropdown is open and has suggestions, select first one
+      if (showSuggestions && suggestions.length > 0) {
+        handleSelectSuggestion(suggestions[0]);
+        return;
+      }
+      
+      // If we have a selected sender, create the rule
+      if (selectedSender) {
+        await handleCreateRule();
+        return;
+      }
+      
+      // Check if it's a direct email
+      const trimmedInput = inputValue.trim();
+      if (isDirectEmail(trimmedInput)) {
+        setSelectedSender({
+          name: trimmedInput.split('@')[0],
+          email: trimmedInput.toLowerCase()
+        });
+        setInputValue('');
+        return;
+      }
+      
+      // Otherwise, parse with AI
+      await parseInputWithAI();
+    }
+    
+    // Escape to close dropdown
+    if (e.key === 'Escape') {
+      setShowSuggestions(false);
     }
   };
 
   // Parse input with AI
-  const parseInput = async () => {
+  const parseInputWithAI = async () => {
     if (!inputValue.trim()) return;
     
     setIsParsing(true);
@@ -159,16 +331,15 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
         setSelectedCategory(response.extracted_category as CategoryType);
       }
       
-      // If we have matches, show them
+      // If we have matches, handle them
       if (response.matches && response.matches.length > 0) {
         if (response.matches.length === 1) {
           // Single match - auto-select
           setSelectedSender({
             name: response.matches[0].name,
-            email: response.matches[0].email,
-            match_score: response.matches[0].match_score
+            email: response.matches[0].email
           });
-          setInputValue(response.matches[0].name || response.matches[0].email);
+          setInputValue('');
         } else {
           // Multiple matches - show suggestions
           setSuggestions(response.matches);
@@ -176,13 +347,13 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
         }
       } else if (response.extracted_sender) {
         // No database matches but we extracted a sender
-        // Allow manual email entry if it's an email
         if (response.is_email) {
+          // It's an email - use directly
           setSelectedSender({
             name: response.extracted_sender.split('@')[0],
-            email: response.extracted_sender,
-            match_score: 1.0
+            email: response.extracted_sender.toLowerCase()
           });
+          setInputValue('');
         } else {
           // Name with no matches - show warning
           setNoMatchWarning(true);
@@ -218,6 +389,8 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
       setSelectedSender(null);
       setSelectedCategory('URGENT');
       setSuggestions([]);
+      setIsInsideQuote(false);
+      setQuoteStartIndex(-1);
       
       // Switch to existing rules tab to show the new rule
       setActiveTab('existing');
@@ -257,14 +430,6 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
     } finally {
       setDeletingRuleId(null);
     }
-  };
-
-  // Clear selected sender (remove chip)
-  const handleClearSender = () => {
-    setSelectedSender(null);
-    setInputValue('');
-    setNoMatchWarning(false);
-    inputRef.current?.focus();
   };
 
   if (!isOpen) return null;
@@ -319,49 +484,43 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
           {activeTab === 'new' ? (
             /* New Rule Tab */
             <div className="space-y-4">
-              {/* Input field */}
+              {/* Input field with chip support */}
               <div className="relative" ref={suggestionsRef}>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
                   Sender
                 </label>
                 
-                {selectedSender ? (
-                  /* Selected sender chip */
-                  <div className="flex items-center gap-2 p-3 bg-zinc-700/50 rounded-lg border border-zinc-600">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-1 bg-[#8FA8A3]/20 text-[#8FA8A3] rounded text-sm font-medium">
-                          {selectedSender.name}
-                        </span>
-                        <button
-                          onClick={handleClearSender}
-                          className="p-0.5 text-zinc-400 hover:text-zinc-200"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <p className="text-xs text-zinc-400 mt-1">{selectedSender.email}</p>
-                    </div>
-                  </div>
-                ) : (
-                  /* Text input */
-                  <div className="relative">
+                <div className="relative">
+                  {/* Input container with chip */}
+                  <div className="flex items-center gap-2 w-full px-4 py-3 bg-zinc-700/50 border border-zinc-600 rounded-lg focus-within:border-[#8FA8A3] focus-within:ring-1 focus-within:ring-[#8FA8A3]">
+                    {/* Chip if sender selected */}
+                    {selectedSender && (
+                      <SenderChip 
+                        sender={selectedSender} 
+                        onRemove={handleRemoveChip}
+                      />
+                    )}
+                    
+                    {/* Text input */}
                     <input
                       ref={inputRef}
                       type="text"
                       value={inputValue}
-                      onChange={(e) => handleInputChange(e.target.value)}
+                      onChange={handleInputChange}
                       onKeyDown={handleKeyDown}
-                      placeholder='Type name, email, or "Emails from John to Urgent"'
-                      className="w-full px-4 py-3 bg-zinc-700/50 border border-zinc-600 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[#8FA8A3] focus:ring-1 focus:ring-[#8FA8A3]"
+                      placeholder={selectedSender 
+                        ? 'Add category context (optional)...' 
+                        : 'Type "name" to search or email@example.com'
+                      }
+                      className="flex-1 bg-transparent text-zinc-100 placeholder-zinc-500 focus:outline-none min-w-[100px]"
                     />
+                    
+                    {/* Loading indicator */}
                     {(isSearching || isParsing) && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
-                      </div>
+                      <Loader2 className="w-5 h-5 text-zinc-400 animate-spin flex-shrink-0" />
                     )}
                   </div>
-                )}
+                </div>
                 
                 {/* Suggestions dropdown */}
                 {showSuggestions && suggestions.length > 0 && (
@@ -387,6 +546,18 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
                     ))}
                   </div>
                 )}
+                
+                {/* Empty state when inside quote but no results */}
+                {showSuggestions && suggestions.length === 0 && isInsideQuote && !isSearching && (
+                  <div className="absolute z-10 w-full mt-1 bg-zinc-700 border border-zinc-600 rounded-lg shadow-xl p-4">
+                    <p className="text-sm text-zinc-400 text-center">
+                      {inputValue.substring(quoteStartIndex + 1).length < 1 
+                        ? 'Start typing to search senders...'
+                        : 'No matching senders found'
+                      }
+                    </p>
+                  </div>
+                )}
               </div>
               
               {/* No match warning */}
@@ -396,7 +567,7 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
                   <div>
                     <p className="text-sm text-amber-200">No matching sender found</p>
                     <p className="text-xs text-amber-300/70 mt-1">
-                      Try typing an email address directly, or select from suggestions as you type.
+                      Use quotes to search: <span className="font-mono">"sender name"</span> or type an email address directly.
                     </p>
                   </div>
                 </div>
@@ -450,7 +621,7 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
               
               {/* Help text */}
               <p className="text-xs text-zinc-500 text-center">
-                Type a name, email, or natural language like "All emails from John to Urgent"
+                Use <span className="font-mono bg-zinc-700 px-1 rounded">"quotes"</span> to search senders, or type an email directly
               </p>
             </div>
           ) : (
