@@ -125,7 +125,7 @@ export const EmailListItem = React.memo(function EmailListItem({
       className={`
         group relative cursor-pointer transition-all duration-150
         ${isChecked 
-          ? 'bg-[#8FA8A3]/20 backdrop-blur-sm' 
+          ? 'bg-[#8FA8A3]/10 backdrop-blur-sm border-l-2 border-l-[#8FA8A3]' 
           : isSelected 
             ? 'bg-zinc-700/40' 
             : 'hover:shadow-[0_2px_8px_rgba(0,0,0,0.4)] hover:z-10 hover:scale-[1.01]'

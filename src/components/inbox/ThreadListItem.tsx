@@ -576,7 +576,7 @@ export function ThreadListItem({
         className={`
           group cursor-pointer transition-all duration-150
           ${isChecked 
-            ? 'bg-[#8FA8A3]/20' 
+            ? 'bg-[#8FA8A3]/10 backdrop-blur-sm border-l-2 border-l-[#8FA8A3]' 
             : isSelected 
               ? 'bg-zinc-700/50' 
               : 'hover:bg-zinc-800/30'
