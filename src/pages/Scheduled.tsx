@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Loader2, Menu, X, MoreVertical, Clock, Calendar, Paperclip, Reply, Forward } from "lucide-react";
 import { Sidebar } from "@/components/layout";
+import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { ComposeModal } from "@/components/inbox";
 import { SearchModal } from "@/components/search";
 import { SendLaterModal } from "@/components/inbox/SendLaterModal";
@@ -330,67 +331,14 @@ const ScheduledPage = () => {
           avatarLetter={userProfile?.firstName?.[0]?.toUpperCase() || currentUser?.email?.[0]?.toUpperCase() || "U"}
         />
 
-        {/* Mobile Sidebar Overlay */}
-        {sidebarOpen && (
-          <div 
-            className="lg:hidden fixed inset-0 bg-black/60 z-40"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Mobile Sidebar Drawer */}
-        <div className={`
-          lg:hidden fixed top-0 left-0 h-full w-64 bg-[#1a1a1a] z-50 transform transition-transform duration-300
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}>
-          <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#8FA8A3] flex items-center justify-center text-base font-semibold text-black">
-                {currentUser?.email?.[0]?.toUpperCase() || "U"}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-white text-sm font-medium truncate max-w-[140px]">
-                  {currentUser?.email || "User"}
-                </span>
-                <span className="text-zinc-500 text-xs">Outpost</span>
-              </div>
-            </div>
-            <button 
-              onClick={() => setSidebarOpen(false)}
-              className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="p-4 space-y-1">
-            <button 
-              onClick={() => { navigate('/inbox'); setSidebarOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5" fill="currentColor">
-                <path d="M155.8 96C123.9 96 96.9 119.4 92.4 150.9L64.6 345.2C64.2 348.2 64 351.2 64 354.3L64 480C64 515.3 92.7 544 128 544L512 544C547.3 544 576 515.3 576 480L576 354.3C576 351.3 575.8 348.2 575.4 345.2L547.6 150.9C543.1 119.4 516.1 96 484.2 96L155.8 96zM155.8 160L484.3 160L511.7 352L451.8 352C439.7 352 428.6 358.8 423.2 369.7L408.9 398.3C403.5 409.1 392.4 416 380.3 416L259.9 416C247.8 416 236.7 409.2 231.3 398.3L217 369.7C211.6 358.9 200.5 352 188.4 352L128.3 352L155.8 160z"/>
-              </svg>
-              <span>Inbox</span>
-            </button>
-
-            <button 
-              onClick={() => { navigate('/sent'); setSidebarOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-              </svg>
-              <span>Sent</span>
-            </button>
-
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white bg-zinc-800">
-              <Clock className="w-5 h-5" />
-              <span>Scheduled</span>
-            </button>
-          </div>
-        </div>
+        {/* Mobile Sidebar Component */}
+        <MobileSidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          activePage="scheduled"
+          userProfile={userProfile}
+          currentUser={currentUser}
+        />
 
         {/* Main Content Area */}
         <div className="lg:ml-16 h-full flex flex-col pb-12">
