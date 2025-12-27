@@ -28,6 +28,7 @@ interface ReplyModalProps {
   userTimezone?: string;
   onEmailSent?: (emailId: string, recipients: string[], emailData: UndoEmailData) => void;
   onEmailScheduled?: (emailId: string, scheduledAt: Date, recipients: string[]) => void;
+  onReplySent?: (optimisticEmail: Email) => void;  // v6.0: For optimistic UI - show reply immediately
   // Draft mode props
   draftId?: string;
   initialTo?: string[];
@@ -130,6 +131,7 @@ export function ReplyModal({
   userTimezone = 'UTC', 
   onEmailSent, 
   onEmailScheduled,
+  onReplySent,
   draftId: initialDraftId,
   initialTo,
   initialCc,
@@ -427,6 +429,27 @@ export function ReplyModal({
         }
       }
       
+      // v6.0: Call onReplySent for optimistic UI (immediate sends only, not scheduled)
+      if (!scheduledAt && onReplySent) {
+        const now = new Date();
+        const optimisticEmail: Email = {
+          id: 'optimistic-' + Date.now(),
+          sender: 'You',
+          senderEmail: userEmail,
+          subject: subject,
+          preview: bodyText.substring(0, 100),
+          body: fullHtml,
+          time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+          date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          isRead: true,
+          hasAttachment: attachments.length > 0,
+          to: to,
+          thread_id: threadId,
+          timestamp: now.getTime()
+        };
+        onReplySent(optimisticEmail);
+      }
+      
       onClose();
       
       if (scheduledAt && onEmailScheduled) {
@@ -454,7 +477,7 @@ export function ReplyModal({
     } finally {
       setIsSending(false);
     }
-  }, [to, cc, bcc, subject, attachments, scheduledAt, threadId, messageId, originalEmail, initialQuote, onClose, onEmailSent, onEmailScheduled, currentDraftId, mode]);
+  }, [to, cc, bcc, subject, attachments, scheduledAt, threadId, messageId, originalEmail, initialQuote, onClose, onEmailSent, onEmailScheduled, onReplySent, currentDraftId, mode, userEmail]);
   
   // Handle discard - saves as draft if content exists
   const handleDiscard = useCallback(async () => {

@@ -107,6 +107,9 @@ const InboxPage = () => {
   const [isForwardOpen, setIsForwardOpen] = useState(false);
   const [forwardEmail, setForwardEmail] = useState<Email | null>(null);
 
+  // v6.0: Optimistic reply state - show reply immediately in thread
+  const [optimisticReply, setOptimisticReply] = useState<{ email: Email; threadId: string } | null>(null);
+
   // Undo restore state - stores data to restore when undo is clicked
   const [undoComposeData, setUndoComposeData] = useState<UndoEmailData | null>(null);
 
@@ -172,6 +175,33 @@ const InboxPage = () => {
     currentUser?.uid,
     selectedThread?.email_ids || []
   );
+
+  // v6.0: Combine threadEmails with optimisticReply for display
+  const displayEmails = useMemo(() => {
+    // Only add optimistic if it matches current thread
+    if (optimisticReply && selectedThread && optimisticReply.threadId === selectedThread.thread_id) {
+      return [...threadEmails, optimisticReply.email];
+    }
+    return threadEmails;
+  }, [threadEmails, optimisticReply, selectedThread]);
+
+  // v6.0: Clear optimisticReply when selectedThread changes
+  useEffect(() => {
+    if (optimisticReply && selectedThread?.thread_id !== optimisticReply.threadId) {
+      console.log('🧹 Clearing optimistic reply (thread changed)');
+      setOptimisticReply(null);
+    }
+  }, [selectedThread?.thread_id, optimisticReply]);
+
+  // v6.0: Clear optimisticReply when webhook syncs new email (threadEmails grows)
+  const prevThreadEmailsLengthRef = useRef(threadEmails.length);
+  useEffect(() => {
+    if (optimisticReply && threadEmails.length > prevThreadEmailsLengthRef.current) {
+      console.log('✅ Clearing optimistic reply (new email synced via webhook)');
+      setOptimisticReply(null);
+    }
+    prevThreadEmailsLengthRef.current = threadEmails.length;
+  }, [threadEmails.length, optimisticReply]);
 
   // Fetch all labels for context menu
   useEffect(() => {
@@ -860,6 +890,29 @@ const InboxPage = () => {
     setIsForwardOpen(true);
   }, []);
 
+  // v6.0: Handle reply sent - add optimistic email to thread
+  const handleReplySent = useCallback((optimisticEmail: Email) => {
+    if (!selectedThread) return;
+    
+    console.log('📧 Adding optimistic reply to thread:', selectedThread.thread_id);
+    setOptimisticReply({
+      email: optimisticEmail,
+      threadId: selectedThread.thread_id
+    });
+    
+    // Safety timeout - clear after 60 seconds if webhook hasn't synced
+    setTimeout(() => {
+      setOptimisticReply(prev => {
+        // Only clear if it's the same optimistic email
+        if (prev && prev.email.id === optimisticEmail.id) {
+          console.log('⏰ Clearing optimistic reply (timeout)');
+          return null;
+        }
+        return prev;
+      });
+    }, 60000);
+  }, [selectedThread]);
+
   
 
   // ==================== CONTEXT MENU HANDLERS ====================
@@ -1529,7 +1582,7 @@ const InboxPage = () => {
               {hasThreadSelection && selectedThread && (
                 <ThreadDetail 
                   thread={selectedThread}
-                  emails={threadEmails}
+                  emails={displayEmails}
                   loading={threadEmailsLoading}
                   userEmail={currentUser?.email || ''}
                   onClose={handleCloseDetail}
@@ -1615,7 +1668,7 @@ const InboxPage = () => {
             {hasThreadSelection && selectedThread && (
               <MobileThreadDetail 
                 thread={selectedThread}
-                emails={threadEmails}
+                emails={displayEmails}
                 loading={threadEmailsLoading}
                 userEmail={currentUser?.email || ''}
                 onClose={handleCloseDetail}
@@ -1726,7 +1779,7 @@ const InboxPage = () => {
                 <div className="flex-1 flex flex-col overflow-hidden">
                   <ThreadDetail 
                     thread={selectedThread}
-                    emails={threadEmails}
+                    emails={displayEmails}
                     loading={threadEmailsLoading}
                     userEmail={currentUser?.email || ''}
                     onClose={handleCloseExpanded}
@@ -1836,6 +1889,7 @@ const InboxPage = () => {
             userEmail={currentUser?.email || ''}
             userTimezone={backendUserData?.timezone}
             onEmailSent={handleEmailSent}
+            onReplySent={handleReplySent}
             // Undo restore: pass initial values if available
             initialTo={undoComposeData?.type === 'reply' ? undoComposeData.to : undefined}
             initialCc={undoComposeData?.type === 'reply' ? undoComposeData.cc : undefined}
