@@ -2,7 +2,7 @@
 // Phase 5: S3 attachment support with upload progress
 // Provides HTML and plain text output for email composition
 
-import { useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, useImperativeHandle, forwardRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -60,6 +60,19 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
     onAttachmentsChange,
     onRemoveAttachment
   }, ref) => {
+    
+    // v6.0: Lightbox state for image preview
+    const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+    
+    // v6.0: Check if file is an image
+    const isImageFile = (type: string) => type.startsWith('image/');
+    
+    // v6.0: Get preview URL for image file
+    const getImagePreviewUrl = (file: AttachedFile): string | null => {
+      if (!isImageFile(file.type)) return null;
+      if (file.file) return URL.createObjectURL(file.file);
+      return null;
+    };
     
     // Initialize Tiptap editor
     const editor = useEditor({
@@ -231,7 +244,98 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
                 const progress = file.progress || 0;
                 const circumference = 2 * Math.PI * 10; // radius = 10
                 const strokeDashoffset = circumference - (progress / 100) * circumference;
+                const imagePreview = isImageFile(file.type) ? getImagePreviewUrl(file) : null;
                 
+                // v6.0: Image attachment with thumbnail preview
+                if (imagePreview) {
+                  return (
+                    <div 
+                      key={file.id}
+                      className={`relative bg-zinc-800 rounded-lg overflow-hidden group ${getStatusBorderClass(file.status, progress)}`}
+                    >
+                      {/* Image thumbnail - clickable for lightbox */}
+                      <button
+                        onClick={() => setLightboxImage(imagePreview)}
+                        className="block w-16 h-16 sm:w-20 sm:h-20 overflow-hidden"
+                        title="Click to view full size"
+                      >
+                        <img 
+                          src={imagePreview} 
+                          alt={file.name}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                        />
+                      </button>
+                      
+                      {/* Overlay with file info on hover */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-[9px] sm:text-[10px] text-white truncate">{file.name}</p>
+                        <p className="text-[8px] sm:text-[9px] text-zinc-400">{formatFileSize(file.size)}</p>
+                      </div>
+                      
+                      {/* Status/Remove button overlay */}
+                      <div className="absolute top-1 right-1">
+                        {(file.status === 'uploading' || (file.status === 'pending' && progress > 0)) && (
+                          <div className="relative w-5 h-5 sm:w-6 sm:h-6 bg-black/50 rounded-full flex items-center justify-center">
+                            <svg className="w-5 h-5 sm:w-6 sm:h-6 -rotate-90" viewBox="0 0 24 24">
+                              <circle cx="12" cy="12" r="10" fill="none" stroke="#3f3f46" strokeWidth="2" />
+                              <circle cx="12" cy="12" r="10" fill="none" stroke="#f7ac5c" strokeWidth="2"
+                                strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset}
+                                className="transition-all duration-200" />
+                            </svg>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onRemoveAttachment?.(file.id); }}
+                              className="absolute inset-0 flex items-center justify-center text-white/70 hover:text-white"
+                              title="Cancel"
+                            >
+                              <X className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                            </button>
+                          </div>
+                        )}
+                        {file.status === 'uploaded' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onRemoveAttachment?.(file.id); }}
+                            className="w-5 h-5 sm:w-6 sm:h-6 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white/70 hover:text-white transition-colors"
+                            title="Remove"
+                          >
+                            <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          </button>
+                        )}
+                        {file.status === 'error' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onRemoveAttachment?.(file.id); }}
+                            className="w-5 h-5 sm:w-6 sm:h-6 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center text-white transition-colors"
+                            title="Remove"
+                          >
+                            <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          </button>
+                        )}
+                        {file.status === 'pending' && progress === 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onRemoveAttachment?.(file.id); }}
+                            className="w-5 h-5 sm:w-6 sm:h-6 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white/70 hover:text-white transition-colors"
+                            title="Remove"
+                          >
+                            <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      
+                      {/* Status indicator - bottom left */}
+                      {file.status === 'uploaded' && (
+                        <div className="absolute bottom-1 left-1">
+                          <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 drop-shadow-md" />
+                        </div>
+                      )}
+                      {file.status === 'error' && (
+                        <div className="absolute bottom-1 left-1">
+                          <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500 drop-shadow-md" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                
+                // Non-image attachment (original design unchanged)
                 return (
                   <div 
                     key={file.id}
@@ -244,7 +348,7 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
                     
                     {/* File info */}
                     <div className="flex flex-col min-w-0">
-                      <span className="text-xs text-white truncate max-w-[150px]">
+                      <span className="text-xs text-white truncate max-w-[120px] sm:max-w-[150px]">
                         {file.name}
                       </span>
                       <span className="text-[10px] text-zinc-500">
@@ -253,7 +357,7 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
                       </span>
                       {/* Error message */}
                       {file.status === 'error' && file.error && (
-                        <span className="text-[10px] text-red-400 truncate max-w-[150px]">
+                        <span className="text-[10px] text-red-400 truncate max-w-[120px] sm:max-w-[150px]">
                           {file.error}
                         </span>
                       )}
@@ -417,6 +521,35 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
             color: #ffffff;
           }
         `}</style>
+        
+        {/* v6.0: Image Lightbox Modal */}
+        {lightboxImage && (
+          <div 
+            className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
+            onClick={() => setLightboxImage(null)}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white/80 hover:text-white transition-colors"
+              title="Close"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            
+            {/* Image container */}
+            <div 
+              className="max-w-[90vw] max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img 
+                src={lightboxImage} 
+                alt="Preview"
+                className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   }
