@@ -15,6 +15,7 @@ import {
   ComposeModal,
   ReplyModal,
   ForwardModal,
+  MobileSelectionBar,
 } from "@/components/inbox";
 import { SearchModal } from "@/components/search";
 import { UndoEmailData } from "@/components/inbox/ComposeModal";
@@ -92,6 +93,9 @@ const LabelPage = () => {
   
   // Checked threads state (for bulk selection)
   const [checkedThreads, setCheckedThreads] = useState<Set<string>>(new Set());
+  
+  // Mobile selection mode state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   // Toast state for undo functionality
   const [toast, setToast] = useState<{
@@ -283,6 +287,10 @@ const LabelPage = () => {
       } else {
         newSet.delete(thread.thread_id);
       }
+      // Exit selection mode if no items checked
+      if (newSet.size === 0) {
+        setIsSelectionMode(false);
+      }
       return newSet;
     });
   }, []);
@@ -290,11 +298,18 @@ const LabelPage = () => {
   const handleGlobalCheckChange = useCallback(() => {
     if (checkedThreads.size > 0) {
       setCheckedThreads(new Set());
+      setIsSelectionMode(false);
     } else {
       const allIds = new Set(currentThreads.map(t => t.thread_id));
       setCheckedThreads(allIds);
+      setIsSelectionMode(true);
     }
   }, [checkedThreads.size, currentThreads]);
+
+  // Long-press handler for mobile selection mode
+  const handleLongPress = useCallback((thread: Thread) => {
+    setIsSelectionMode(true);
+  }, []);
 
   // ==================== BATCH ACTIONS ====================
   
@@ -327,6 +342,7 @@ const LabelPage = () => {
     });
     
     setCheckedThreads(new Set());
+    setIsSelectionMode(false);
     
     if (emailIds.length > 0) {
       batchMarkAsRead(emailIds).catch(console.error);
@@ -352,6 +368,7 @@ const LabelPage = () => {
     });
     
     setCheckedThreads(new Set());
+    setIsSelectionMode(false);
     
     if (emailIds.length > 0) {
       batchMarkAsUnread(emailIds).catch(console.error);
@@ -371,6 +388,7 @@ const LabelPage = () => {
     });
     
     setCheckedThreads(new Set());
+    setIsSelectionMode(false);
     
     if (selectedThread && threadIds.includes(selectedThread.thread_id)) {
       setSelectedThread(null);
@@ -403,6 +421,7 @@ const LabelPage = () => {
     });
     
     setCheckedThreads(new Set());
+    setIsSelectionMode(false);
     
     if (selectedThread && threadIds.includes(selectedThread.thread_id)) {
       setSelectedThread(null);
@@ -683,6 +702,18 @@ const LabelPage = () => {
 
         {/* ==================== MAIN LAYOUT ==================== */}
         <div className="h-full flex flex-col lg:ml-16">
+          {/* ==================== MOBILE SELECTION BAR ==================== */}
+          <MobileSelectionBar
+            selectedCount={checkedThreads.size}
+            totalCount={currentThreads.length}
+            isAllSelected={checkedThreads.size > 0 && checkedThreads.size === currentThreads.length}
+            onSelectAll={handleGlobalCheckChange}
+            onMarkRead={handleBatchMarkAsRead}
+            onMarkUnread={handleBatchMarkAsUnread}
+            onMarkDone={handleBatchMarkAsDone}
+            onDelete={handleBatchDelete}
+          />
+          
           {/* ==================== NAVBAR ==================== */}
           <nav className="flex-shrink-0">
             {/* Mobile Header */}
@@ -788,8 +819,10 @@ const LabelPage = () => {
                 selectedThreadId={selectedThread?.thread_id || null}
                 isCompact={hasThreadSelection && !isExpanded}
                 checkedThreadIds={checkedThreads}
+                isSelectionMode={isSelectionMode}
                 onThreadClick={handleThreadClick}
                 onCheckChange={handleCheckChange}
+                onLongPress={handleLongPress}
                 onMarkDone={handleMarkThreadDone}
                 onDelete={handleDeleteThread}
                 emptyMessage={`No emails with label "${displayLabelName}"`}

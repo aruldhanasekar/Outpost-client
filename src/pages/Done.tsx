@@ -9,6 +9,7 @@ import {
   Email,
   EmailList,
   ComposeModal,
+  MobileSelectionBar,
 } from "@/components/inbox";
 import { SearchModal } from "@/components/search";
 import { useDoneEmails } from "@/hooks/useDoneEmails";
@@ -49,6 +50,9 @@ const DonePage = () => {
 
   // Checked emails state (for bulk selection)
   const [checkedEmails, setCheckedEmails] = useState<Set<string>>(new Set());
+  
+  // Mobile selection mode state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   // Fetch done emails from Firestore
   const { emails, loading: emailsLoading, error: emailsError } = useDoneEmails(currentUser?.uid);
@@ -135,6 +139,10 @@ const DonePage = () => {
       } else {
         newSet.delete(email.id);
       }
+      // Exit selection mode if no items checked
+      if (newSet.size === 0) {
+        setIsSelectionMode(false);
+      }
       return newSet;
     });
   }, []);
@@ -143,11 +151,18 @@ const DonePage = () => {
   const handleGlobalCheckChange = useCallback(() => {
     if (checkedEmails.size > 0) {
       setCheckedEmails(new Set());
+      setIsSelectionMode(false);
     } else {
       const allIds = new Set(emailsWithLocalState.map(e => e.id));
       setCheckedEmails(allIds);
+      setIsSelectionMode(true);
     }
   }, [checkedEmails.size, emailsWithLocalState]);
+
+  // Long-press handler for mobile selection mode
+  const handleLongPress = useCallback((email: Email) => {
+    setIsSelectionMode(true);
+  }, []);
 
   // Handle email sent - show undo toast
   const handleEmailSent = useCallback((emailId: string, recipients: string[], emailData: UndoEmailData) => {
@@ -222,20 +237,20 @@ const DonePage = () => {
         {/* ==================== MAIN CONTAINER ==================== */}
         <div className={`fixed inset-0 lg:top-0 lg:right-0 lg:left-16 bg-[#2d2d2d] lg:rounded-bl-2xl flex flex-col ${isComposeOpen ? 'lg:bottom-12' : 'lg:bottom-8'}`}>
           
+          {/* ==================== MOBILE SELECTION BAR ==================== */}
+          <MobileSelectionBar
+            selectedCount={checkedEmails.size}
+            totalCount={emailsWithLocalState.length}
+            isAllSelected={checkedEmails.size > 0 && checkedEmails.size === emailsWithLocalState.length}
+            onSelectAll={handleGlobalCheckChange}
+          />
+          
           {/* ==================== TOP NAVBAR ==================== */}
           <nav className="flex-shrink-0 border-b border-zinc-700/50">
             {/* Mobile/Tablet Header */}
             <div className="flex lg:hidden items-center justify-between h-14 px-3">
-              {/* LEFT: Checkbox + Hamburger + Title */}
+              {/* LEFT: Hamburger + Title */}
               <div className="flex items-center">
-                <div className="flex items-center justify-center w-8">
-                  <input
-                    type="checkbox"
-                    checked={checkedEmails.size > 0 && checkedEmails.size === emailsWithLocalState.length}
-                    onChange={handleGlobalCheckChange}
-                    className="w-4 h-4 rounded bg-transparent cursor-pointer appearance-none border-2 border-zinc-500 outline-none focus:outline-none focus:ring-0 relative checked:after:content-['✓'] checked:after:absolute checked:after:text-white checked:after:text-xs checked:after:font-bold checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2"
-                  />
-                </div>
                 {/* Hamburger Menu */}
                 <button 
                   onClick={() => setSidebarOpen(true)}
@@ -327,7 +342,9 @@ const DonePage = () => {
                 onMarkDone={handleMarkUndone}
                 isDonePage={true}
                 checkedEmailIds={checkedEmails}
+                isSelectionMode={isSelectionMode}
                 onCheckChange={handleCheckChange}
+                onLongPress={handleLongPress}
               />
             </div>
 

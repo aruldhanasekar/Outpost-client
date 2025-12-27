@@ -11,6 +11,7 @@ import {
   ComposeModal,
   ReplyModal,
   ForwardModal,
+  MobileSelectionBar,
 } from "@/components/inbox";
 import { SearchModal } from "@/components/search";
 import { useDraftEmails } from "@/hooks/useDraftEmails";
@@ -121,6 +122,9 @@ const DraftPage = () => {
 
   // Checked emails state (for bulk selection)
   const [checkedEmails, setCheckedEmails] = useState<Set<string>>(new Set());
+  
+  // Mobile selection mode state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   // Email send undo toast state
   const [emailUndoToast, setEmailUndoToast] = useState<{
@@ -309,6 +313,10 @@ const DraftPage = () => {
       } else {
         newSet.delete(email.id);
       }
+      // Exit selection mode if no items checked
+      if (newSet.size === 0) {
+        setIsSelectionMode(false);
+      }
       return newSet;
     });
   }, []);
@@ -317,11 +325,18 @@ const DraftPage = () => {
   const handleGlobalCheckChange = useCallback(() => {
     if (checkedEmails.size > 0) {
       setCheckedEmails(new Set());
+      setIsSelectionMode(false);
     } else {
       const allIds = new Set(emails.map(e => e.id));
       setCheckedEmails(allIds);
+      setIsSelectionMode(true);
     }
   }, [checkedEmails.size, emails]);
+
+  // Long-press handler for mobile selection mode
+  const handleLongPress = useCallback((email: Email) => {
+    setIsSelectionMode(true);
+  }, []);
 
   if (authLoading) {
     return (
@@ -359,6 +374,14 @@ const DraftPage = () => {
 
         {/* Main Content Area */}
         <div className="lg:ml-20 h-full flex flex-col">
+          {/* ==================== MOBILE SELECTION BAR ==================== */}
+          <MobileSelectionBar
+            selectedCount={checkedEmails.size}
+            totalCount={emails.length}
+            isAllSelected={checkedEmails.size > 0 && checkedEmails.size === emails.length}
+            onSelectAll={handleGlobalCheckChange}
+          />
+          
           {/* Top Navigation Bar */}
           <nav className="flex-shrink-0 border-b border-zinc-700/50">
             {/* Mobile Header */}
@@ -435,7 +458,9 @@ const DraftPage = () => {
                 onEmailClick={handleEmailClick}
                 showMarkDone={false}
                 checkedEmailIds={checkedEmails}
+                isSelectionMode={isSelectionMode}
                 onCheckChange={handleCheckChange}
+                onLongPress={handleLongPress}
               />
             </div>
           </div>
