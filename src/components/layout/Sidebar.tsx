@@ -141,12 +141,12 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
         <div className="relative group mb-3">
           <button 
             onClick={() => setIsSenderRulesOpen(true)}
-            className="p-2 hover:bg-zinc-700 rounded-lg transition-colors"
+            className="p-1.5 bg-white rounded-lg hover:bg-zinc-100 transition-colors"
           >
             <img 
               src={OutpostLogo} 
               alt="Sender Rules" 
-              className="w-7 h-7 opacity-70 hover:opacity-100 transition-opacity"
+              className="w-6 h-6"
             />
           </button>
           {/* Tooltip */}
