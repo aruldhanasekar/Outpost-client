@@ -175,7 +175,7 @@ export const MobileSidebar = ({
         `}
       >
         {/* Header - Outpost Logo */}
-        <div className="p-4 border-b border-zinc-800">
+        <div className="p-4">
           <button 
             onClick={() => setIsSenderRulesOpen(true)}
             className="p-2 bg-white rounded-lg hover:bg-zinc-100 transition-colors"
@@ -363,7 +363,7 @@ export const MobileSidebar = ({
         {/* Profile Section - Fixed at Bottom */}
         <div 
           onClick={handleProfileClick}
-          className="p-4 border-t border-zinc-800 cursor-pointer hover:bg-zinc-800/30 transition-colors"
+          className="p-4 cursor-pointer hover:bg-zinc-800/30 transition-colors"
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#f7ac5c] flex items-center justify-center text-base font-semibold text-black flex-shrink-0">
