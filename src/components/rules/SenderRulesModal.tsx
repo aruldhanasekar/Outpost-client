@@ -84,6 +84,7 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
   
   // New Rule state
   const [inputValue, setInputValue] = useState('');
+  const [beforeChipText, setBeforeChipText] = useState(''); // Text before the chip
   const [selectedSender, setSelectedSender] = useState<SelectedSender | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>('URGENT');
   const [suggestions, setSuggestions] = useState<SenderMatch[]>([]);
@@ -127,6 +128,7 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
   useEffect(() => {
     if (!isOpen) {
       setInputValue('');
+      setBeforeChipText('');
       setSelectedSender(null);
       setSelectedCategory('URGENT');
       setSuggestions([]);
@@ -235,25 +237,28 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
 
   // Handle selecting a suggestion from dropdown
   const handleSelectSuggestion = (sender: SenderMatch) => {
-    // Replace the quoted text with the selected sender
-    // Input: 'Email from "Ar' -> 'Email from ' + chip
+    // Extract text before the opening quote
+    const textBeforeQuote = inputValue.substring(0, quoteStartIndex).trim();
     
-    const beforeQuote = inputValue.substring(0, quoteStartIndex);
-    const afterCursor = inputValue.substring(inputRef.current?.selectionStart || inputValue.length);
-    
-    // Find closing quote if exists and remove it
+    // Extract text after the closing quote (if exists) or after cursor
+    const cursorPos = inputRef.current?.selectionStart || inputValue.length;
+    const afterCursor = inputValue.substring(cursorPos);
     const closingQuoteIndex = afterCursor.indexOf('"');
-    const remainingText = closingQuoteIndex >= 0 
-      ? afterCursor.substring(closingQuoteIndex + 1) 
-      : afterCursor;
+    const textAfterQuote = closingQuoteIndex >= 0 
+      ? afterCursor.substring(closingQuoteIndex + 1).trim()
+      : afterCursor.trim();
     
+    // Set the text before chip
+    setBeforeChipText(textBeforeQuote);
+    
+    // Set selected sender (chip)
     setSelectedSender({
       name: sender.name,
       email: sender.email
     });
     
-    // Update input to show text before quote + remaining text
-    setInputValue(beforeQuote.trimEnd() + ' ' + remainingText.trimStart());
+    // Set remaining text after quote as input value for continued typing
+    setInputValue(textAfterQuote);
     
     setShowSuggestions(false);
     setIsInsideQuote(false);
@@ -266,6 +271,10 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
 
   // Handle removing the chip
   const handleRemoveChip = () => {
+    // Restore text: combine beforeChipText + current inputValue
+    const restoredText = beforeChipText + (beforeChipText && inputValue ? ' ' : '') + inputValue;
+    setInputValue(restoredText);
+    setBeforeChipText('');
     setSelectedSender(null);
     setNoMatchWarning(false);
     inputRef.current?.focus();
@@ -301,6 +310,7 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
           name: trimmedInput.split('@')[0],
           email: trimmedInput.toLowerCase()
         });
+        setBeforeChipText('');
         setInputValue('');
         return;
       }
@@ -317,14 +327,16 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
 
   // Parse input with AI
   const parseInputWithAI = async () => {
-    if (!inputValue.trim()) return;
+    // Combine beforeChipText and inputValue for full context
+    const fullText = (beforeChipText + ' ' + inputValue).trim();
+    if (!fullText) return;
     
     setIsParsing(true);
     setError(null);
     setNoMatchWarning(false);
     
     try {
-      const response = await parseTriageRule(inputValue);
+      const response = await parseTriageRule(fullText);
       
       // Auto-select category if detected
       if (response.extracted_category) {
@@ -339,6 +351,8 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
             name: response.matches[0].name,
             email: response.matches[0].email
           });
+          // Clear both texts since AI parsed the full sentence
+          setBeforeChipText('');
           setInputValue('');
         } else {
           // Multiple matches - show suggestions
@@ -353,6 +367,7 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
             name: response.extracted_sender.split('@')[0],
             email: response.extracted_sender.toLowerCase()
           });
+          setBeforeChipText('');
           setInputValue('');
         } else {
           // Name with no matches - show warning
@@ -386,6 +401,7 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
       
       // Reset form
       setInputValue('');
+      setBeforeChipText('');
       setSelectedSender(null);
       setSelectedCategory('URGENT');
       setSuggestions([]);
@@ -492,7 +508,12 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
                 
                 <div className="relative">
                   {/* Input container with chip */}
-                  <div className="flex items-center gap-2 w-full px-4 py-3 bg-zinc-700/50 border border-zinc-600 rounded-lg focus-within:border-[#8FA8A3] focus-within:ring-1 focus-within:ring-[#8FA8A3]">
+                  <div className="flex items-center gap-1 flex-wrap w-full px-4 py-3 bg-zinc-700/50 border border-zinc-600 rounded-lg focus-within:border-[#8FA8A3] focus-within:ring-1 focus-within:ring-[#8FA8A3]">
+                    {/* Text before chip (read-only) */}
+                    {beforeChipText && (
+                      <span className="text-zinc-100 whitespace-pre">{beforeChipText} </span>
+                    )}
+                    
                     {/* Chip if sender selected */}
                     {selectedSender && (
                       <SenderChip 
@@ -501,7 +522,7 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
                       />
                     )}
                     
-                    {/* Text input */}
+                    {/* Text input for typing / continued typing */}
                     <input
                       ref={inputRef}
                       type="text"
@@ -509,10 +530,10 @@ export const SenderRulesModal = ({ isOpen, onClose }: SenderRulesModalProps) => 
                       onChange={handleInputChange}
                       onKeyDown={handleKeyDown}
                       placeholder={selectedSender 
-                        ? 'Add category context (optional)...' 
+                        ? '' 
                         : 'Type "name" to search or email@example.com'
                       }
-                      className="flex-1 bg-transparent text-zinc-100 placeholder-zinc-500 focus:outline-none min-w-[100px]"
+                      className="flex-1 bg-transparent text-zinc-100 placeholder-zinc-500 focus:outline-none min-w-[60px]"
                     />
                     
                     {/* Loading indicator */}
