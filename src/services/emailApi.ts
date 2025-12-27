@@ -1103,3 +1103,99 @@ export async function updateTriageRuleBySender(senderEmail: string, category: st
 
   return response.json();
 }
+
+/**
+ * Search past senders for autocomplete
+ * Returns matched senders sorted by relevance
+ */
+export async function searchSenders(query: string): Promise<{
+  status: string;
+  query: string;
+  matches: Array<{
+    name: string;
+    email: string;
+    match_score: number;
+    has_rule?: boolean;
+    rule_category?: string;
+  }>;
+  count: number;
+}> {
+  const token = await getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/senders/search?q=${encodeURIComponent(query)}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || `API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Parse natural language input to extract sender and category
+ * Uses GPT-4.1 to understand user intent
+ */
+export async function parseTriageRule(text: string): Promise<{
+  status: string;
+  extracted_sender: string | null;
+  extracted_category: string | null;
+  is_email: boolean;
+  matches: Array<{
+    name: string;
+    email: string;
+    match_score: number;
+  }>;
+  raw_input: string;
+}> {
+  const token = await getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/triage-rules/parse`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || `API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete a triage rule by rule ID
+ */
+export async function deleteTriageRule(ruleId: string): Promise<{
+  status: string;
+  message: string;
+  deleted_rule_id: string;
+  sender_email: string;
+}> {
+  const token = await getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/api/triage-rules/${ruleId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+    throw new Error(error.detail || `API error: ${response.status}`);
+  }
+
+  return response.json();
+}

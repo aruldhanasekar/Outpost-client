@@ -2,6 +2,7 @@
 // Desktop sidebar - White sidebar with mail icon and expandable navigation panel
 // v2.0: Uses LabelsContext for persistent labels state across navigation
 // ✅ Updated to use emailApi.ts for automatic Direct Auth / Composio routing
+// ✅ Added Sender Rules modal (accessible via Outpost logo)
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -11,7 +12,11 @@ import { useAuth } from "@/context/AuthContext";
 import { useLabels } from "@/context/LabelsContext";
 import { CreateLabelModal } from "@/components/labels/CreateLabelModal";
 import { DeleteLabelModal } from "@/components/labels/DeleteLabelModal";
+import { SenderRulesModal } from "@/components/rules/SenderRulesModal";
 import { deleteLabel } from "@/services/emailApi";
+
+// Outpost logo for sender rules button
+import OutpostLogo from "@/assets/Outpost.png";
 
 export type PageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'trash' | 'label';
 
@@ -48,6 +53,7 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
   
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isCreateLabelOpen, setIsCreateLabelOpen] = useState(false);
+  const [isSenderRulesOpen, setIsSenderRulesOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; label: Label | null }>({
     isOpen: false,
     label: null
@@ -130,6 +136,24 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
 
         {/* Spacer to push profile to bottom */}
         <div className="flex-1" />
+
+        {/* Outpost Logo - Sender Rules */}
+        <div className="relative group mb-3">
+          <button 
+            onClick={() => setIsSenderRulesOpen(true)}
+            className="p-2 hover:bg-zinc-700 rounded-lg transition-colors"
+          >
+            <img 
+              src={OutpostLogo} 
+              alt="Sender Rules" 
+              className="w-7 h-7 opacity-70 hover:opacity-100 transition-opacity"
+            />
+          </button>
+          {/* Tooltip */}
+          <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-zinc-700 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            Sender Rules
+          </div>
+        </div>
 
         {/* Profile Avatar */}
         <div className="mb-4">
@@ -272,6 +296,12 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
           isDeleting={isDeleting}
         />
       )}
+      
+      {/* Sender Rules Modal */}
+      <SenderRulesModal
+        isOpen={isSenderRulesOpen}
+        onClose={() => setIsSenderRulesOpen(false)}
+      />
     </>
   );
 };
