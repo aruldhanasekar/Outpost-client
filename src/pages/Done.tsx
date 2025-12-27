@@ -149,11 +149,13 @@ const DonePage = () => {
 
   // Handle global checkbox change
   const handleGlobalCheckChange = useCallback(() => {
-    if (checkedEmails.size > 0) {
-      // Deselect all - but stay in selection mode
+    const isAllSelected = checkedEmails.size > 0 && checkedEmails.size === emailsWithLocalState.length;
+    
+    if (isAllSelected) {
+      // All selected → Deselect all (but stay in selection mode)
       setCheckedEmails(new Set());
     } else {
-      // Select all - enter selection mode
+      // None or some selected → Select all
       const allIds = new Set(emailsWithLocalState.map(e => e.id));
       setCheckedEmails(allIds);
       setIsSelectionMode(true);

@@ -296,11 +296,13 @@ const LabelPage = () => {
   }, []);
   
   const handleGlobalCheckChange = useCallback(() => {
-    if (checkedThreads.size > 0) {
-      // Deselect all - but stay in selection mode
+    const isAllSelected = checkedThreads.size > 0 && checkedThreads.size === currentThreads.length;
+    
+    if (isAllSelected) {
+      // All selected → Deselect all (but stay in selection mode)
       setCheckedThreads(new Set());
     } else {
-      // Select all - enter selection mode
+      // None or some selected → Select all
       const allIds = new Set(currentThreads.map(t => t.thread_id));
       setCheckedThreads(allIds);
       setIsSelectionMode(true);
