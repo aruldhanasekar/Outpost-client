@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Menu, X, SendHorizontal } from "lucide-react";
+import { Loader2, Menu } from "lucide-react";
 import {
   Email,
   EmailList,
@@ -16,6 +16,7 @@ import { SearchModal } from "@/components/search";
 import { useDraftEmails } from "@/hooks/useDraftEmails";
 import { loadDraft, DraftData, OriginalEmailSnapshot } from "@/services/draftApi";
 import { Sidebar } from "@/components/layout";
+import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
 import { UndoEmailData } from "@/components/inbox/ComposeModal";
 
@@ -347,81 +348,14 @@ const DraftPage = () => {
           avatarLetter={userProfile?.firstName?.[0]?.toUpperCase() || currentUser?.email?.[0]?.toUpperCase() || "U"}
         />
         
-        {/* Mobile/Tablet: Overlay */}
-        {sidebarOpen && (
-          <div 
-            className="lg:hidden fixed inset-0 bg-black/60 z-40"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Mobile/Tablet: Slide-out Sidebar */}
-        <div className={`
-          lg:hidden fixed top-0 left-0 bottom-0 w-72 bg-[#1a1a1a] z-50 
-          transform transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}>
-          {/* Sidebar Header */}
-          <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-10 h-10 rounded-full bg-[#8FA8A3] flex items-center justify-center text-base font-semibold text-black flex-shrink-0">
-                {currentUser?.email?.[0]?.toUpperCase() || "U"}
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-white text-sm font-medium truncate">
-                  {currentUser?.email || "User"}
-                </span>
-                <span className="text-zinc-500 text-xs">Outpost</span>
-              </div>
-            </div>
-            <button 
-              onClick={() => setSidebarOpen(false)}
-              className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-zinc-400 hover:text-white flex-shrink-0"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Sidebar Navigation */}
-          <div className="p-4">
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 px-3">
-              Navigation
-            </p>
-            <div className="flex flex-col gap-1">
-              <button 
-                onClick={() => { setSidebarOpen(false); navigate('/inbox'); }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/30 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5 flex-shrink-0" fill="currentColor">
-                  <path d="M155.8 96C123.9 96 96.9 119.4 92.4 150.9L64.6 345.2C64.2 348.2 64 351.2 64 354.3L64 480C64 515.3 92.7 544 128 544L512 544C547.3 544 576 515.3 576 480L576 354.3C576 351.3 575.8 348.2 575.4 345.2L547.6 150.9C543.1 119.4 516.1 96 484.2 96L155.8 96zM155.8 160L484.3 160L511.7 352L451.8 352C439.7 352 428.6 358.8 423.2 369.7L408.9 398.3C403.5 409.1 392.4 416 380.3 416L259.9 416C247.8 416 236.7 409.2 231.3 398.3L217 369.7C211.6 358.9 200.5 352 188.4 352L128.3 352L155.8 160z"/>
-                </svg>
-                <span className="text-sm font-medium">Inbox</span>
-              </button>
-              <button 
-                onClick={() => { setSidebarOpen(false); navigate('/sent'); }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/30 transition-colors"
-              >
-                <SendHorizontal className="w-5 h-5 flex-shrink-0" />
-                <span className="text-sm font-medium">Sent</span>
-              </button>
-              <button className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white bg-zinc-800/50">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5 flex-shrink-0" fill="currentColor">
-                  <path d="M128 128C128 92.7 156.7 64 192 64L341.5 64C358.5 64 374.8 70.7 386.8 82.7L493.3 189.3C505.3 201.3 512 217.6 512 234.6L512 512C512 547.3 483.3 576 448 576L192 576C156.7 576 128 547.3 128 512L128 128zM336 122.5L336 216C336 229.3 346.7 240 360 240L453.5 240L336 122.5zM192 136C192 149.3 202.7 160 216 160L264 160C277.3 160 288 149.3 288 136C288 122.7 277.3 112 264 112L216 112C202.7 112 192 122.7 192 136zM192 232C192 245.3 202.7 256 216 256L264 256C277.3 256 288 245.3 288 232C288 218.7 277.3 208 264 208L216 208C202.7 208 192 218.7 192 232zM256 304L224 304C206.3 304 192 318.3 192 336L192 384C192 410.5 213.5 432 240 432C266.5 432 288 410.5 288 384L288 336C288 318.3 273.7 304 256 304zM240 368C248.8 368 256 375.2 256 384C256 392.8 248.8 400 240 400C231.2 400 224 392.8 224 384C224 375.2 231.2 368 240 368z"/>
-                </svg>
-                <span className="text-sm font-medium">Drafts</span>
-              </button>
-              <button 
-                onClick={() => { setSidebarOpen(false); navigate('/done'); }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/30 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="w-5 h-5 flex-shrink-0" fill="currentColor">
-                  <path d="M337.3 86.1L385.7 125.5C390.3 129.3 396 131.5 402 131.8L463.8 135.1C495.8 136.8 521.2 162.2 523 194.2L526.2 256C526.5 262 528.7 267.7 532.5 272.3L571.9 320.7C593 347.3 593 385.7 571.9 412.3L532.5 460.7C528.7 465.3 526.5 471 526.2 477L523 538.8C521.2 570.8 495.8 596.2 463.8 598L402 601.2C396 601.5 390.3 603.7 385.7 607.5L337.3 646.9C310.7 668 272.3 668 245.7 646.9L197.3 607.5C192.7 603.7 187 601.5 181 601.2L119.2 598C87.2 596.2 61.8 570.8 60 538.8L56.8 477C56.5 471 54.3 465.3 50.5 460.7L11.1 412.3C-10 385.7 -10 347.3 11.1 320.7L50.5 272.3C54.3 267.7 56.5 262 56.8 256L60 194.2C61.8 162.2 87.2 136.8 119.2 135L181 131.8C187 131.5 192.7 129.3 197.3 125.5L245.7 86.1C272.3 65 310.7 65 337.3 86.1zM408.5 252.5C421 240 421 219.7 408.5 207.2C396 194.7 375.7 194.7 363.2 207.2L252 318.3L209.8 276.2C197.3 263.7 177 263.7 164.5 276.2C152 288.7 152 309 164.5 321.5L229.4 386.3C241.9 398.8 262.2 398.8 274.7 386.3L408.5 252.5z"/>
-                </svg>
-                <span className="text-sm font-medium">Done</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* Mobile/Tablet: Sidebar Component */}
+        <MobileSidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          activePage="drafts"
+          userProfile={userProfile}
+          currentUser={currentUser}
+        />
 
         {/* Main Content Area */}
         <div className="lg:ml-20 h-full flex flex-col">
