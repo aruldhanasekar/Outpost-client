@@ -1,4 +1,5 @@
 // EmailList.tsx - Email list container with date grouping and action callbacks
+// v2.0: Added mobile selection mode props
 
 import { Loader2 } from 'lucide-react';
 import { Email } from './types';
@@ -11,8 +12,10 @@ interface EmailListProps {
   selectedEmailId: string | null; // ID of currently selected email
   isCompact?: boolean; // When true, use vertical layout (detail panel is open)
   checkedEmailIds?: Set<string>; // IDs of checked emails
+  isSelectionMode?: boolean;  // Mobile selection mode
   onEmailClick: (email: Email) => void;
   onCheckChange?: (email: Email, checked: boolean) => void;
+  onLongPress?: (email: Email) => void;  // Long-press to enter selection mode
   onMarkDone?: (email: Email) => void;
   onDelete?: (email: Email) => void;
   showMarkDone?: boolean; // false for Sent page
@@ -148,8 +151,10 @@ export function EmailList({
   selectedEmailId,
   isCompact = false,
   checkedEmailIds = new Set(),
+  isSelectionMode = false,
   onEmailClick,
   onCheckChange,
+  onLongPress,
   onMarkDone,
   onDelete,
   showMarkDone = true,
@@ -202,8 +207,10 @@ export function EmailList({
               isSelected={email.id === selectedEmailId}
               isCompact={isCompact}
               isChecked={checkedEmailIds.has(email.id)}
+              isSelectionMode={isSelectionMode}
               onClick={() => onEmailClick(email)}
               onCheckChange={onCheckChange}
+              onLongPress={onLongPress}
               onMarkDone={onMarkDone}
               onDelete={onDelete}
               showMarkDone={showMarkDone}

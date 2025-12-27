@@ -1,7 +1,8 @@
 // EmailListItem.tsx - Email list item with hover actions (tick, delete) and checkbox
 // Performance optimized with React.memo and specific CSS transitions
+// v2.0: Added mobile selection mode with long-press
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { Email } from './types';
 import { Check, Trash2, Undo2 } from 'lucide-react';
 import { cleanSnippet } from '@/utils/formatters';
@@ -11,8 +12,10 @@ interface EmailListItemProps {
   isSelected: boolean;
   isCompact: boolean;
   isChecked?: boolean;
+  isSelectionMode?: boolean;  // Mobile selection mode
   onClick: () => void;
   onCheckChange?: (email: Email, checked: boolean) => void;
+  onLongPress?: (email: Email) => void;  // Long-press to enter selection mode
   onMarkDone?: (email: Email) => void;
   onDelete?: (email: Email) => void;
   showMarkDone?: boolean;
@@ -24,8 +27,10 @@ export const EmailListItem = React.memo(function EmailListItem({
   isSelected,
   isCompact,
   isChecked = false,
+  isSelectionMode = false,
   onClick, 
   onCheckChange,
+  onLongPress,
   onMarkDone,
   onDelete,
   showMarkDone = true,
@@ -55,10 +60,58 @@ export const EmailListItem = React.memo(function EmailListItem({
     if (target.closest('button') || target.closest('input[type="checkbox"]')) {
       return;
     }
+    // In selection mode on mobile, tap toggles checkbox instead of opening detail
+    if (isSelectionMode) {
+      onCheckChange?.(email, !isChecked);
+      return;
+    }
     onClick();
-  }, [onClick]);
+  }, [onClick, isSelectionMode, email, isChecked, onCheckChange]);
 
   const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
+
+  // Long-press state for mobile selection mode
+  const [isLongPressing, setIsLongPressing] = useState(false);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressDuration = 500; // 500ms for long-press
+  
+  // Long-press handlers for mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    setIsLongPressing(true);
+    longPressTimerRef.current = setTimeout(() => {
+      // Trigger long-press action
+      onLongPress?.(email);
+      // Also check the email
+      onCheckChange?.(email, true);
+      setIsLongPressing(false);
+    }, longPressDuration);
+  }, [email, onLongPress, onCheckChange]);
+
+  const handleTouchEnd = useCallback(() => {
+    setIsLongPressing(false);
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback(() => {
+    // Cancel long-press if user moves finger
+    setIsLongPressing(false);
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, []);
 
   // Clean the preview to show only latest email content
   const preview = cleanSnippet(email.preview || '');
@@ -66,21 +119,25 @@ export const EmailListItem = React.memo(function EmailListItem({
   return (
     <div
       onClick={handleRowClick}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
       className={`
-        group relative cursor-pointer transition-[background-color,box-shadow,transform] duration-150
+        group relative cursor-pointer transition-all duration-150
         ${isChecked 
           ? 'bg-[#8FA8A3]/20 backdrop-blur-sm' 
           : isSelected 
             ? 'bg-zinc-700/40' 
             : 'hover:shadow-[0_2px_8px_rgba(0,0,0,0.4)] hover:z-10 hover:scale-[1.01]'
         }
+        ${isLongPressing ? 'scale-[0.98] bg-zinc-700/30' : ''}
       `}
     >
       {/* Mobile Layout - Always Stacked */}
       <div className="lg:hidden flex items-start px-4 py-4">
-        {/* Checkbox container - fixed width, always takes space */}
+        {/* Checkbox container - visible in selection mode or when checked */}
         <div 
-          className={`w-5 flex-shrink-0 flex justify-center pt-1 transition-opacity duration-150 ${isChecked ? 'opacity-100' : 'opacity-0 group-active:opacity-100'}`}
+          className={`w-5 flex-shrink-0 flex justify-center pt-1 transition-opacity duration-150 ${isSelectionMode || isChecked ? 'opacity-100' : 'opacity-0'}`}
           onClick={handleCheckboxClick}
         >
           <input
@@ -312,6 +369,7 @@ export const EmailListItem = React.memo(function EmailListItem({
     prevProps.isSelected === nextProps.isSelected &&
     prevProps.isCompact === nextProps.isCompact &&
     prevProps.isChecked === nextProps.isChecked &&
+    prevProps.isSelectionMode === nextProps.isSelectionMode &&
     prevProps.showMarkDone === nextProps.showMarkDone &&
     prevProps.isDonePage === nextProps.isDonePage
   );

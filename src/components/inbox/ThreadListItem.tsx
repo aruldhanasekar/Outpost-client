@@ -1,6 +1,7 @@
 // ThreadListItem.tsx - Individual thread item for URGENT/IMPORTANT/OTHERS
 // v2.0: Uses last_email_sender and last_email_snippet for proper Gmail/Superhuman style display
 // v2.1: Added right-click context menu
+// v2.2: Added mobile selection mode with long-press
 
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { Check, Trash2, Reply, ReplyAll, Forward, Mail, MailOpen, Tag, ChevronRight, Plus } from 'lucide-react';
@@ -335,8 +336,10 @@ interface ThreadListItemProps {
   isSelected: boolean;
   isCompact: boolean;
   isChecked?: boolean;
+  isSelectionMode?: boolean;  // Mobile selection mode
   onClick: () => void;
   onCheckChange?: (thread: Thread, checked: boolean) => void;
+  onLongPress?: (thread: Thread) => void;  // Long-press to enter selection mode
   onMarkDone?: (thread: Thread) => void;
   onDelete?: (thread: Thread) => void;
   // New props for context menu
@@ -406,8 +409,10 @@ export function ThreadListItem({
   isSelected,
   isCompact,
   isChecked = false,
+  isSelectionMode = false,
   onClick, 
   onCheckChange,
+  onLongPress,
   onMarkDone,
   onDelete,
   // New props
@@ -433,6 +438,49 @@ export function ThreadListItem({
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   
+  // Long-press state for mobile selection mode
+  const [isLongPressing, setIsLongPressing] = useState(false);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressDuration = 500; // 500ms for long-press
+  
+  // Long-press handlers for mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    setIsLongPressing(true);
+    longPressTimerRef.current = setTimeout(() => {
+      // Trigger long-press action
+      onLongPress?.(thread);
+      // Also check the thread
+      onCheckChange?.(thread, true);
+      setIsLongPressing(false);
+    }, longPressDuration);
+  }, [thread, onLongPress, onCheckChange]);
+
+  const handleTouchEnd = useCallback(() => {
+    setIsLongPressing(false);
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback(() => {
+    // Cancel long-press if user moves finger
+    setIsLongPressing(false);
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, []);
+  
   // Memoized handlers
   const handleCheckboxClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -456,8 +504,13 @@ export function ThreadListItem({
     if (target.closest('button') || target.closest('input[type="checkbox"]')) {
       return;
     }
+    // In selection mode on mobile, tap toggles checkbox instead of opening detail
+    if (isSelectionMode) {
+      onCheckChange?.(thread, !isChecked);
+      return;
+    }
     onClick();
-  }, [onClick]);
+  }, [onClick, isSelectionMode, thread, isChecked, onCheckChange]);
 
   const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
 
@@ -521,53 +574,81 @@ export function ThreadListItem({
     <>
       <div
         className={`
-          group cursor-pointer transition-colors duration-100
-          ${isSelected ? 'bg-zinc-700/50' : 'hover:bg-zinc-800/30'}
+          group cursor-pointer transition-all duration-150
+          ${isChecked 
+            ? 'bg-[#8FA8A3]/20' 
+            : isSelected 
+              ? 'bg-zinc-700/50' 
+              : 'hover:bg-zinc-800/30'
+          }
+          ${isLongPressing ? 'scale-[0.98] bg-zinc-700/30' : ''}
           border-b border-zinc-700/30
         `}
         onClick={handleRowClick}
         onContextMenu={handleContextMenu}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
       >
         {/* Mobile Layout - always visible on mobile, uses vertical layout */}
-        <div className="flex lg:hidden flex-col px-4 py-3">
-          {/* Top Row: Sender + Email Count + Time */}
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2 min-w-0">
-              {/* Unread indicator */}
-              {!thread.is_read && (
-                <div className="w-1.5 h-1.5 rounded-full bg-[#f7ac5c] flex-shrink-0" />
-              )}
-              <span className={`text-sm truncate ${!thread.is_read ? 'text-white font-semibold' : 'text-zinc-300'}`}>
-                {displayName}
-              </span>
-              {/* Labels - Mobile */}
-              {threadLabels.length > 0 && (
-                <LabelsDisplay labels={threadLabels} maxWidth={100} />
-              )}
-              {hasMultipleEmails && (
-                <span className="text-xs text-zinc-500 flex-shrink-0">
-                  ({emailCount})
-                </span>
-              )}
+        <div className="flex lg:hidden items-start px-4 py-3">
+          {/* Checkbox - visible in selection mode */}
+          {isSelectionMode && (
+            <div 
+              className="w-6 flex-shrink-0 flex justify-center pt-0.5 mr-2"
+              onClick={handleCheckboxClick}
+            >
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={() => {}}
+                className="w-4 h-4 rounded bg-transparent cursor-pointer appearance-none border-2 border-zinc-500 checked:border-white relative checked:after:content-['✓'] checked:after:absolute checked:after:text-white checked:after:text-xs checked:after:font-bold checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2"
+                onClick={handleCheckboxClick}
+              />
             </div>
-            <span className="text-xs text-zinc-500 flex-shrink-0">
-              {time}
-            </span>
-          </div>
-
-          {/* Subject */}
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-sm truncate ${!thread.is_read ? 'text-white font-medium' : 'text-zinc-400'}`}>
-              {thread.gmail_subject}
-            </span>
-          </div>
-
-          {/* Preview/Snippet */}
-          {snippet && (
-            <p className="text-sm text-zinc-500 truncate">
-              {snippet}
-            </p>
           )}
+          
+          {/* Content */}
+          <div className="flex-1 min-w-0 flex flex-col">
+            {/* Top Row: Sender + Email Count + Time */}
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2 min-w-0">
+                {/* Unread indicator */}
+                {!thread.is_read && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#f7ac5c] flex-shrink-0" />
+                )}
+                <span className={`text-sm truncate ${!thread.is_read ? 'text-white font-semibold' : 'text-zinc-300'}`}>
+                  {displayName}
+                </span>
+                {/* Labels - Mobile */}
+                {threadLabels.length > 0 && (
+                  <LabelsDisplay labels={threadLabels} maxWidth={100} />
+                )}
+                {hasMultipleEmails && (
+                  <span className="text-xs text-zinc-500 flex-shrink-0">
+                    ({emailCount})
+                  </span>
+                )}
+              </div>
+              <span className="text-xs text-zinc-500 flex-shrink-0">
+                {time}
+              </span>
+            </div>
+
+            {/* Subject */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-sm truncate ${!thread.is_read ? 'text-white font-medium' : 'text-zinc-400'}`}>
+                {thread.gmail_subject}
+              </span>
+            </div>
+
+            {/* Preview/Snippet */}
+            {snippet && (
+              <p className="text-sm text-zinc-500 truncate">
+                {snippet}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Desktop Layout - Horizontal when NOT compact, Vertical when compact */}

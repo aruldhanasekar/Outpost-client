@@ -20,6 +20,7 @@ import {
   ComposeModal,
   ReplyModal,
   ForwardModal,
+  MobileSelectionBar,
 } from "@/components/inbox";
 import { SearchModal } from "@/components/search";
 import { CreateLabelModal } from "@/components/labels/CreateLabelModal";
@@ -72,6 +73,9 @@ const InboxPage = () => {
   
   // Checked threads state (for bulk selection)
   const [checkedThreads, setCheckedThreads] = useState<Set<string>>(new Set());
+  
+  // Mobile selection mode state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   
   const [showSyncLoading, setShowSyncLoading] = useState(false);
 
@@ -504,6 +508,10 @@ const InboxPage = () => {
       } else {
         newSet.delete(thread.thread_id);
       }
+      // Exit selection mode if no items checked
+      if (newSet.size === 0) {
+        setIsSelectionMode(false);
+      }
       return newSet;
     });
   }, []);
@@ -511,11 +519,18 @@ const InboxPage = () => {
   const handleGlobalCheckChange = useCallback(() => {
     if (checkedThreads.size > 0) {
       setCheckedThreads(new Set());
+      setIsSelectionMode(false);
     } else {
       const allIds = new Set(currentThreads.map(t => t.thread_id));
       setCheckedThreads(allIds);
+      setIsSelectionMode(true);
     }
   }, [checkedThreads.size, currentThreads]);
+
+  // Long-press handler for mobile selection mode
+  const handleLongPress = useCallback((thread: Thread) => {
+    setIsSelectionMode(true);
+  }, []);
 
   // ==================== BATCH ACTIONS ====================
   
@@ -553,6 +568,7 @@ const InboxPage = () => {
     });
     
     setCheckedThreads(new Set());
+    setIsSelectionMode(false);
     
     if (emailIds.length > 0) {
       batchMarkAsRead(emailIds)
@@ -588,6 +604,7 @@ const InboxPage = () => {
     });
     
     setCheckedThreads(new Set());
+    setIsSelectionMode(false);
     
     if (emailIds.length > 0) {
       batchMarkAsUnread(emailIds)
@@ -618,6 +635,7 @@ const InboxPage = () => {
       setSelectedThread(null);
     }
     setCheckedThreads(new Set());
+    setIsSelectionMode(false);
     
     if (emailIds.length > 0) {
       batchMarkAsDone(emailIds)
@@ -657,6 +675,7 @@ const InboxPage = () => {
       setSelectedThread(null);
     }
     setCheckedThreads(new Set());
+    setIsSelectionMode(false);
     
     const timeoutId = setTimeout(() => {
       batchDelete(emailIds)
@@ -1192,12 +1211,14 @@ const InboxPage = () => {
         e.preventDefault();
         const allIds = new Set(currentThreads.map(t => t.thread_id));
         setCheckedThreads(allIds);
+        setIsSelectionMode(true);
         return;
       }
       
       if (e.key === 'Escape' && checkedThreads.size > 0) {
         e.preventDefault();
         setCheckedThreads(new Set());
+        setIsSelectionMode(false);
         return;
       }
       
@@ -1346,19 +1367,23 @@ const InboxPage = () => {
           ${(hasCheckedThreads || isComposeOpen || isReplyOpen || isForwardOpen || hasThreadSelection) ? 'lg:bottom-12' : 'lg:bottom-8'}
         `}>
           
+          {/* ==================== MOBILE SELECTION BAR ==================== */}
+          <MobileSelectionBar
+            selectedCount={checkedThreads.size}
+            totalCount={currentThreads.length}
+            isAllSelected={checkedThreads.size > 0 && checkedThreads.size === currentThreads.length}
+            onSelectAll={handleGlobalCheckChange}
+            onMarkRead={handleBatchMarkAsRead}
+            onMarkUnread={handleBatchMarkAsUnread}
+            onMarkDone={handleBatchMarkAsDone}
+            onDelete={handleBatchDelete}
+          />
+          
           {/* ==================== TOP NAVBAR ==================== */}
           <nav className="flex-shrink-0 border-b border-zinc-700/50">
             {/* Mobile/Tablet Header */}
             <div className="flex lg:hidden items-center justify-between h-14 px-3">
               <div className="flex items-center">
-                <div className="flex items-center justify-center w-8">
-                  <input
-                    type="checkbox"
-                    checked={checkedThreads.size > 0 && checkedThreads.size === currentThreads.length}
-                    onChange={handleGlobalCheckChange}
-                    className="w-4 h-4 rounded bg-transparent cursor-pointer appearance-none border-2 border-zinc-500 outline-none focus:outline-none focus:ring-0 relative checked:after:content-['✓'] checked:after:absolute checked:after:text-white checked:after:text-xs checked:after:font-bold checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2"
-                  />
-                </div>
                 <button 
                   onClick={() => setSidebarOpen(true)}
                   className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
@@ -1472,8 +1497,10 @@ const InboxPage = () => {
                   selectedThreadId={selectedThread?.thread_id || null}
                   isCompact={hasThreadSelection && !isExpanded}
                   checkedThreadIds={checkedThreads}
+                  isSelectionMode={isSelectionMode}
                   onThreadClick={handleThreadClick}
                   onCheckChange={handleCheckChange}
+                  onLongPress={handleLongPress}
                   onMarkDone={handleMarkThreadDone}
                   onDelete={handleDeleteThread}
                   allLabels={allLabels}

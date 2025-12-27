@@ -23,6 +23,7 @@ export { AwaitingListItem } from './AwaitingListItem';
 export { ThreadDetail } from './ThreadDetail';
 export { MobileThreadDetail } from './MobileThreadDetail';
 export { ThreadList } from './ThreadList';
+export { MobileSelectionBar } from './MobileSelectionBar';
 export { SentThreadDetail } from './SentThreadDetail';
 export { MobileSentThreadDetail } from './MobileSentThreadDetail';
 export { ComposeModal } from './ComposeModal';

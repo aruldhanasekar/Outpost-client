@@ -1,6 +1,7 @@
 // ThreadList.tsx - Thread list for URGENT/IMPORTANT/OTHERS categories
 // v2.1: Removed date separators
 // v2.2: Added context menu props
+// v2.3: Added mobile selection mode props
 
 import { Loader2 } from 'lucide-react';
 import { Thread } from './promiseTypes';
@@ -13,8 +14,10 @@ interface ThreadListProps {
   selectedThreadId: string | null;
   isCompact?: boolean;
   checkedThreadIds?: Set<string>;
+  isSelectionMode?: boolean;  // Mobile selection mode
   onThreadClick: (thread: Thread) => void;
   onCheckChange?: (thread: Thread, checked: boolean) => void;
+  onLongPress?: (thread: Thread) => void;  // Long-press to enter selection mode
   onMarkDone?: (thread: Thread) => void;
   onDelete?: (thread: Thread) => void;
   emptyMessage?: string;
@@ -36,8 +39,10 @@ export function ThreadList({
   selectedThreadId,
   isCompact = false,
   checkedThreadIds = new Set(),
+  isSelectionMode = false,
   onThreadClick,
   onCheckChange,
+  onLongPress,
   onMarkDone,
   onDelete,
   emptyMessage = 'No threads in this category',
@@ -92,8 +97,10 @@ export function ThreadList({
           isSelected={thread.thread_id === selectedThreadId}
           isCompact={isCompact}
           isChecked={checkedThreadIds.has(thread.thread_id)}
+          isSelectionMode={isSelectionMode}
           onClick={() => onThreadClick(thread)}
           onCheckChange={onCheckChange}
+          onLongPress={onLongPress}
           onMarkDone={onMarkDone}
           onDelete={onDelete}
           // New props for context menu
