@@ -17,7 +17,6 @@ import { SearchModal } from "@/components/search";
 import { useThreadEmailsByThreadId } from "@/components/inbox/useThreadEmailsByThreadId";
 import { SentThreadDetail } from "@/components/inbox/SentThreadDetail";
 import { MobileSentThreadDetail } from "@/components/inbox/MobileSentThreadDetail";
-import { TrackingPanel } from "@/components/inbox/TrackingPanel";
 import { Sidebar } from "@/components/layout";
 import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
@@ -348,7 +347,7 @@ const SentPage = () => {
               className={`
                 hidden lg:flex flex-col bg-[#252525] overflow-hidden
                 transition-[width,opacity] duration-300 ease-out will-change-[width,opacity]
-                ${selectedEmail ? 'w-[55%] opacity-100' : 'w-0 opacity-0'}
+                ${selectedEmail ? 'w-[70%] opacity-100' : 'w-0 opacity-0'}
               `}
             >
               {selectedEmail && (
@@ -358,23 +357,6 @@ const SentPage = () => {
                   loading={threadEmailsLoading}
                   userEmail={currentUser?.email || ""}
                   onClose={handleCloseDetail}
-                />
-              )}
-            </div>
-
-            {/* Tracking Panel - Desktop Only */}
-            <div 
-              className={`
-                hidden lg:flex flex-col bg-[#1a1a1a] border-l border-zinc-700/50 overflow-hidden
-                transition-[width,opacity] duration-300 ease-out will-change-[width,opacity]
-                ${selectedEmail ? 'w-[15%] opacity-100' : 'w-0 opacity-0'}
-              `}
-            >
-              {selectedEmail && (
-                <TrackingPanel 
-                  gmailMessageId={selectedEmail.id}
-                  threadEmailCount={threadEmails.length}
-                  recipient={selectedEmail.sender}
                 />
               )}
             </div>

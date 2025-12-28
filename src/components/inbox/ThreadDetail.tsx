@@ -2,7 +2,6 @@ import { useRef, useEffect, useState, useMemo } from 'react';
 import { X, Check, Trash2, Loader2, Reply, Forward, Paperclip, Download, ChevronDown } from 'lucide-react';
 import { Thread } from '@/hooks/useThreads';
 import { Email } from './types';
-import { getTrackingByMessageId, TrackingStats } from '@/services/trackingApi';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
 import { stripQuotedReply } from '@/utils/emailHelpers';
 import { 
@@ -15,74 +14,6 @@ import {
 import OutpostLogo from '@/assets/Outpost.png';
 
 
-
-interface TrackingStatusProps {
-  messageId: string;
-  getAuthToken?: () => Promise<string>;
-}
-
-function TrackingStatus({ messageId, getAuthToken }: TrackingStatusProps) {
-  const [tracking, setTracking] = useState<TrackingStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [visible, setVisible] = useState(false);
-  
-  useEffect(() => {
-    if (!messageId) {
-      setLoading(false);
-      return;
-    }
-    
-    const fetchTracking = async () => {
-      try {
-        const data = await getTrackingByMessageId(messageId);
-        setTracking(data);
-        // Small delay then fade in
-        setTimeout(() => setVisible(true), 50);
-      } catch (err) {
-        console.error('Failed to fetch tracking:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchTracking();
-  }, [messageId]);
-  
-  // Always render the container to reserve space, just hide content
-  const isOpened = tracking?.opened;
-  const firstOpenedAt = tracking?.first_opened_at;
-  const lastOpenedAt = tracking?.last_opened_at;
-  
-  return (
-    <div className="flex justify-end mt-1.5 pr-1 h-5">
-      <div className={`transition-opacity duration-200 ease-in-out ${visible && tracking ? 'opacity-100' : 'opacity-0'}`}>
-        {tracking && (
-          isOpened ? (
-            // Seen state with hover tooltip
-            <div className="relative group/tracking">
-              <span className="text-xs text-gray-500 cursor-default">Seen</span>
-              {/* Tooltip on hover */}
-              <div className="absolute right-0 bottom-full mb-1.5 px-3 py-2 bg-zinc-900 text-white text-xs rounded-lg opacity-0 group-hover/tracking:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-[9999] shadow-lg">
-                <div className="flex flex-col gap-1">
-                  <span>Opened {formatRelativeTime(firstOpenedAt)}</span>
-                  {lastOpenedAt && lastOpenedAt !== firstOpenedAt && (
-                    <span className="text-gray-400">Last opened {formatRelativeTime(lastOpenedAt)}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            // Sent state with checkmark
-            <div className="flex items-center gap-1 text-xs text-gray-400">
-              <span>Sent</span>
-              <Check className="w-3 h-3" />
-            </div>
-          )
-        )}
-      </div>
-    </div>
-  );
-}
 
 // Expand icon SVG component
 const ExpandIcon = () => (
@@ -800,11 +731,6 @@ function EmailCard({ email, userEmail, getAuthToken, onReply, onForward }: Email
         </div>
       )}
     </div>
-    
-    {/* v3.2: Instagram-style tracking status - below card, right-aligned */}
-    {isUserSender && email.message_id && (
-      <TrackingStatus messageId={email.message_id} getAuthToken={getAuthToken} />
-    )}
   </div>
   );
 }

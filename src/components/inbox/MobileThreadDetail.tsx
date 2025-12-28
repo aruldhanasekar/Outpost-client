@@ -1,9 +1,7 @@
-
 import { Loader2, Check, Trash2, Reply, Forward, Paperclip, Download } from 'lucide-react';
 import { useRef, useEffect, useState } from 'react';
 import { Thread } from './promiseTypes';
 import { Email } from './types';
-import { getTrackingByMessageId, TrackingStats } from '@/services/trackingApi';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
 import { stripQuotedReply } from '@/utils/emailHelpers';
 
@@ -132,84 +130,6 @@ function AnimatedMobileEmailItem({
   );
 }
 
-
-interface TrackingStatusProps {
-  messageId: string;
-  getAuthToken?: () => Promise<string>;
-}
-
-function TrackingStatus({ messageId, getAuthToken }: TrackingStatusProps) {
-  const [tracking, setTracking] = useState<TrackingStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [visible, setVisible] = useState(false);
-  const [showOpenedTime, setShowOpenedTime] = useState(false);
-  
-  useEffect(() => {
-    if (!messageId) {
-      setLoading(false);
-      return;
-    }
-    
-    const fetchTracking = async () => {
-      try {
-        const data = await getTrackingByMessageId(messageId);
-        setTracking(data);
-        // Small delay then fade in
-        setTimeout(() => setVisible(true), 50);
-      } catch (err) {
-        console.error('Failed to fetch tracking:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchTracking();
-  }, [messageId]);
-  
-  const isOpened = tracking?.opened;
-  const firstOpenedAt = tracking?.first_opened_at;
-  const lastOpenedAt = tracking?.last_opened_at;
-  
-  // Toggle opened time on tap
-  const handleTap = () => {
-    if (isOpened) {
-      setShowOpenedTime(!showOpenedTime);
-    }
-  };
-  
-  // Build display text for opened state
-  const getOpenedText = () => {
-    if (lastOpenedAt && lastOpenedAt !== firstOpenedAt) {
-      return `Opened ${formatRelativeTime(firstOpenedAt)} · Last ${formatRelativeTime(lastOpenedAt)}`;
-    }
-    return `Opened ${formatRelativeTime(firstOpenedAt)}`;
-  };
-  
-  // Always render container to reserve space
-  return (
-    <div className="flex justify-end mt-1.5 pr-1 h-5">
-      <div className={`transition-opacity duration-200 ease-in-out ${visible && tracking ? 'opacity-100' : 'opacity-0'}`}>
-        {tracking && (
-          isOpened ? (
-            // Seen state - tap to toggle opened time
-            <button 
-              onClick={handleTap}
-              className="text-xs text-gray-500 active:opacity-70"
-            >
-              {showOpenedTime ? getOpenedText() : 'Seen'}
-            </button>
-          ) : (
-            // Sent state with checkmark
-            <div className="flex items-center gap-1 text-xs text-gray-400">
-              <span>Sent</span>
-              <Check className="w-3 h-3" />
-            </div>
-          )
-        )}
-      </div>
-    </div>
-  );
-}
 
 // Individual email card
 interface MobileEmailCardProps {
@@ -422,11 +342,6 @@ function MobileEmailCard({ email, isLast, userEmail, getAuthToken, onReply, onFo
           </div>
         )}
       </div>
-      
-      {/* v3.2: Instagram-style tracking status - below card, right-aligned */}
-      {isUserSender && email.message_id && (
-        <TrackingStatus messageId={email.message_id} getAuthToken={getAuthToken} />
-      )}
     </div>
   );
 }
