@@ -96,7 +96,8 @@ function extractRecipientName(to: string | string[]): string {
   
   const match = toStr.match(/^([^<]+)</);
   if (match) return match[1].trim().replace(/"/g, '');
-  return toStr.split('@')[0];
+  const username = toStr.split('@')[0];
+  return username.split(/[._-]/).map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ');
 }
 
 // Helper: Extract recipient email

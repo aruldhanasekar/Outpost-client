@@ -70,7 +70,7 @@ export function formatDisplayTime(dateStr: string): string {
 /**
  * Extract name from email string like "John Doe <john@email.com>"
  * @param emailStr - Email string in various formats
- * @returns Name part, or email prefix if no name found
+ * @returns Name part, or formatted email prefix if no name found
  */
 export function extractNameFromEmail(emailStr: string): string {
   if (!emailStr) return 'Unknown';
@@ -81,10 +81,11 @@ export function extractNameFromEmail(emailStr: string): string {
     return match[1].trim().replace(/"/g, '');
   }
   
-  // Just email, extract part before @
+  // Just email, extract part before @ and format it
   const atIndex = emailStr.indexOf('@');
   if (atIndex > 0) {
-    return emailStr.substring(0, atIndex);
+    const username = emailStr.substring(0, atIndex);
+    return username.split(/[._-]/).map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ');
   }
   
   return emailStr;

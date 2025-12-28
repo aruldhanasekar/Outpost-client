@@ -77,7 +77,9 @@ export function useDraftEmails(userId: string | undefined): UseDraftEmailsResult
           const toField = data.to;
           const toStr = Array.isArray(toField) ? (toField[0] || '') : (toField || '');
           const recipientMatch = toStr.match(/^([^<]+)</);
-          const recipient = recipientMatch ? recipientMatch[1].trim() : toStr.split('@')[0] || '(No recipient)';
+          const rawUsername = toStr.split('@')[0] || '';
+          const formattedUsername = rawUsername.split(/[._-]/).map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ') || '(No recipient)';
+          const recipient = recipientMatch ? recipientMatch[1].trim() : formattedUsername;
 
           // Add draft type indicator to subject
           let displaySubject = data.subject || '(No subject)';
