@@ -12,10 +12,12 @@ const Index = () => {
   const { currentUser, loading, backendUserData } = useAuth();
   const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const hasCheckedAuth = useRef(false);
 
   // Auth Modal States
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState(false);
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistResponse, setWaitlistResponse] = useState<{
@@ -271,8 +273,21 @@ const Index = () => {
     e.preventDefault();
     if (!waitlistEmail || waitlistLoading) return;
     
+    const ADMIN_EMAIL = "arul@outpostmail.com";
+    
+    // Check for admin email - skip API call, open modal directly
+    if (waitlistEmail.toLowerCase().trim() === ADMIN_EMAIL) {
+      console.log("🔐 Admin access detected");
+      setIsAdminMode(true);
+      setWaitlistEmail("");
+      setShowAuthModal(true);
+      return;
+    }
+    
     setWaitlistLoading(true);
     setErrorMessage(null);
+    setInfoMessage(null);
+    setIsAdminMode(false);
     
     try {
       const response = await fetch(`${BACKEND_URL}/api/waitlist/check`, {
@@ -291,11 +306,17 @@ const Index = () => {
       const data = await response.json();
       console.log("Waitlist response:", data);
       
+      // Check if user already exists
+      if (data.status === "existing") {
+        setInfoMessage("This email is already on the waitlist. We'll notify you via Gmail!");
+        return;
+      }
+      
       setWaitlistResponse(data);
       setWaitlistEmail("");
       
-      // MODAL DISABLED FOR NOW - Just show success message
-      // setShowAuthModal(true);
+      // Show modal after joining waitlist
+      setShowAuthModal(true);
       
     } catch (error: any) {
       console.error("Waitlist signup failed:", error);
@@ -496,6 +517,22 @@ const Index = () => {
         </div>
       )}
 
+      {/* Info Toast */}
+      {infoMessage && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
+          <div className="bg-green-600/90 backdrop-blur-sm text-white px-5 py-3 rounded-lg flex items-center gap-3">
+            <span className="text-lg">✓</span>
+            <p className="text-sm">{infoMessage}</p>
+            <button 
+              onClick={() => setInfoMessage(null)}
+              className="p-1 hover:bg-white/20 rounded transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className={`fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-sm transition-all duration-500 ease-out ${headerVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full'}`}>
         <div className="px-6 md:px-12 lg:px-16 py-4">
@@ -590,31 +627,25 @@ const Index = () => {
 
         {/* Waitlist Form - Mobile Only */}
         <div className="block md:hidden mt-6">
-          {waitlistResponse ? (
-            <div className="text-green-600 text-center text-sm" style={{ fontFamily: "'Inter', sans-serif" }}>
-              ✓ You've joined the waitlist to be part of our early users. We'll notify you via Gmail!
-            </div>
-          ) : (
-            <form onSubmit={handleWaitlistSignup} className="flex flex-col items-center gap-3">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                value={waitlistEmail}
-                onChange={(e) => setWaitlistEmail(e.target.value)}
-                required
-                className="px-4 py-2.5 rounded-full border border-gray-300 focus:outline-none focus:border-gray-500 text-sm w-full max-w-xs"
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              />
-              <button
-                type="submit"
-                disabled={waitlistLoading}
-                className="px-5 py-2.5 bg-black text-white text-sm rounded-full transition-colors hover:bg-gray-800 disabled:opacity-50"
-                style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500 }}
-              >
-                {waitlistLoading ? "Joining..." : "Join Waitlist"}
-              </button>
-            </form>
-          )}
+          <form onSubmit={handleWaitlistSignup} className="flex flex-col items-center gap-3">
+            <input
+              type="email"
+              placeholder="Enter your email"
+              value={waitlistEmail}
+              onChange={(e) => setWaitlistEmail(e.target.value)}
+              required
+              className="px-4 py-2.5 rounded-full border border-gray-300 focus:outline-none focus:border-gray-500 text-sm w-full max-w-xs"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            />
+            <button
+              type="submit"
+              disabled={waitlistLoading}
+              className="px-5 py-2.5 bg-black text-white text-sm rounded-full transition-colors hover:bg-gray-800 disabled:opacity-50"
+              style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500 }}
+            >
+              {waitlistLoading ? "Joining..." : "Join Waitlist"}
+            </button>
+          </form>
         </div>
 
         {/* Image + Subheading Row */}
@@ -666,31 +697,25 @@ const Index = () => {
               </div>
 
               {/* Waitlist Form - Desktop */}
-              {waitlistResponse ? (
-                <div className="mt-8 text-green-600" style={{ fontFamily: "'Inter', sans-serif" }}>
-                  ✓ You've joined the waitlist to be part of our early users. We'll notify you via Gmail!
-                </div>
-              ) : (
-                <form onSubmit={handleWaitlistSignup} className="mt-8 flex items-center gap-2">
-                  <input
-                    type="email"
-                    placeholder="Enter your email"
-                    value={waitlistEmail}
-                    onChange={(e) => setWaitlistEmail(e.target.value)}
-                    required
-                    className="px-4 py-2.5 rounded-full border border-gray-300 focus:outline-none focus:border-gray-500 text-base w-64"
-                    style={{ fontFamily: "'Inter', sans-serif" }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={waitlistLoading}
-                    className="px-5 py-2.5 bg-black text-white text-base rounded-full transition-colors hover:bg-gray-800 disabled:opacity-50"
-                    style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500 }}
-                  >
-                    {waitlistLoading ? "Joining..." : "Join Waitlist"}
-                  </button>
-                </form>
-              )}
+              <form onSubmit={handleWaitlistSignup} className="mt-8 flex items-center gap-2">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={waitlistEmail}
+                  onChange={(e) => setWaitlistEmail(e.target.value)}
+                  required
+                  className="px-4 py-2.5 rounded-full border border-gray-300 focus:outline-none focus:border-gray-500 text-base w-64"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                />
+                <button
+                  type="submit"
+                  disabled={waitlistLoading}
+                  className="px-5 py-2.5 bg-black text-white text-base rounded-full transition-colors hover:bg-gray-800 disabled:opacity-50"
+                  style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500 }}
+                >
+                  {waitlistLoading ? "Joining..." : "Join Waitlist"}
+                </button>
+              </form>
             </div>
           )}
         </div>
@@ -733,14 +758,15 @@ const Index = () => {
         </div>
       </footer>
 
-      {/* AUTH MODAL - COMMENTED OUT FOR NOW - WILL BE USED LATER */}
-      {false && showAuthModal && (
+      {/* AUTH MODAL */}
+      {showAuthModal && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={() => {
             if (!composioStep1Complete) {
               setShowAuthModal(false);
               setWaitlistResponse(null);
+              setIsAdminMode(false);
             }
           }}
         >
@@ -753,6 +779,7 @@ const Index = () => {
                 onClick={() => {
                   setShowAuthModal(false);
                   setWaitlistResponse(null);
+                  setIsAdminMode(false);
                 }}
                 className="absolute top-4 right-4 md:hidden p-2 hover:bg-gray-100 rounded-full"
               >
@@ -799,21 +826,21 @@ const Index = () => {
                 <div className="space-y-4">
                   <div className="text-center mb-6">
                     <h3 className="text-xl font-semibold text-gray-900 mb-2" style={{ fontFamily: "'Inter', sans-serif" }}>
-                      {waitlistResponse?.message || "Welcome to Outpost!"}
+                      {isAdminMode ? "Welcome back!" : (waitlistResponse?.message || "Welcome to Outpost!")}
                     </h3>
                     <p className="text-sm text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>
-                      You've been added to the waitlist
+                      {isAdminMode ? "Choose how you'd like to sign in" : "You've joined the waitlist to be part of our early users. We'll notify you via Gmail!"}
                     </p>
                   </div>
 
                   {/* Direct Login Button */}
                   <button
-                    onClick={waitlistResponse?.direct_auth_enabled ? handleDirectLogin : undefined}
+                    onClick={isAdminMode ? handleDirectLogin : undefined}
                     onMouseEnter={() => setHoveredButton('direct')}
                     onMouseLeave={() => setHoveredButton(null)}
-                    disabled={!waitlistResponse?.direct_auth_enabled || isLoadingDirect || isLoadingComposio}
+                    disabled={!isAdminMode || isLoadingDirect || isLoadingComposio}
                     className={`w-full flex items-center justify-center gap-3 px-4 py-3 border-2 rounded-lg transition-all ${
-                      !waitlistResponse?.direct_auth_enabled 
+                      !isAdminMode 
                         ? 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50' 
                         : hoveredButton === 'direct' 
                           ? 'border-black bg-gray-50' 
@@ -825,12 +852,12 @@ const Index = () => {
                     ) : (
                       <>
                         <svg className="w-5 h-5" viewBox="0 0 24 24">
-                          <path fill={waitlistResponse?.direct_auth_enabled ? "#4285F4" : "#9CA3AF"} d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                          <path fill={waitlistResponse?.direct_auth_enabled ? "#34A853" : "#9CA3AF"} d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                          <path fill={waitlistResponse?.direct_auth_enabled ? "#FBBC05" : "#9CA3AF"} d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                          <path fill={waitlistResponse?.direct_auth_enabled ? "#EA4335" : "#9CA3AF"} d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                          <path fill={isAdminMode ? "#4285F4" : "#9CA3AF"} d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                          <path fill={isAdminMode ? "#34A853" : "#9CA3AF"} d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                          <path fill={isAdminMode ? "#FBBC05" : "#9CA3AF"} d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                          <path fill={isAdminMode ? "#EA4335" : "#9CA3AF"} d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                         </svg>
-                        <span className={`font-medium ${waitlistResponse?.direct_auth_enabled ? 'text-gray-700' : 'text-gray-400'}`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                        <span className={`font-medium ${isAdminMode ? 'text-gray-700' : 'text-gray-400'}`} style={{ fontFamily: "'Inter', sans-serif" }}>
                           Sign in with Google
                         </span>
                       </>
@@ -846,14 +873,16 @@ const Index = () => {
 
                   {/* Composio Login Button */}
                   <button
-                    onClick={handleComposioStep1}
+                    onClick={isAdminMode ? handleComposioStep1 : undefined}
                     onMouseEnter={() => setHoveredButton('composio')}
                     onMouseLeave={() => setHoveredButton(null)}
-                    disabled={isLoadingDirect || isLoadingComposio}
-                    className={`w-full flex items-center justify-center gap-3 px-4 py-3 border-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                      hoveredButton === 'composio' 
-                        ? 'border-black bg-gray-50' 
-                        : 'border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                    disabled={!isAdminMode || isLoadingDirect || isLoadingComposio}
+                    className={`w-full flex items-center justify-center gap-3 px-4 py-3 border-2 rounded-lg transition-all ${
+                      !isAdminMode 
+                        ? 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50' 
+                        : hoveredButton === 'composio' 
+                          ? 'border-black bg-gray-50' 
+                          : 'border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                     }`}
                   >
                     {isLoadingComposio ? (
@@ -861,12 +890,12 @@ const Index = () => {
                     ) : (
                       <>
                         <svg className="w-5 h-5" viewBox="0 0 24 24">
-                          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                          <path fill={isAdminMode ? "#4285F4" : "#9CA3AF"} d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                          <path fill={isAdminMode ? "#34A853" : "#9CA3AF"} d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                          <path fill={isAdminMode ? "#FBBC05" : "#9CA3AF"} d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                          <path fill={isAdminMode ? "#EA4335" : "#9CA3AF"} d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                         </svg>
-                        <span className="font-medium text-gray-700" style={{ fontFamily: "'Inter', sans-serif" }}>
+                        <span className={`font-medium ${isAdminMode ? 'text-gray-700' : 'text-gray-400'}`} style={{ fontFamily: "'Inter', sans-serif" }}>
                           Sign in with Google
                         </span>
                       </>
@@ -882,7 +911,7 @@ const Index = () => {
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
               {/* Direct Auth Info */}
-              {waitlistResponse && (
+              {(waitlistResponse || isAdminMode) && (
                 <div className={`space-y-4 transition-opacity duration-200 ${hoveredButton === 'direct' || !hoveredButton ? 'opacity-100' : 'opacity-0'}`}>
                   <p className="text-sm leading-relaxed">
                     Outpost Authentication is currently under Google verification.
@@ -900,13 +929,13 @@ const Index = () => {
               )}
 
               {/* Composio Info - Overlay */}
-              {waitlistResponse && (
+              {(waitlistResponse || isAdminMode) && (
                 <div className={`space-y-4 transition-opacity duration-200 absolute top-0 left-0 right-0 bottom-0 flex flex-col justify-center p-8 ${hoveredButton === 'composio' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                   <p className="text-sm leading-relaxed">
                     Get instant access to Outpost with Composio authentication.
                   </p>
                   <p className="text-sm leading-relaxed text-gray-400">
-                    Your OAuth access and limited profile data are securely accessed and managed by <span className="text-white">Composio</span>. If you choose this sign-in method, a one-time fee of <span className="text-white">$5</span> applies.
+                    Your OAuth access and limited profile data are securely accessed and managed by <span className="text-white">Composio</span>.
                   </p>
                 </div>
               )}
