@@ -50,23 +50,6 @@ const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 const InboxPage = () => {
   const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
   const navigate = useNavigate();
-  // Close popup if this is a Composio OAuth callback
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const isComposioCallback = urlParams.get('composio_connected') === 'true';
-    
-    // Check if we're in a popup (has opener window)
-    const isPopup = window.opener !== null;
-    
-    if (isComposioCallback && isPopup) {
-      console.log("🔵 Composio OAuth complete - closing popup");
-      // Close the popup after a brief delay
-      setTimeout(() => {
-        window.close();
-      }, 100);
-      return;
-    }
-  }, []);
   
   // Check if Composio user needs to connect Gmail
   const needsComposioConnection = 
