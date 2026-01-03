@@ -162,9 +162,10 @@ const Index = () => {
 
       // Check if already paid
       if (orderData.status === 'already_paid') {
-        console.log("✅ User already paid, skipping to Composio");
-        setPaymentComplete(true);
+        console.log("✅ User already paid, redirecting to inbox");
+        setShowAuthModal(false);
         setIsLoadingPayment(false);
+        navigate("/inbox", { replace: true });
         return;
       }
 
@@ -209,8 +210,9 @@ const Index = () => {
             }
 
             console.log("✅ Payment verified successfully");
-            setPaymentComplete(true);
+            setShowAuthModal(false);
             setIsLoadingPayment(false);
+            navigate("/inbox", { replace: true });
             
           } catch (error: any) {
             console.error("❌ Payment verification failed:", error);
