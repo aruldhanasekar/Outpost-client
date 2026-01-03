@@ -9,7 +9,6 @@
 
 /* Global Styles - Font and Layout */
 html, body, #root {
-  overflow: hidden !important;
   height: 100% !important;
   width: 100% !important;
   margin: 0 !important;
@@ -280,14 +279,6 @@ All colors MUST be HSL.
    and will NOT affect other pages (inbox, etc.)
    ================================================ */
 
-/* Override global overflow:hidden for landing page */
-html:has(.landing-page),
-body:has(.landing-page),
-#root:has(.landing-page) {
-  overflow: visible !important;
-  height: auto !important;
-}
-
 .landing-page {
   --background: 120 25% 90%;
   --foreground: 150 30% 15%;
@@ -323,8 +314,6 @@ body:has(.landing-page),
   --gradient-end: 120 25% 90%;
 
   font-family: 'DM Sans', sans-serif;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
 }
 
 .landing-page .font-display {
