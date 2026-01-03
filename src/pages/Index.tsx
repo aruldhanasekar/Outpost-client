@@ -92,14 +92,20 @@ const Index = () => {
       return;
     }
 
-    // Composio users without connection: show payment/connect modal
+    // Composio users without connection: check payment status
     if (backendUserData?.auth_method === 'composio' && !backendUserData?.composio_connection_id) {
-      console.log("🔵 Composio user needs to complete onboarding");
+      // If paid, redirect to inbox (Inbox will show ComposioConnectionOverlay)
+      if (backendUserData?.paid === true) {
+        console.log("✅ Composio user paid → Redirecting to inbox");
+        hasCheckedAuth.current = true;
+        navigate("/inbox", { replace: true });
+        return;
+      }
+      
+      // If not paid, show payment modal
+      console.log("🔵 Composio user needs to complete payment");
       setComposioStep1Complete(true);
       setComposioUserEmail(currentUser.email || "");
-      if (backendUserData?.paid === true) {
-        setPaymentComplete(true);
-      }
       setShowAuthModal(true);
       return;
     }
