@@ -31,6 +31,10 @@ const Index = () => {
   const [isLoadingDirect, setIsLoadingDirect] = useState(false);
   const [isLoadingComposio, setIsLoadingComposio] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<'direct' | 'composio' | null>(null);
+  
+  // Payment States
+  const [paymentComplete, setPaymentComplete] = useState(false);
+  const [isLoadingPayment, setIsLoadingPayment] = useState(false);
 
   // Modal body scroll lock
   useEffect(() => {
@@ -57,19 +61,39 @@ const Index = () => {
     }
   }, []);
 
-  // Redirect authenticated users to inbox
+  // Redirect authenticated users to inbox (only if fully onboarded)
   useEffect(() => {
     if (loading) return;
 
     if (currentUser && !hasCheckedAuth.current) {
-      console.log("✅ User authenticated:", currentUser.uid.slice(0, 8), "→ Redirecting to inbox");
-      hasCheckedAuth.current = true;
-      navigate("/inbox", { replace: true });
+      // For Composio users: Only redirect if they have composio_connection_id
+      if (backendUserData?.auth_method === 'composio') {
+        if (backendUserData?.composio_connection_id) {
+          console.log("✅ Composio user fully onboarded → Redirecting to inbox");
+          hasCheckedAuth.current = true;
+          navigate("/inbox", { replace: true });
+        } else {
+          // Composio user needs to complete payment/connection
+          console.log("🔵 Composio user needs to complete onboarding");
+          setComposioStep1Complete(true);
+          setComposioUserEmail(currentUser.email || "");
+          // Check if already paid
+          if (backendUserData?.paid === true) {
+            setPaymentComplete(true);
+          }
+          setShowAuthModal(true);
+        }
+      } else if (backendUserData?.auth_method === 'direct') {
+        // Direct auth users go straight to inbox
+        console.log("✅ Direct auth user → Redirecting to inbox");
+        hasCheckedAuth.current = true;
+        navigate("/inbox", { replace: true });
+      }
     } else if (!currentUser) {
       console.log("👤 No user signed in - showing login page");
       hasCheckedAuth.current = false;
     }
-  }, [currentUser, loading, navigate]);
+  }, [currentUser, loading, navigate, backendUserData]);
 
   // Auto-hide success message
   useEffect(() => {
@@ -80,6 +104,135 @@ const Index = () => {
       return () => clearTimeout(timer);
     }
   }, [successMessage]);
+
+  // Load Razorpay script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  // Handle Payment
+  const handlePayment = async () => {
+    try {
+      setIsLoadingPayment(true);
+      setErrorMessage(null);
+
+      if (!currentUser) {
+        throw new Error('User not authenticated. Please sign in again.');
+      }
+
+      console.log("💳 Starting payment process...");
+
+      // Create order on backend
+      const idToken = await getIdToken();
+      const orderResponse = await fetch(`${BACKEND_URL}/api/payment/create-order`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: currentUser.uid,
+          email: currentUser.email
+        })
+      });
+
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
+        throw new Error(errorData.detail || 'Failed to create payment order');
+      }
+
+      const orderData = await orderResponse.json();
+
+      // Check if already paid
+      if (orderData.status === 'already_paid') {
+        console.log("✅ User already paid, skipping to Composio");
+        setPaymentComplete(true);
+        setIsLoadingPayment(false);
+        return;
+      }
+
+      console.log("📦 Order created:", orderData.order_id);
+
+      // Open Razorpay checkout
+      const options = {
+        key: orderData.key_id,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'Outpost',
+        description: 'Early Access Payment',
+        order_id: orderData.order_id,
+        prefill: {
+          email: currentUser.email,
+          name: currentUser.displayName || ''
+        },
+        theme: {
+          color: '#000000'
+        },
+        handler: async function(response: any) {
+          console.log("💳 Payment successful, verifying...");
+          
+          try {
+            // Verify payment on backend
+            const verifyResponse = await fetch(`${BACKEND_URL}/api/payment/verify`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${idToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                user_id: currentUser.uid
+              })
+            });
+
+            if (!verifyResponse.ok) {
+              throw new Error('Payment verification failed');
+            }
+
+            console.log("✅ Payment verified successfully");
+            setPaymentComplete(true);
+            setIsLoadingPayment(false);
+            
+          } catch (error: any) {
+            console.error("❌ Payment verification failed:", error);
+            setErrorMessage('Payment verification failed. Please try again.');
+            setIsLoadingPayment(false);
+          }
+        },
+        modal: {
+          ondismiss: function() {
+            console.log("❌ Payment popup closed by user");
+            setIsLoadingPayment(false);
+          }
+        }
+      };
+
+      const razorpay = new (window as any).Razorpay(options);
+      razorpay.open();
+
+    } catch (error: any) {
+      console.error("❌ Payment error:", error);
+      setErrorMessage(error.message || 'Payment failed. Please try again.');
+      setIsLoadingPayment(false);
+    }
+  };
+
+  // Handle Go Back from payment step
+  const handlePaymentGoBack = () => {
+    setShowAuthModal(false);
+    setComposioStep1Complete(false);
+    setPaymentComplete(false);
+    setIsAdminMode(false);
+    setErrorMessage(null);
+  };
 
   // Handle "Get Started Free" button click
   const handleGetStarted = () => {
@@ -305,8 +458,20 @@ const Index = () => {
     );
   }
 
-  // Redirect in progress
-  if (currentUser && backendUserData?.auth_method !== 'composio') {
+  // Redirect in progress (only for fully onboarded users)
+  if (currentUser && backendUserData?.auth_method === 'direct') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
+          <p className="text-sm text-gray-500">Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Composio user fully onboarded - redirect in progress
+  if (currentUser && backendUserData?.auth_method === 'composio' && backendUserData?.composio_connection_id) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
@@ -406,18 +571,18 @@ const Index = () => {
                 <X className="w-5 h-5 text-gray-500" />
               </button>
 
-              {composioStep1Complete ? (
-                // Composio Step 2: Connect Gmail
+              {composioStep1Complete && paymentComplete ? (
+                // Composio Step 3: Connect Gmail (after payment)
                 <div className="space-y-4">
                   <div className="text-center mb-6">
                     <div className="inline-flex items-center gap-2 text-green-600 mb-2">
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
-                      <span className="font-medium" style={{ fontFamily: "'Inter', sans-serif" }}>Signed in as {composioUserEmail}</span>
+                      <span className="font-medium" style={{ fontFamily: "'Inter', sans-serif" }}>Payment Complete!</span>
                     </div>
                     <p className="text-sm text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>
-                      Now connect your Gmail to continue
+                      Now connect your Gmail to start using Outpost
                     </p>
                   </div>
 
@@ -441,6 +606,64 @@ const Index = () => {
                         </span>
                       </>
                     )}
+                  </button>
+                </div>
+              ) : composioStep1Complete && !paymentComplete ? (
+                // Composio Step 2: Payment
+                <div className="space-y-4">
+                  <div className="text-center mb-6">
+                    <div className="inline-flex items-center gap-2 text-green-600 mb-2">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span className="font-medium" style={{ fontFamily: "'Inter', sans-serif" }}>Signed in as {composioUserEmail}</span>
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2" style={{ fontFamily: "'Inter', sans-serif" }}>
+                      Complete Your Payment
+                    </h3>
+                    <p className="text-sm text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>
+                      One-time payment for early access
+                    </p>
+                  </div>
+
+                  {/* Error Message */}
+                  {errorMessage && (
+                    <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm">
+                      {errorMessage}
+                    </div>
+                  )}
+
+                  {/* Amount Display */}
+                  <div className="bg-gray-50 rounded-lg p-4 text-center">
+                    <p className="text-sm text-gray-500 mb-1" style={{ fontFamily: "'Inter', sans-serif" }}>Amount</p>
+                    <p className="text-3xl font-bold text-gray-900" style={{ fontFamily: "'Inter', sans-serif" }}>$5.00</p>
+                  </div>
+
+                  {/* Pay Now Button */}
+                  <button
+                    onClick={handlePayment}
+                    disabled={isLoadingPayment}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  >
+                    {isLoadingPayment ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <span>Pay Now</span>
+                    )}
+                  </button>
+
+                  {/* Go Back Button */}
+                  <button
+                    onClick={handlePaymentGoBack}
+                    disabled={isLoadingPayment}
+                    className="w-full px-4 py-3 text-gray-600 hover:text-gray-800 font-medium transition-colors disabled:opacity-50"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  >
+                    Go Back
                   </button>
                 </div>
               ) : isAdminMode ? (
@@ -648,7 +871,7 @@ const Index = () => {
               )}
 
               {/* Composio Info - Overlay */}
-              <div className={`space-y-4 transition-opacity duration-200 absolute top-0 left-0 right-0 bottom-0 flex flex-col justify-center p-8 ${hoveredButton === 'composio' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+              <div className={`space-y-4 transition-opacity duration-200 absolute top-0 left-0 right-0 bottom-0 flex flex-col justify-center p-8 ${hoveredButton === 'composio' && !composioStep1Complete ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <p className="text-sm leading-relaxed">
                   Get instant access to Outpost with Composio authentication.
                 </p>
@@ -657,8 +880,23 @@ const Index = () => {
                 </p>
               </div>
 
-              {/* Composio Step 2 Info */}
-              {composioStep1Complete && (
+              {/* Payment Step Info */}
+              {composioStep1Complete && !paymentComplete && (
+                <div className="space-y-4">
+                  <p className="text-sm leading-relaxed">
+                    Complete your payment to get early access.
+                  </p>
+                  <p className="text-sm leading-relaxed text-gray-400">
+                    This is a <span className="text-white">one-time payment</span> for early access to Outpost.
+                  </p>
+                  <p className="text-sm leading-relaxed text-gray-400">
+                    Payment is securely processed via <span className="text-white">Razorpay</span>.
+                  </p>
+                </div>
+              )}
+
+              {/* Connect Gmail Step Info */}
+              {composioStep1Complete && paymentComplete && (
                 <div className="space-y-4">
                   <p className="text-sm leading-relaxed">
                     Connect your Gmail to start using Outpost.
