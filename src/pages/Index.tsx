@@ -65,34 +65,45 @@ const Index = () => {
   useEffect(() => {
     if (loading) return;
 
-    if (currentUser && !hasCheckedAuth.current) {
-      // For Composio users: Only redirect if they have composio_connection_id
-      if (backendUserData?.auth_method === 'composio') {
-        if (backendUserData?.composio_connection_id) {
-          console.log("✅ Composio user fully onboarded → Redirecting to inbox");
-          hasCheckedAuth.current = true;
-          navigate("/inbox", { replace: true });
-        } else {
-          // Composio user needs to complete payment/connection
-          console.log("🔵 Composio user needs to complete onboarding");
-          setComposioStep1Complete(true);
-          setComposioUserEmail(currentUser.email || "");
-          // Check if already paid
-          if (backendUserData?.paid === true) {
-            setPaymentComplete(true);
-          }
-          setShowAuthModal(true);
-        }
-      } else if (backendUserData?.auth_method === 'direct') {
-        // Direct auth users go straight to inbox
-        console.log("✅ Direct auth user → Redirecting to inbox");
-        hasCheckedAuth.current = true;
-        navigate("/inbox", { replace: true });
-      }
-    } else if (!currentUser) {
+    if (!currentUser) {
       console.log("👤 No user signed in - showing login page");
       hasCheckedAuth.current = false;
+      return;
     }
+
+    // Wait for backendUserData to load
+    if (backendUserData === undefined) return;
+
+    if (hasCheckedAuth.current) return;
+
+    // Direct auth users: redirect to inbox
+    if (backendUserData?.auth_method === 'direct') {
+      console.log("✅ Direct auth user → Redirecting to inbox");
+      hasCheckedAuth.current = true;
+      navigate("/inbox", { replace: true });
+      return;
+    }
+
+    // Composio users with connection: redirect to inbox directly
+    if (backendUserData?.auth_method === 'composio' && backendUserData?.composio_connection_id) {
+      console.log("✅ Composio user fully onboarded → Redirecting to inbox");
+      hasCheckedAuth.current = true;
+      navigate("/inbox", { replace: true });
+      return;
+    }
+
+    // Composio users without connection: show payment/connect modal
+    if (backendUserData?.auth_method === 'composio' && !backendUserData?.composio_connection_id) {
+      console.log("🔵 Composio user needs to complete onboarding");
+      setComposioStep1Complete(true);
+      setComposioUserEmail(currentUser.email || "");
+      if (backendUserData?.paid === true) {
+        setPaymentComplete(true);
+      }
+      setShowAuthModal(true);
+      return;
+    }
+
   }, [currentUser, loading, navigate, backendUserData]);
 
   // Auto-hide success message
