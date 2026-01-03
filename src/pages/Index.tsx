@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
-import inboxImage from "@/assets/Outpost_inbox.png";
+import inboxImage from "@/assets/Outpost inbox.png";
 import ScrollBlurText from "@/components/ScrollBlurText";
 import Footer from "@/components/Footer";
 import { getIdToken } from "@/services/auth.service";
