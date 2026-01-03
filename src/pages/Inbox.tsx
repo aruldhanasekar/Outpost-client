@@ -70,6 +70,14 @@ const InboxPage = () => {
   }, []);
   
   // ==================== GMAIL CONNECTION STATUS ====================
+  
+  // ✅ Check if Composio callback is in progress (URL has callback params)
+  // This prevents the overlay from flashing during callback processing
+  const [isComposioCallbackInProgress, setIsComposioCallbackInProgress] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('composio_connected') === 'true';
+  });
+  
   // ✅ Unified check for Gmail connection (works for both auth methods)
   const isGmailConnected = useMemo(() => {
     if (!currentUser || !backendUserData) return false;
@@ -86,10 +94,12 @@ const InboxPage = () => {
   }, [currentUser, backendUserData]);
   
   // Check if Composio user needs to connect Gmail
+  // ✅ Don't show overlay if callback is in progress
   const needsComposioConnection = 
     currentUser && 
     backendUserData?.auth_method === 'composio' && 
-    !backendUserData?.composio_connection_id;
+    !backendUserData?.composio_connection_id &&
+    !isComposioCallbackInProgress;
 
   const [activeCategory, setActiveCategory] = useState<Category>("urgent");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -398,9 +408,18 @@ const InboxPage = () => {
 
   // ==================== COMPOSIO CALLBACK HANDLER ====================
   
+  // Guard to prevent multiple callback executions
+  const composioCallbackProcessedRef = useRef(false);
+  
   useEffect(() => {
     const handleComposioCallback = async () => {
       if (!currentUser) return;
+      
+      // Guard: Only process once
+      if (composioCallbackProcessedRef.current) {
+        console.log('⏭️ Composio callback already processed, skipping');
+        return;
+      }
       
       const params = new URLSearchParams(window.location.search);
       const composioConnected = params.get('composio_connected');
@@ -408,6 +427,9 @@ const InboxPage = () => {
       
       // ✅ Simplified check - just need composio_connected and connection_id
       if (composioConnected === 'true' && connectionId) {
+        // Mark as processed immediately
+        composioCallbackProcessedRef.current = true;
+        
         console.log('🔵 Composio callback detected');
         console.log('   Connection ID:', connectionId);
         
@@ -442,11 +464,17 @@ const InboxPage = () => {
           // Clean URL (remove parameters)
           window.history.replaceState({}, '', '/inbox');
           
+          // Clear callback-in-progress flag (now state is updated)
+          setIsComposioCallbackInProgress(false);
+          
           // Show sync overlay
           setShowSyncLoading(true);
           
         } catch (error) {
           console.error('❌ Error finalizing Composio connection:', error);
+          // On error, clear the flag so user can retry
+          setIsComposioCallbackInProgress(false);
+          composioCallbackProcessedRef.current = false;
         }
       }
     };
