@@ -433,10 +433,11 @@ const Index = () => {
 
       const checkClosed = setInterval(() => {
         if (popup.closed) {
-          console.log("👍 Composio popup closed");
+          console.log("👍 Composio popup closed - redirecting to inbox");
           clearInterval(checkClosed);
           setIsLoadingComposio(false);
           setShowAuthModal(false);
+          navigate("/inbox", { replace: true });
         }
       }, 500);
 
