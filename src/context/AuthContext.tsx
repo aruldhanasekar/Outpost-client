@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { User } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChange, getUserProfile, getIdToken, signInWithCustomFirebaseToken } from '../services/auth.service';
@@ -12,6 +12,7 @@ interface AuthContextType {
   backendUserData: any | null;
   loading: boolean;
   refreshUserProfile: (uid?: string) => Promise<UserProfile | null>;
+  refreshBackendUserData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
   backendUserData: null,
   loading: true,
   refreshUserProfile: async () => null,
+  refreshBackendUserData: async () => {},
 });
 
 export const useAuth = () => {
@@ -52,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      console.log('🌍 Detected timezone:', timezone);
+      console.log('🌐 Detected timezone:', timezone);
       
       const userDocRef = doc(db, 'users', uid);
       await updateDoc(userDocRef, {
@@ -88,6 +90,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // ==================== NEW: Refresh Backend User Data ====================
+  // Call this after Composio connection is finalized to update state
+  const refreshBackendUserData = useCallback(async (): Promise<void> => {
+    if (!currentUser) {
+      console.log('⚠️ Cannot refresh backend data: No user');
+      return;
+    }
+
+    try {
+      console.log('🔄 Refreshing backend user data...');
+      const idToken = await getIdToken();
+      
+      if (!idToken) {
+        console.error('⚠️ No ID token available for refresh');
+        return;
+      }
+
+      const backendData = await getCurrentUserFromBackend(idToken);
+      setBackendUserData(backendData);
+      console.log('✅ Backend user data refreshed:', {
+        auth_method: backendData?.auth_method,
+        composio_connection_id: backendData?.composio_connection_id ? 'present' : 'null',
+        sync_status: backendData?.sync_status
+      });
+      
+    } catch (error) {
+      console.error('⚠️ Backend data refresh failed:', error);
+    }
+  }, [currentUser]);
+
   // Handle OAuth success from popup
   const handleOAuthSuccess = async (customToken: string) => {
     try {
@@ -113,36 +145,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('📌 Setting up OAuth message listener (ONCE)');
     
     const handleMessage = async (event: MessageEvent) => {
-    if (event.data?.type === 'OAUTH_SUCCESS') {
-      console.log('📨 Received OAuth success message');
-      const { token, flow } = event.data;  // ✅ Also get flow type
-      
-      try {
-        await handleOAuthSuccess(token);
+      if (event.data?.type === 'OAUTH_SUCCESS') {
+        console.log('📨 Received OAuth success message');
+        const { token, flow } = event.data;
         
-        if (flow === 'composio') {
-          console.log('🔵 Composio Step 1 complete - user should connect Gmail');
-          // Don't redirect - Index.tsx will show "Connect Gmail" button
-        } else {
-          console.log('🎉 Direct OAuth flow completed successfully');
-          // Direct flow - will redirect via useEffect
+        try {
+          await handleOAuthSuccess(token);
+          
+          if (flow === 'composio') {
+            console.log('🔵 Composio Step 1 complete - user should connect Gmail');
+          } else {
+            console.log('🎉 Direct OAuth flow completed successfully');
+          }
+        } catch (error) {
+          console.error('❌ Failed to complete OAuth flow:', error);
         }
-      } catch (error) {
-        console.error('❌ Failed to complete OAuth flow:', error);
       }
-    }
-  };
+    };
 
     window.addEventListener('message', handleMessage);
     return () => {
       console.log('📌 Cleaning up OAuth listener');
       window.removeEventListener('message', handleMessage);
     };
-  }, []); // ✅ Empty array - mount once, never re-attach
+  }, []);
 
   // ==================== EFFECT 2: Auth State Listener ====================
   // ✅ Sets up Firebase auth listener ONCE
-  // NO backend calls here!
   useEffect(() => {
     console.log('🔐 Setting up auth state listener (ONCE)');
     
@@ -157,7 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(null);
         setBackendUserData(null);
         setLoading(false);
-        backendLoadingRef.current = false; // Reset ref so fresh data is fetched on next sign-in
+        backendLoadingRef.current = false;
         console.log('👤 No user, loading complete');
         return;
       }
@@ -183,7 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('🔐 Cleaning up auth listener');
       unsubscribe();
     };
-  }, []); // ✅ Empty array - setup once
+  }, []);
 
   // ==================== EFFECT 3: Backend User Data Loader ====================
   // ✅ SEPARATED from auth listener - runs when currentUser changes
@@ -219,12 +248,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         console.error('⚠️ Backend fetch failed:', error);
         setBackendUserData(null);
-        backendLoadingRef.current = false; // Allow retry on next attempt
+        backendLoadingRef.current = false;
       }
     };
 
     loadBackendUser();
-  }, [currentUser]); // ✅ Runs when user logs in/out
+  }, [currentUser]);
 
   const value = {
     currentUser,
@@ -232,6 +261,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     backendUserData,
     loading,
     refreshUserProfile,
+    refreshBackendUserData,
   };
 
   return (

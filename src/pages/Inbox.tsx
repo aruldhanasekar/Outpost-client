@@ -48,14 +48,49 @@ import { useCategoryMoveNotifications } from "@/hooks/useCategoryMoveNotificatio
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 const InboxPage = () => {
-  const { currentUser, userProfile, loading: authLoading, backendUserData } = useAuth();
+  // ✅ Added refreshBackendUserData to destructuring
+  const { currentUser, userProfile, loading: authLoading, backendUserData, refreshBackendUserData } = useAuth();
   const navigate = useNavigate();
+  
+  // Close popup if this is a Composio OAuth callback
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isComposioCallback = urlParams.get('composio_connected') === 'true';
+    
+    // Check if we're in a popup (has opener window)
+    const isPopup = window.opener !== null;
+    
+    if (isComposioCallback && isPopup) {
+      console.log("🔵 Composio OAuth complete - closing popup");
+      setTimeout(() => {
+        window.close();
+      }, 100);
+      return;
+    }
+  }, []);
+  
+  // ==================== GMAIL CONNECTION STATUS ====================
+  // ✅ Unified check for Gmail connection (works for both auth methods)
+  const isGmailConnected = useMemo(() => {
+    if (!currentUser || !backendUserData) return false;
+    
+    const authMethod = backendUserData.auth_method;
+    
+    if (authMethod === 'composio') {
+      // Composio users need composio_connection_id
+      return !!backendUserData.composio_connection_id;
+    } else {
+      // Direct auth users are connected after OAuth (have tokens)
+      return backendUserData.initial_sync_completed !== undefined;
+    }
+  }, [currentUser, backendUserData]);
   
   // Check if Composio user needs to connect Gmail
   const needsComposioConnection = 
     currentUser && 
     backendUserData?.auth_method === 'composio' && 
     !backendUserData?.composio_connection_id;
+
   const [activeCategory, setActiveCategory] = useState<Category>("urgent");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
@@ -71,7 +106,7 @@ const InboxPage = () => {
   const [localDoneThreads, setLocalDoneThreads] = useState<Set<string>>(new Set());
   const [localDeletedThreads, setLocalDeletedThreads] = useState<Set<string>>(new Set());
   const [localThreadLabels, setLocalThreadLabels] = useState<Map<string, Array<{ id: string; name: string; color: string }>>>(new Map());
-  const [localMovedThreads, setLocalMovedThreads] = useState<Map<string, { from: string; to: string }>>(new Map()); // threadId -> { from, to }
+  const [localMovedThreads, setLocalMovedThreads] = useState<Map<string, { from: string; to: string }>>(new Map());
   
   // Checked threads state (for bulk selection)
   const [checkedThreads, setCheckedThreads] = useState<Set<string>>(new Set());
@@ -80,7 +115,6 @@ const InboxPage = () => {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   
   const [showSyncLoading, setShowSyncLoading] = useState(false);
-
 
   // Toast state for undo functionality
   const [toast, setToast] = useState<{
@@ -138,47 +172,48 @@ const InboxPage = () => {
   }, [currentUser]);
 
   // ==================== DATA FETCHING ====================
+  // ✅ Only fetch when Gmail is connected (pass null uid to disable)
   
   // Fetch threads for URGENT category
   const { 
     threads: urgentThreads, 
     loading: urgentLoading, 
     error: urgentError 
-  } = useThreads(currentUser?.uid, 'URGENT');
+  } = useThreads(isGmailConnected ? currentUser?.uid : undefined, 'URGENT');
   
   // Fetch threads for IMPORTANT category
   const { 
     threads: importantThreads, 
     loading: importantLoading, 
     error: importantError 
-  } = useThreads(currentUser?.uid, 'IMPORTANT');
+  } = useThreads(isGmailConnected ? currentUser?.uid : undefined, 'IMPORTANT');
   
   // Fetch threads for OTHERS category
   const { 
     threads: othersThreads, 
     loading: othersLoading, 
     error: othersError 
-  } = useThreads(currentUser?.uid, 'OTHERS');
+  } = useThreads(isGmailConnected ? currentUser?.uid : undefined, 'OTHERS');
   
   // Fetch threads for Promises category (existing hook)
   const { 
     threads: promiseThreads, 
     loading: promisesLoading, 
     error: promisesError 
-  } = usePromises(currentUser?.uid);
+  } = usePromises(isGmailConnected ? currentUser?.uid : undefined);
   
   // Fetch threads for Awaiting category (existing hook)
   const { 
     threads: awaitingThreads, 
     loading: awaitingLoading, 
     error: awaitingError 
-  } = useAwaiting(currentUser?.uid);
+  } = useAwaiting(isGmailConnected ? currentUser?.uid : undefined);
 
   // Category move notifications (Promise/Awaiting detection)
   const { 
     notifications: categoryMoveNotifications, 
     dismissNotification: dismissCategoryMoveNotification 
-  } = useCategoryMoveNotifications(currentUser?.uid);
+  } = useCategoryMoveNotifications(isGmailConnected ? currentUser?.uid : undefined);
   
   // Fetch emails for selected thread
   const { 
@@ -191,7 +226,6 @@ const InboxPage = () => {
 
   // v6.0: Combine threadEmails with optimisticReply for display
   const displayEmails = useMemo(() => {
-    // Only add optimistic if it matches current thread
     if (optimisticReply && selectedThread && optimisticReply.threadId === selectedThread.thread_id) {
       return [...threadEmails, optimisticReply.email];
     }
@@ -216,10 +250,14 @@ const InboxPage = () => {
     prevThreadEmailsLengthRef.current = threadEmails.length;
   }, [threadEmails.length, optimisticReply]);
 
-  // Fetch all labels for context menu
+  // ✅ Fetch labels only when Gmail is connected
   useEffect(() => {
     const fetchLabels = async () => {
-      if (!currentUser) return;
+      // Guard: Only fetch if Gmail is connected
+      if (!currentUser || !isGmailConnected) {
+        console.log('⏳ Skipping labels fetch - Gmail not connected');
+        return;
+      }
       
       try {
         const data = await getLabels();
@@ -235,68 +273,65 @@ const InboxPage = () => {
     };
     
     fetchLabels();
-  }, [currentUser]);
+  }, [currentUser, isGmailConnected]);
 
   // ==================== COMPUTED STATE ====================
   
   // Get threads for current category with local state applied
   const currentThreads = useMemo(() => {
-  let threads: Thread[] = [];
-  
-  switch (activeCategory) {
-    case 'urgent':
-      threads = urgentThreads;
-      break;
-    case 'important':
-      threads = importantThreads;
-      break;
-    case 'others':
-      threads = othersThreads;
-      break;
-    case 'promises':
-      threads = promiseThreads;
-      break;
-    case 'awaiting':
-      threads = awaitingThreads;
-      break;
-    default:
-      threads = [];
-  }
-  
-  // Apply local state filters and read/unread state
-  return threads
-    .filter(thread => !localDoneThreads.has(thread.thread_id))
-    .filter(thread => !localDeletedThreads.has(thread.thread_id))
-    .filter(thread => {
-      // Only hide thread if we're viewing the source category it was moved FROM
-      const moveInfo = localMovedThreads.get(thread.thread_id);
-      return !(moveInfo && activeCategory.toUpperCase() === moveInfo.from);
-    })
-    .map(thread => ({
-      ...thread,
-      // Apply local read/unread state
-      is_read: localUnreadThreads.has(thread.thread_id)
-        ? false
-        : localReadThreads.has(thread.thread_id)
-          ? true
-          : thread.is_read,
-      // Apply local label updates
-      labels: localThreadLabels.get(thread.thread_id) || (thread as Thread & { labels?: Array<{ id: string; name: string; color: string }> }).labels || []
-    }));
-}, [
-  activeCategory, 
-  urgentThreads, 
-  importantThreads, 
-  othersThreads, 
-  promiseThreads, 
-  awaitingThreads,
-  localDoneThreads,
-  localDeletedThreads,
-  localMovedThreads,
-  localReadThreads,
-  localUnreadThreads,
-  localThreadLabels  // Add this dependency
-]);
+    let threads: Thread[] = [];
+    
+    switch (activeCategory) {
+      case 'urgent':
+        threads = urgentThreads;
+        break;
+      case 'important':
+        threads = importantThreads;
+        break;
+      case 'others':
+        threads = othersThreads;
+        break;
+      case 'promises':
+        threads = promiseThreads;
+        break;
+      case 'awaiting':
+        threads = awaitingThreads;
+        break;
+      default:
+        threads = [];
+    }
+    
+    // Apply local state filters and read/unread state
+    return threads
+      .filter(thread => !localDoneThreads.has(thread.thread_id))
+      .filter(thread => !localDeletedThreads.has(thread.thread_id))
+      .filter(thread => {
+        const moveInfo = localMovedThreads.get(thread.thread_id);
+        return !(moveInfo && activeCategory.toUpperCase() === moveInfo.from);
+      })
+      .map(thread => ({
+        ...thread,
+        is_read: localUnreadThreads.has(thread.thread_id)
+          ? false
+          : localReadThreads.has(thread.thread_id)
+            ? true
+            : thread.is_read,
+        labels: localThreadLabels.get(thread.thread_id) || (thread as Thread & { labels?: Array<{ id: string; name: string; color: string }> }).labels || []
+      }));
+  }, [
+    activeCategory, 
+    urgentThreads, 
+    importantThreads, 
+    othersThreads, 
+    promiseThreads, 
+    awaitingThreads,
+    localDoneThreads,
+    localDeletedThreads,
+    localMovedThreads,
+    localReadThreads,
+    localUnreadThreads,
+    localThreadLabels
+  ]);
   
   // Get loading/error state for current category
   const currentLoading = useMemo(() => {
@@ -325,11 +360,8 @@ const InboxPage = () => {
   const categoryCounts: CategoryCounts = useMemo(() => {
     const countUnread = (threads: Thread[]) => {
       return threads.filter(t => {
-        // If locally marked unread, count it
         if (localUnreadThreads.has(t.thread_id)) return true;
-        // If locally marked read, don't count it
         if (localReadThreads.has(t.thread_id)) return false;
-        // Otherwise use Firestore value
         return t.is_read === false;
       }).length;
     };
@@ -353,13 +385,11 @@ const InboxPage = () => {
 
   // ==================== SYNC LOADING DETECTION ====================
   
-  // Show sync loading overlay when sync starts
   useEffect(() => {
     if (!backendUserData) return;
     
     const syncStatus = backendUserData.sync_status;
     
-    // Check if sync just started
     if (syncStatus === 'starting' || syncStatus === 'syncing_inbox') {
       console.log('🔄 Sync started - showing loading overlay');
       setShowSyncLoading(true);
@@ -368,28 +398,22 @@ const InboxPage = () => {
 
   // ==================== COMPOSIO CALLBACK HANDLER ====================
   
-  // Handle Composio redirect callback
   useEffect(() => {
     const handleComposioCallback = async () => {
-      // Only run if user is logged in
       if (!currentUser) return;
       
-      // Check URL parameters
       const params = new URLSearchParams(window.location.search);
       const composioConnected = params.get('composio_connected');
       const connectionId = params.get('connected_account_id');
-      const status = params.get('status');
       
-      // If Composio redirect detected
-      if (composioConnected === 'true' && connectionId && status === 'success') {
+      // ✅ Simplified check - just need composio_connected and connection_id
+      if (composioConnected === 'true' && connectionId) {
         console.log('🔵 Composio callback detected');
         console.log('   Connection ID:', connectionId);
         
         try {
-          // Get auth token
           const idToken = await currentUser.getIdToken();
           
-          // Call backend to finalize connection
           console.log('📡 Calling backend to finalize connection...');
           const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/composio/finalize?connection_id=${connectionId}`, {
             method: 'POST',
@@ -407,32 +431,34 @@ const InboxPage = () => {
           const data = await response.json();
           console.log('✅ Composio connection finalized:', data);
           
-          // Force refresh token to get new custom claims (auth_method: 'composio')
+          // Force refresh Firebase token to get new custom claims
           await currentUser.getIdToken(true);
           console.log('🔄 Token refreshed with new custom claims');
+          
+          // ✅ KEY FIX: Refresh backend user data to update state
+          await refreshBackendUserData();
+          console.log('✅ Backend user data refreshed - overlay should hide');
           
           // Clean URL (remove parameters)
           window.history.replaceState({}, '', '/inbox');
           
-          // Show sync overlay will appear automatically when backend updates sync_status
+          // Show sync overlay
+          setShowSyncLoading(true);
           
         } catch (error) {
           console.error('❌ Error finalizing Composio connection:', error);
-          // TODO: Show error toast to user
         }
       }
     };
     
     handleComposioCallback();
-  }, [currentUser]); // Run when user changes
+  }, [currentUser, refreshBackendUserData]);
 
   // ==================== THREAD CLICK HANDLERS ====================
 
-  // Handle thread click - select thread, mark as read
   const handleThreadClick = useCallback(async (thread: Thread) => {
     setSelectedThread(thread);
     
-    // Remove from unread set if it was there
     if (localUnreadThreads.has(thread.thread_id)) {
       setLocalUnreadThreads(prev => {
         const newSet = new Set(prev);
@@ -441,7 +467,6 @@ const InboxPage = () => {
       });
     }
     
-    // Mark all emails in thread as read
     const emailIds = thread.email_ids || [];
     if (emailIds.length > 0 && !localReadThreads.has(thread.thread_id)) {
       setLocalReadThreads(prev => new Set(prev).add(thread.thread_id));
@@ -456,25 +481,21 @@ const InboxPage = () => {
     }
   }, [localReadThreads, localUnreadThreads]);
 
-  // Close detail panel
   const handleCloseDetail = useCallback(() => {
     setSelectedThread(null);
     setIsExpanded(false);
   }, []);
   
-  // Close only the expanded overlay
   const handleCloseExpanded = useCallback(() => {
     setIsExpanded(false);
   }, []);
   
-  // Toggle expanded overlay view
   const handleToggleExpand = useCallback(() => {
     setIsExpanded(prev => !prev);
   }, []);
   
   // ==================== NAVIGATION ====================
   
-  // Calculate navigation state
   const { currentThreadIndex, hasPreviousThread, hasNextThread } = useMemo(() => {
     const index = selectedThread 
       ? currentThreads.findIndex(t => t.thread_id === selectedThread.thread_id) 
@@ -486,21 +507,18 @@ const InboxPage = () => {
     };
   }, [selectedThread, currentThreads]);
   
-  // Navigate to previous thread
   const handlePreviousThread = useCallback(() => {
     if (!selectedThread || currentThreadIndex <= 0) return;
     const prevThread = currentThreads[currentThreadIndex - 1];
     handleThreadClick(prevThread);
   }, [currentThreads, selectedThread, currentThreadIndex, handleThreadClick]);
   
-  // Navigate to next thread
   const handleNextThread = useCallback(() => {
     if (!selectedThread || currentThreadIndex >= currentThreads.length - 1) return;
     const nextThread = currentThreads[currentThreadIndex + 1];
     handleThreadClick(nextThread);
   }, [currentThreads, selectedThread, currentThreadIndex, handleThreadClick]);
 
-  // Handle category change
   const handleCategoryChange = useCallback((category: Category) => {
     setActiveCategory(category);
     setCheckedThreads(new Set());
@@ -516,7 +534,6 @@ const InboxPage = () => {
       } else {
         newSet.delete(thread.thread_id);
       }
-      // Exit selection mode if no items checked
       if (newSet.size === 0) {
         setIsSelectionMode(false);
       }
@@ -528,24 +545,20 @@ const InboxPage = () => {
     const isAllSelected = checkedThreads.size > 0 && checkedThreads.size === currentThreads.length;
     
     if (isAllSelected) {
-      // All selected → Deselect all (but stay in selection mode)
       setCheckedThreads(new Set());
     } else {
-      // None or some selected → Select all
       const allIds = new Set(currentThreads.map(t => t.thread_id));
       setCheckedThreads(allIds);
       setIsSelectionMode(true);
     }
   }, [checkedThreads.size, currentThreads]);
 
-  // Long-press handler for mobile selection mode
   const handleLongPress = useCallback((thread: Thread) => {
     setIsSelectionMode(true);
   }, []);
 
   // ==================== BATCH ACTIONS ====================
   
-  // Get all email IDs from checked threads
   const getEmailIdsFromCheckedThreads = useCallback(() => {
     const emailIds: string[] = [];
     currentThreads.forEach(thread => {
@@ -556,7 +569,6 @@ const InboxPage = () => {
     return emailIds;
   }, [currentThreads, checkedThreads]);
   
-  // Batch mark as read
   const handleBatchMarkAsRead = useCallback(async () => {
     if (checkedThreads.size === 0) return;
     
@@ -564,14 +576,12 @@ const InboxPage = () => {
     const emailIds = getEmailIdsFromCheckedThreads();
     console.log('📖 Batch marking as read:', threadIds.length, 'threads');
     
-    // Add to read set
     setLocalReadThreads(prev => {
       const newSet = new Set(prev);
       threadIds.forEach(id => newSet.add(id));
       return newSet;
     });
     
-    // Remove from unread set
     setLocalUnreadThreads(prev => {
       const newSet = new Set(prev);
       threadIds.forEach(id => newSet.delete(id));
@@ -592,7 +602,6 @@ const InboxPage = () => {
     }
   }, [checkedThreads, getEmailIdsFromCheckedThreads]);
   
-  // Batch mark as unread
   const handleBatchMarkAsUnread = useCallback(async () => {
     if (checkedThreads.size === 0) return;
     
@@ -600,14 +609,12 @@ const InboxPage = () => {
     const emailIds = getEmailIdsFromCheckedThreads();
     console.log('📬 Batch marking as unread:', threadIds.length, 'threads');
     
-    // Remove from read set
     setLocalReadThreads(prev => {
       const newSet = new Set(prev);
       threadIds.forEach(id => newSet.delete(id));
       return newSet;
     });
     
-    // Add to unread set
     setLocalUnreadThreads(prev => {
       const newSet = new Set(prev);
       threadIds.forEach(id => newSet.add(id));
@@ -628,7 +635,6 @@ const InboxPage = () => {
     }
   }, [checkedThreads, getEmailIdsFromCheckedThreads]);
   
-  // Batch mark as done
   const handleBatchMarkAsDone = useCallback(async () => {
     if (checkedThreads.size === 0) return;
     
@@ -664,7 +670,6 @@ const InboxPage = () => {
     }
   }, [checkedThreads, selectedThread, getEmailIdsFromCheckedThreads]);
   
-  // Batch delete with undo
   const handleBatchDelete = useCallback(async () => {
     if (checkedThreads.size === 0) return;
     
@@ -716,7 +721,6 @@ const InboxPage = () => {
 
   // ==================== SINGLE THREAD ACTIONS ====================
   
-  // Handle mark thread as done
   const handleMarkThreadDone = useCallback(async (thread: Thread) => {
     console.log('🎯 Marking thread as done:', thread.thread_id);
     
@@ -756,7 +760,6 @@ const InboxPage = () => {
     }
   }, [currentThreads, selectedThread]);
 
-  // Handle delete thread with undo
   const handleDeleteThread = useCallback(async (thread: Thread) => {
     console.log('🗑️ Deleting thread:', thread.thread_id);
     
@@ -798,7 +801,6 @@ const InboxPage = () => {
     });
   }, [toast.timeoutId, selectedThread]);
   
-  // Handle undo delete
   const handleUndoDelete = useCallback(() => {
     if (toast.timeoutId) {
       clearTimeout(toast.timeoutId);
@@ -820,18 +822,15 @@ const InboxPage = () => {
 
   // ==================== CATEGORY OVERRIDE HANDLER ====================
   
-  // Called when user changes email category via dropdown
   const handleThreadCategoryOverride = useCallback((threadId: string, newCategory: string) => {
     console.log(`📁 Category changed: ${threadId} → ${newCategory} (from ${activeCategory.toUpperCase()})`);
     
-    // Add to localMovedThreads with source category so it only hides from source
     setLocalMovedThreads(prev => {
       const newMap = new Map(prev);
       newMap.set(threadId, { from: activeCategory.toUpperCase(), to: newCategory });
       return newMap;
     });
     
-    // Show toast
     const categoryLabels: Record<string, string> = {
       'URGENT': 'Urgent',
       'IMPORTANT': 'Important',
@@ -846,7 +845,6 @@ const InboxPage = () => {
       timeoutId: null
     });
     
-    // Auto-hide toast after 3 seconds
     setTimeout(() => {
       setToast(prev => ({ ...prev, show: false }));
     }, 3000);
@@ -854,7 +852,6 @@ const InboxPage = () => {
 
   // ==================== EMAIL SEND HANDLERS ====================
   
-  // Called when email is queued for sending
   const handleEmailSent = useCallback((emailId: string, recipients: string[], emailData: UndoEmailData) => {
     console.log('📧 Email queued, showing undo toast:', emailId);
     setEmailUndoToast({
@@ -865,21 +862,16 @@ const InboxPage = () => {
     });
   }, []);
   
-  // Called when user successfully undoes the email - just store data
   const handleEmailUndone = useCallback(() => {
     console.log('↩️ Email cancelled, storing data for modal');
     
-    // v6.0: Clear optimistic reply since email was cancelled
     setOptimisticReply(null);
     
-    // Get stored email data
     const emailData = emailUndoToast?.emailData;
     if (!emailData) return;
     
-    // Store undo data - useEffect below will open the appropriate modal
     setUndoComposeData(emailData);
     
-    // Also set up reply/forward state if needed (so modal has originalEmail)
     if (emailData.type === 'reply' && emailData.originalEmail) {
       setReplyToEmail(emailData.originalEmail as Email);
       setReplyMode(emailData.replyMode || 'reply');
@@ -888,7 +880,6 @@ const InboxPage = () => {
     }
   }, [emailUndoToast]);
 
-  // Open modal AFTER undoComposeData is set (fixes timing issue)
   useEffect(() => {
     if (undoComposeData) {
       console.log('📧 Opening modal with undo data, type:', undoComposeData.type);
@@ -902,14 +893,12 @@ const InboxPage = () => {
     }
   }, [undoComposeData]);
   
-  // Called when undo toast closes (timer expired or manually closed)
   const handleCloseEmailUndoToast = useCallback(() => {
     setEmailUndoToast(null);
   }, []);
 
   // ==================== REPLY/FORWARD HANDLERS ====================
   
-  // Handle Reply button click - v4.0: Now accepts mode parameter
   const handleReply = useCallback((email: Email, mode: 'reply' | 'replyAll' = 'reply') => {
     console.log('📧 Opening reply modal for:', email.senderEmail, 'mode:', mode);
     setReplyToEmail(email);
@@ -917,14 +906,12 @@ const InboxPage = () => {
     setIsReplyOpen(true);
   }, []);
 
-  // Handle Forward button click
   const handleForward = useCallback((email: Email) => {
     console.log('📧 Opening forward modal for:', email.subject);
     setForwardEmail(email);
     setIsForwardOpen(true);
   }, []);
 
-  // v6.0: Handle reply sent - add optimistic email to thread
   const handleReplySent = useCallback((optimisticEmail: Email) => {
     if (!selectedThread) return;
     
@@ -934,10 +921,8 @@ const InboxPage = () => {
       threadId: selectedThread.thread_id
     });
     
-    // Safety timeout - clear after 60 seconds if webhook hasn't synced
     setTimeout(() => {
       setOptimisticReply(prev => {
-        // Only clear if it's the same optimistic email
         if (prev && prev.email.id === optimisticEmail.id) {
           console.log('⏰ Clearing optimistic reply (timeout)');
           return null;
@@ -947,11 +932,8 @@ const InboxPage = () => {
     }, 60000);
   }, [selectedThread]);
 
-  
-
   // ==================== CONTEXT MENU HANDLERS ====================
 
-  // Handle reply from context menu
   const handleContextReply = useCallback(async (thread: Thread) => {
     console.log('📧 Context Reply triggered for thread:', thread.thread_id);
     setSelectedThread(thread);
@@ -999,7 +981,6 @@ const InboxPage = () => {
     }
   }, []);
 
-  // Handle reply all from context menu
   const handleContextReplyAll = useCallback(async (thread: Thread) => {
     console.log('📧 Context Reply All triggered for thread:', thread.thread_id);
     setSelectedThread(thread);
@@ -1047,7 +1028,6 @@ const InboxPage = () => {
     }
   }, []);
 
-  // Handle forward from context menu
   const handleContextForward = useCallback(async (thread: Thread) => {
     console.log('📧 Context Forward triggered for thread:', thread.thread_id);
     setSelectedThread(thread);
@@ -1088,7 +1068,6 @@ const InboxPage = () => {
     }
   }, []);
 
-  // Handle mark as read from context menu
   const handleContextMarkRead = useCallback(async (thread: Thread) => {
     setLocalReadThreads(prev => new Set(prev).add(thread.thread_id));
     setLocalUnreadThreads(prev => {
@@ -1103,7 +1082,6 @@ const InboxPage = () => {
     }
   }, []);
 
-  // Handle mark as unread from context menu
   const handleContextMarkUnread = useCallback(async (thread: Thread) => {
     setLocalUnreadThreads(prev => new Set(prev).add(thread.thread_id));
     setLocalReadThreads(prev => {
@@ -1118,13 +1096,10 @@ const InboxPage = () => {
     }
   }, []);
 
-
-  // Handle create label from context menu
   const handleCreateLabelFromContext = useCallback(() => {
     setIsCreateLabelOpen(true);
   }, []);
 
-  // Handle label created - refresh labels list
   const handleLabelCreatedFromContext = useCallback(async () => {
     try {
       const data = await getLabels();
@@ -1142,24 +1117,20 @@ const InboxPage = () => {
   const handleToggleLabel = useCallback(async (thread: Thread, labelId: string, labelName: string, isApplied: boolean) => {
     console.log('🏷️ Toggle label:', labelName, 'isApplied:', isApplied, 'thread:', thread.thread_id);
     
-    // Find the label object from allLabels
     const labelObj = allLabels.find(l => l.id === labelId);
     if (!labelObj) {
       console.error('Label not found:', labelId);
       return;
     }
     
-    // Optimistic UI update
     setLocalThreadLabels(prev => {
       const newMap = new Map(prev);
       const currentLabels = newMap.get(thread.thread_id) || (thread as Thread & { labels?: Array<{ id: string; name: string; color: string }> }).labels || [];
       
       if (isApplied) {
-        // Remove label
         const updatedLabels = currentLabels.filter((l) => l.id !== labelId);
         newMap.set(thread.thread_id, updatedLabels);
       } else {
-        // Add label
         const updatedLabels = [...currentLabels, labelObj];
         newMap.set(thread.thread_id, updatedLabels);
       }
@@ -1184,7 +1155,6 @@ const InboxPage = () => {
       console.log('✅ Label toggled successfully');
     } catch (err) {
       console.error('❌ Label toggle failed:', err);
-      // Revert optimistic update on error
       setLocalThreadLabels(prev => {
         const newMap = new Map(prev);
         newMap.delete(thread.thread_id);
@@ -1195,23 +1165,16 @@ const InboxPage = () => {
 
   // ==================== KEYBOARD SHORTCUTS ====================
   
-  // Existing keyboard shortcuts for checkbox selection
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       
-      // Don't trigger if typing in any input, textarea, or contenteditable
       if (target.tagName === 'TEXTAREA' || target.isContentEditable) return;
       if (target.tagName === 'INPUT' && (target as HTMLInputElement).type !== 'checkbox') return;
       if (target.closest('[contenteditable="true"]')) return;
-      
-      // Don't trigger if inside any modal
       if (target.closest('[role="dialog"]') || target.closest('.compose-modal') || target.closest('[data-modal]')) return;
-      
-      // Don't trigger if any modal is open (state check as backup)
       if (isComposeOpen || isReplyOpen || isForwardOpen || isSearchOpen) return;
       
-      // "/" key to open search
       if (e.key === '/' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         setIsSearchOpen(true);
@@ -1258,29 +1221,19 @@ const InboxPage = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [checkedThreads, currentThreads, isComposeOpen, isReplyOpen, isForwardOpen, isSearchOpen, handleBatchMarkAsRead, handleBatchMarkAsUnread, handleBatchMarkAsDone, handleBatchDelete]);
 
-  // v4.0: Keyboard shortcuts for Reply/Reply All/Forward (when viewing thread)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input or editable area
       const target = e.target as HTMLElement;
       if (target.tagName === 'TEXTAREA' || target.isContentEditable) return;
       if (target.tagName === 'INPUT') return;
       if (target.closest('[contenteditable="true"]')) return;
-      
-      // Don't trigger if inside any modal
       if (target.closest('[role="dialog"]') || target.closest('.compose-modal') || target.closest('[data-modal]')) return;
-      
-      // Don't trigger if any modal is open (state check as backup)
       if (isComposeOpen || isReplyOpen || isForwardOpen) return;
-      
-      // Only handle when thread is selected and no checkboxes selected
       if (!selectedThread || checkedThreads.size > 0) return;
       
-      // Get latest email from threadEmails
       const latestEmail = threadEmails.length > 0 ? threadEmails[threadEmails.length - 1] : null;
       if (!latestEmail) return;
       
-      // R+A for Reply All (check if A is pressed while R was recently pressed)
       if (e.key.toLowerCase() === 'a' && lastKeyRef.current === 'r') {
         e.preventDefault();
         handleReply(latestEmail, 'replyAll');
@@ -1288,11 +1241,9 @@ const InboxPage = () => {
         return;
       }
       
-      // R for Reply
       if (e.key.toLowerCase() === 'r' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         lastKeyRef.current = 'r';
-        // Set timeout to clear if A is not pressed
         setTimeout(() => {
           if (lastKeyRef.current === 'r') {
             handleReply(latestEmail, 'reply');
@@ -1302,7 +1253,6 @@ const InboxPage = () => {
         return;
       }
       
-      // F for Forward
       if (e.key.toLowerCase() === 'f' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         handleForward(latestEmail);
@@ -1332,7 +1282,6 @@ const InboxPage = () => {
   const hasCheckedThreads = checkedThreads.size > 0;
   const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 
-  // Get mode for ThreadDetail
   const getThreadMode = () => {
     if (isAwaitingView) return 'awaiting';
     if (isPromisesView) return 'promise';
@@ -1346,24 +1295,21 @@ const InboxPage = () => {
         <ComposioConnectionOverlay userEmail={currentUser?.email || ""} />
       )}
 
-      {/* Sync Loading Overlay - Shows for 10 seconds after auth */}
+      {/* Sync Loading Overlay */}
       {showSyncLoading && (
         <SyncLoadingOverlay onHide={() => setShowSyncLoading(false)} />
       )}
 
-      {/* Global styles */}
-
       <div 
         className={`fixed inset-0 bg-[#1a1a1a] ${needsComposioConnection ? 'blur-sm pointer-events-none' : ''}`} 
       >
-      <Sidebar 
+        <Sidebar 
           activePage="inbox"
           userEmail={currentUser?.email || ""}
           userName={userProfile?.firstName ? `${userProfile.firstName} ${userProfile.lastName || ""}`.trim() : undefined}
           avatarLetter={userProfile?.firstName?.[0]?.toUpperCase() || currentUser?.email?.[0]?.toUpperCase() || "U"}
         />
 
-        {/* ==================== MOBILE/TABLET: Sidebar Component ==================== */}
         <MobileSidebar
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -1372,13 +1318,11 @@ const InboxPage = () => {
           currentUser={currentUser}
         />
 
-        {/* ==================== MAIN CONTAINER ==================== */}
         <div className={`
           fixed inset-0 lg:top-0 lg:right-0 lg:left-16 bg-[#2d2d2d] lg:rounded-bl-2xl flex flex-col
           ${(hasCheckedThreads || isComposeOpen || isReplyOpen || isForwardOpen || hasThreadSelection) ? 'lg:bottom-12' : 'lg:bottom-8'}
         `}>
           
-          {/* ==================== MOBILE SELECTION BAR ==================== */}
           <MobileSelectionBar
             selectedCount={checkedThreads.size}
             totalCount={currentThreads.length}
@@ -1390,9 +1334,7 @@ const InboxPage = () => {
             onDelete={handleBatchDelete}
           />
           
-          {/* ==================== TOP NAVBAR ==================== */}
           <nav className="flex-shrink-0 border-b border-zinc-700/50">
-            {/* Mobile/Tablet Header */}
             <div className="flex lg:hidden items-center justify-between h-14 px-3">
               <div className="flex items-center">
                 <button 
@@ -1425,7 +1367,6 @@ const InboxPage = () => {
               </div>
             </div>
 
-            {/* Desktop Header */}
             <div className="hidden lg:flex items-center justify-between px-6 pt-4">
               <div className="flex items-center gap-4">
                 <div className="pb-4">
@@ -1445,10 +1386,8 @@ const InboxPage = () => {
                 />
               </div>
               <div className="flex items-center gap-1 pb-4">
-                {/* Batch Action Icons - Only show when threads selected */}
                 {checkedThreads.size > 0 && (
                   <>
-                    {/* Mark Read */}
                     <button
                       onClick={handleBatchMarkAsRead}
                       className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
@@ -1456,7 +1395,6 @@ const InboxPage = () => {
                     >
                       <MailOpen className="w-5 h-5" />
                     </button>
-                    {/* Mark Unread */}
                     <button
                       onClick={handleBatchMarkAsUnread}
                       className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
@@ -1464,7 +1402,6 @@ const InboxPage = () => {
                     >
                       <Mail className="w-5 h-5" />
                     </button>
-                    {/* Mark Done */}
                     <button
                       onClick={handleBatchMarkAsDone}
                       className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
@@ -1472,7 +1409,6 @@ const InboxPage = () => {
                     >
                       <Check className="w-5 h-5" />
                     </button>
-                    {/* Delete */}
                     <button
                       onClick={handleBatchDelete}
                       className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-red-400"
@@ -1480,7 +1416,6 @@ const InboxPage = () => {
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
-                    {/* Divider */}
                     <div className="w-px h-5 bg-zinc-700 mx-1" />
                   </>
                 )}
@@ -1503,17 +1438,14 @@ const InboxPage = () => {
             </div>
           </nav>
 
-          {/* ==================== MAIN CONTENT AREA ==================== */}
           <div className="flex-1 flex overflow-hidden">
             
-            {/* ===== LIST PANEL ===== */}
             <div 
               className={`
                 overflow-y-auto hide-scrollbar
                 ${hasThreadSelection && !isExpanded ? 'hidden lg:block lg:w-[30%] lg:border-r lg:border-zinc-700/50' : 'w-full'}
               `}
             >
-              {/* PROMISES - Use existing PromiseList */}
               {isPromisesView && (
                 <PromiseList
                   threads={currentThreads}
@@ -1526,7 +1458,6 @@ const InboxPage = () => {
                 />
               )}
               
-              {/* AWAITING - Use existing AwaitingList */}
               {isAwaitingView && (
                 <AwaitingList
                   threads={currentThreads}
@@ -1539,7 +1470,6 @@ const InboxPage = () => {
                 />
               )}
               
-              {/* URGENT/IMPORTANT/OTHERS - Use new ThreadList */}
               {!isPromisesView && !isAwaitingView && (
                 <ThreadList
                   threads={currentThreads}
@@ -1566,7 +1496,6 @@ const InboxPage = () => {
               )}
             </div>
 
-            {/* ===== DETAIL PANEL ===== */}
             <div 
               className={`
                 hidden lg:flex flex-col bg-[#2d2d2d] overflow-hidden
@@ -1603,7 +1532,6 @@ const InboxPage = () => {
               )}
             </div>
 
-            {/* ===== PROFILE PANEL ===== */}
             <div 
               className={`
                 hidden lg:flex flex-col bg-[#2d2d2d] border-l border-zinc-700/50 overflow-hidden
@@ -1618,7 +1546,6 @@ const InboxPage = () => {
                       {(() => {
                         const participants = new Set<string>();
                         
-                        // Helper: Extract email from "Name <email>" format
                         const extractEmailAddress = (str: string): string => {
                           if (!str) return '';
                           const match = str.match(/<(.+)>/);
@@ -1626,9 +1553,7 @@ const InboxPage = () => {
                         };
                         
                         threadEmails.forEach(email => {
-                          // Add sender (already just email)
                           if (email.senderEmail) participants.add(email.senderEmail);
-                          // Add recipients - extract email from "Name <email>" format
                           if (email.to && Array.isArray(email.to)) {
                             email.to.forEach((recipient: string) => {
                               const emailAddr = extractEmailAddress(recipient);
@@ -1658,7 +1583,6 @@ const InboxPage = () => {
               )}
             </div>
 
-            {/* ===== MOBILE: Full screen thread detail ===== */}
             {hasThreadSelection && selectedThread && (
               <MobileThreadDetail 
                 thread={selectedThread}
@@ -1678,8 +1602,7 @@ const InboxPage = () => {
           
         </div>
         
-        {/* ==================== KEYBOARD SHORTCUTS BAR ==================== */}
-        {/* Compose shortcuts - when compose or reply modal is open */}
+        {/* Keyboard Shortcuts Bars */}
         {(isComposeOpen || isReplyOpen || isForwardOpen) && (
           <div className="hidden lg:flex fixed bottom-0 left-16 right-0 h-12 bg-[#1a1a1a] items-center justify-center gap-8 z-20">
             <div className="flex items-center gap-1.5">
@@ -1709,7 +1632,6 @@ const InboxPage = () => {
           </div>
         )}
         
-        {/* Checkbox shortcuts - when threads are checked */}
         {!isComposeOpen && !isReplyOpen && !isForwardOpen && hasCheckedThreads && (
           <div className="hidden lg:flex fixed bottom-0 left-16 right-0 h-12 bg-[#1a1a1a] items-center justify-center gap-8 z-20">
             <div className="flex items-center gap-1.5">
@@ -1739,7 +1661,6 @@ const InboxPage = () => {
           </div>
         )}
         
-        {/* v4.0: Reply/Forward shortcuts - when viewing thread (no checkboxes, no modals) */}
         {!isComposeOpen && !isReplyOpen && !isForwardOpen && !hasCheckedThreads && hasThreadSelection && (
           <div className="hidden lg:flex fixed bottom-0 left-16 right-0 h-12 bg-[#1a1a1a] items-center justify-center gap-8 z-20">
             <div className="flex items-center gap-1.5">
@@ -1757,7 +1678,7 @@ const InboxPage = () => {
           </div>
         )}
         
-        {/* ==================== EXPANDED OVERLAY ==================== */}
+        {/* Expanded Overlay */}
         {isExpanded && hasThreadSelection && selectedThread && (
           <>
             <div 
@@ -1801,7 +1722,6 @@ const InboxPage = () => {
                         {(() => {
                           const participants = new Set<string>();
                           
-                          // Helper: Extract email from "Name <email>" format
                           const extractEmailAddress = (str: string): string => {
                             if (!str) return '';
                             const match = str.match(/<(.+)>/);
@@ -1809,9 +1729,7 @@ const InboxPage = () => {
                           };
                           
                           threadEmails.forEach(email => {
-                            // Add sender (already just email)
                             if (email.senderEmail) participants.add(email.senderEmail);
-                            // Add recipients - extract email from "Name <email>" format
                             if (email.to && Array.isArray(email.to)) {
                               email.to.forEach((recipient: string) => {
                                 const emailAddr = extractEmailAddress(recipient);
@@ -1837,7 +1755,7 @@ const InboxPage = () => {
           </>
         )}
         
-        {/* Toast for undo delete */}
+        {/* Toasts and Modals */}
         {toast.show && (
           <UndoToast
             message={toast.message}
@@ -1846,18 +1764,16 @@ const InboxPage = () => {
           />
         )}
         
-        {/* Compose Modal */}
         <ComposeModal
           key={undoComposeData?.type === 'compose' ? 'undo' : 'normal'}
           isOpen={isComposeOpen}
           onClose={() => {
             setIsComposeOpen(false);
-            setUndoComposeData(null); // Clear undo data when modal closes
+            setUndoComposeData(null);
           }}
           userEmail={currentUser?.email || ''}
           userTimezone={backendUserData?.timezone}
           onEmailSent={handleEmailSent}
-          // Undo restore: pass initial values if available
           initialTo={undoComposeData?.type === 'compose' ? undoComposeData.to : undefined}
           initialCc={undoComposeData?.type === 'compose' ? undoComposeData.cc : undefined}
           initialBcc={undoComposeData?.type === 'compose' ? undoComposeData.bcc : undefined}
@@ -1866,14 +1782,13 @@ const InboxPage = () => {
           initialAttachments={undoComposeData?.type === 'compose' ? undoComposeData.attachments : undefined}
         />
         
-        {/* Reply Modal */}
         {isReplyOpen && replyToEmail && (
           <ReplyModal
             key={undoComposeData?.type === 'reply' ? 'undo' : 'normal'}
             isOpen={isReplyOpen}
             onClose={() => {
               setIsReplyOpen(false);
-              setUndoComposeData(null); // Clear undo data when modal closes
+              setUndoComposeData(null);
             }}
             mode={replyMode}
             originalEmail={replyToEmail}
@@ -1884,7 +1799,6 @@ const InboxPage = () => {
             userTimezone={backendUserData?.timezone}
             onEmailSent={handleEmailSent}
             onReplySent={handleReplySent}
-            // Undo restore: pass initial values if available
             initialTo={undoComposeData?.type === 'reply' ? undoComposeData.to : undefined}
             initialCc={undoComposeData?.type === 'reply' ? undoComposeData.cc : undefined}
             initialBody={undoComposeData?.type === 'reply' ? undoComposeData.body_html : undefined}
@@ -1892,14 +1806,13 @@ const InboxPage = () => {
           />
         )}
         
-        {/* Forward Modal */}
         {isForwardOpen && forwardEmail && (
           <ForwardModal
             key={undoComposeData?.type === 'forward' ? 'undo' : 'normal'}
             isOpen={isForwardOpen}
             onClose={() => {
               setIsForwardOpen(false);
-              setUndoComposeData(null); // Clear undo data when modal closes
+              setUndoComposeData(null);
             }}
             originalEmail={forwardEmail}
             threadId={selectedThread?.thread_id || undoComposeData?.threadId || ''}
@@ -1907,7 +1820,6 @@ const InboxPage = () => {
             userEmail={currentUser?.email || ''}
             userTimezone={backendUserData?.timezone}
             onEmailSent={handleEmailSent}
-            // Undo restore: pass initial values if available
             initialTo={undoComposeData?.type === 'forward' ? undoComposeData.to : undefined}
             initialCc={undoComposeData?.type === 'forward' ? undoComposeData.cc : undefined}
             initialBody={undoComposeData?.type === 'forward' ? undoComposeData.body_html : undefined}
@@ -1915,7 +1827,6 @@ const InboxPage = () => {
           />
         )}
         
-        {/* Email Send Undo Toast */}
         {emailUndoToast && emailUndoToast.show && (
           <EmailSendUndoToast
             emailId={emailUndoToast.emailId}
@@ -1925,21 +1836,18 @@ const InboxPage = () => {
           />
         )}
         
-        {/* Category Move Toast (Promise/Awaiting notifications) */}
         <CategoryMoveToast
           notifications={categoryMoveNotifications}
           onDismiss={dismissCategoryMoveNotification}
           autoHideDuration={3000}
         />
         
-        {/* Search Modal */}
         <SearchModal
           isOpen={isSearchOpen}
           onClose={() => setIsSearchOpen(false)}
           userEmail={currentUser?.email || ''}
         />
         
-        {/* Create Label Modal (from context menu) */}
         <CreateLabelModal
           isOpen={isCreateLabelOpen}
           onClose={() => setIsCreateLabelOpen(false)}
