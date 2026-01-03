@@ -280,6 +280,14 @@ All colors MUST be HSL.
    and will NOT affect other pages (inbox, etc.)
    ================================================ */
 
+/* Override global overflow:hidden for landing page */
+html:has(.landing-page),
+body:has(.landing-page),
+#root:has(.landing-page) {
+  overflow: visible !important;
+  height: auto !important;
+}
+
 .landing-page {
   --background: 120 25% 90%;
   --foreground: 150 30% 15%;
