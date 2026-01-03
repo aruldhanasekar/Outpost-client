@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // ✅ Guard: Only save once per session
     const sessionKey = `timezone_saved_${uid}`;
     if (sessionStorage.getItem(sessionKey)) {
-      console.log('⏭️ Timezone already saved this session');
+      console.log('⭕️ Timezone already saved this session');
       return;
     }
     
@@ -107,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ==================== EFFECT 1: OAuth Message Listener ====================
   // ✅ CRITICAL: Empty dependency - mount ONCE
   useEffect(() => {
-    console.log('🔌 Setting up OAuth message listener (ONCE)');
+    console.log('📌 Setting up OAuth message listener (ONCE)');
     
     const handleMessage = async (event: MessageEvent) => {
     if (event.data?.type === 'OAUTH_SUCCESS') {
@@ -132,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     window.addEventListener('message', handleMessage);
     return () => {
-      console.log('🔌 Cleaning up OAuth listener');
+      console.log('📌 Cleaning up OAuth listener');
       window.removeEventListener('message', handleMessage);
     };
   }, []); // ✅ Empty array - mount once, never re-attach
@@ -154,6 +154,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(null);
         setBackendUserData(null);
         setLoading(false);
+        // Clear backend loading guard so fresh data is fetched on next sign-in
+        Object.keys(sessionStorage).forEach(key => {
+          if (key.startsWith('backend_loading_')) {
+            sessionStorage.removeItem(key);
+          }
+        });
         console.log('👤 No user, loading complete');
         return;
       }
@@ -193,7 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // ✅ Guard: Prevent multiple concurrent calls
       const loadKey = `backend_loading_${currentUser.uid}`;
       if (sessionStorage.getItem(loadKey)) {
-        console.log('⏭️ Backend data already loading/loaded');
+        console.log('⭕️ Backend data already loading/loaded');
         return;
       }
 
