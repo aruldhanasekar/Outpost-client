@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChange, getUserProfile, getIdToken, signInWithCustomFirebaseToken } from '../services/auth.service';
@@ -35,6 +35,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [backendUserData, setBackendUserData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Guard to prevent multiple backend calls (resets on page refresh)
+  const backendLoadingRef = useRef(false);
 
   // Capture and save user's timezone to Firestore (ONCE per session)
   const captureAndSaveTimezone = async (uid: string) => {
@@ -154,12 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(null);
         setBackendUserData(null);
         setLoading(false);
-        // Clear backend loading guard so fresh data is fetched on next sign-in
-        Object.keys(sessionStorage).forEach(key => {
-          if (key.startsWith('backend_loading_')) {
-            sessionStorage.removeItem(key);
-          }
-        });
+        backendLoadingRef.current = false; // Reset ref so fresh data is fetched on next sign-in
         console.log('👤 No user, loading complete');
         return;
       }
@@ -196,14 +194,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // ✅ Guard: Prevent multiple concurrent calls
-      const loadKey = `backend_loading_${currentUser.uid}`;
-      if (sessionStorage.getItem(loadKey)) {
+      // ✅ Guard: Prevent multiple concurrent calls (using ref - resets on page refresh)
+      if (backendLoadingRef.current) {
         console.log('⭕️ Backend data already loading/loaded');
         return;
       }
 
-      sessionStorage.setItem(loadKey, '1');
+      backendLoadingRef.current = true;
 
       try {
         console.log('📡 Fetching backend user data...');
@@ -211,7 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (!idToken) {
           console.error('⚠️ No ID token available');
-          sessionStorage.removeItem(loadKey);
+          backendLoadingRef.current = false;
           return;
         }
 
@@ -222,7 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         console.error('⚠️ Backend fetch failed:', error);
         setBackendUserData(null);
-        sessionStorage.removeItem(loadKey); // Allow retry on next mount
+        backendLoadingRef.current = false; // Allow retry on next attempt
       }
     };
 
