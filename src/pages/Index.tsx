@@ -600,8 +600,26 @@ const Index = () => {
               className="hidden md:flex w-80 bg-black text-white p-8 relative overflow-hidden items-center"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
-              {/* Direct Auth Info */}
-              {(isAdminMode || !isAdminMode) && (
+              {/* Waitlist Info - Initial state (not admin) */}
+              {!isAdminMode && !composioStep1Complete && (
+                <div className={`space-y-4 transition-opacity duration-200 ${hoveredButton === 'composio' ? 'opacity-0' : 'opacity-100'}`}>
+                  <p className="text-sm leading-relaxed">
+                    Outpost Authentication is currently under Google verification.
+                  </p>
+                  <p className="text-sm leading-relaxed text-gray-400">
+                    Join the waitlist for <span className="text-white">Outpost authentication</span> access.
+                  </p>
+                  <p className="text-sm leading-relaxed text-gray-400">
+                    We'll notify you via <span className="text-white">Gmail</span> once your email is added as a test user.
+                  </p>
+                  <p className="text-sm italic text-gray-300 mt-6">
+                    Recommended by Outpost
+                  </p>
+                </div>
+              )}
+
+              {/* Direct Auth Info - Admin mode */}
+              {isAdminMode && (
                 <div className={`space-y-4 transition-opacity duration-200 ${hoveredButton === 'direct' || !hoveredButton ? 'opacity-100' : 'opacity-0'}`}>
                   <p className="text-sm leading-relaxed">
                     Outpost Authentication is currently under Google verification.
