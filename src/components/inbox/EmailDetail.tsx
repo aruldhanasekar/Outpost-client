@@ -324,7 +324,7 @@ export function EmailDetail({
                 <iframe
                   ref={iframeRef}
                   srcDoc={htmlContent}
-                  sandbox="allow-same-origin"
+                  sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                   className="w-full border-0 rounded-lg bg-white"
                   style={{ height: `${iframeHeight}px` }}
                   title="Email content"

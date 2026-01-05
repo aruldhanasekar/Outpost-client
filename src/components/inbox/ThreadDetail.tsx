@@ -633,7 +633,7 @@ function EmailCard({ email, userEmail, getAuthToken, onReply, onForward }: Email
           <iframe
             ref={iframeRef}
             srcDoc={htmlContent}
-            sandbox="allow-same-origin"
+            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             className="w-full border-0 transition-[height] duration-200 ease-out"
             style={{ height: `${iframeHeight}px`, background: 'transparent' }}
             title="Email content"
