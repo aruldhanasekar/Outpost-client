@@ -217,14 +217,6 @@ export default function WaitlistPage() {
               'Get Early Access'
             )}
           </button>
-
-          {/* Privacy Note */}
-          <p className="text-zinc-500 text-xs text-center">
-            By joining, you agree to our{' '}
-            <a href="/privacy" className="text-[#8FA8A3] hover:underline">Privacy Policy</a>
-            {' '}and{' '}
-            <a href="/terms" className="text-[#8FA8A3] hover:underline">Terms of Service</a>.
-          </p>
         </form>
       </div>
     </div>
