@@ -470,6 +470,7 @@ function EmailCard({ email, userEmail, getAuthToken, onReply, onForward }: Email
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <base target="_blank">
         <style>
           * { box-sizing: border-box; -ms-overflow-style: none; scrollbar-width: none; }
           *::-webkit-scrollbar { display: none; }
@@ -492,7 +493,23 @@ function EmailCard({ email, userEmail, getAuthToken, onReply, onForward }: Email
           pre { white-space: pre-wrap; word-wrap: break-word; }
         </style>
       </head>
-      <body>${cleanBody}</body>
+      <body>
+        ${cleanBody}
+        <script>
+          // Ensure all links open in new tab
+          document.addEventListener('click', function(e) {
+            var target = e.target;
+            while (target && target.tagName !== 'A') {
+              target = target.parentElement;
+            }
+            if (target && target.tagName === 'A' && target.href) {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(target.href, '_blank', 'noopener,noreferrer');
+            }
+          }, true);
+        </script>
+      </body>
     </html>
   `;
 

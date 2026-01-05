@@ -80,6 +80,7 @@ export function EmailDetail({
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <base target="_blank">
         <style>
           * {
             -ms-overflow-style: none;
@@ -158,6 +159,19 @@ export function EmailDetail({
           <div class="content">${email.body}</div>
         </div>
         <script>
+          // Ensure all links open in new tab
+          document.addEventListener('click', function(e) {
+            var target = e.target;
+            while (target && target.tagName !== 'A') {
+              target = target.parentElement;
+            }
+            if (target && target.tagName === 'A' && target.href) {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(target.href, '_blank', 'noopener,noreferrer');
+            }
+          }, true);
+          
           function scaleContent() {
             const wrapper = document.querySelector('.content-wrapper');
             const content = document.querySelector('.content');
