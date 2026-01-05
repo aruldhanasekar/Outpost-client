@@ -14,7 +14,6 @@ interface WaitlistFormData {
   biggestInboxProblems: string[];
   inboxStressSignals: string[];
   currentEmailTool: string;
-  openToFeedbackCall: boolean | null;
 }
 
 const initialFormData: WaitlistFormData = {
@@ -24,7 +23,6 @@ const initialFormData: WaitlistFormData = {
   biggestInboxProblems: [],
   inboxStressSignals: [],
   currentEmailTool: '',
-  openToFeedbackCall: null,
 };
 
 // Dropdown options
@@ -128,10 +126,6 @@ export default function WaitlistPage() {
     }
     if (formData.inboxStressSignals.length === 0) {
       setError('Please select at least one statement that describes your situation');
-      return false;
-    }
-    if (formData.openToFeedbackCall === null) {
-      setError('Please indicate if you are open to a feedback call');
       return false;
     }
     return true;
@@ -335,47 +329,6 @@ export default function WaitlistPage() {
                 <option key={option} value={option} className="bg-white">{option}</option>
               ))}
             </select>
-          </div>
-
-          {/* Feedback Call - Yes/No */}
-          <div>
-            <label className="block text-zinc-900 text-sm font-medium mb-3">
-              Would you be open to a 15-minute feedback call? <span className="text-red-500">*</span>
-            </label>
-            <div className="flex gap-4">
-              <label 
-                className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
-                  formData.openToFeedbackCall === true 
-                    ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
-                    : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="openToFeedbackCall"
-                  checked={formData.openToFeedbackCall === true}
-                  onChange={() => handleInputChange('openToFeedbackCall', true)}
-                  className="w-4 h-4 text-[#8FA8A3] bg-white border-zinc-300 focus:ring-[#8FA8A3] focus:ring-offset-0"
-                />
-                <span className="text-zinc-700">Yes</span>
-              </label>
-              <label 
-                className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
-                  formData.openToFeedbackCall === false 
-                    ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
-                    : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="openToFeedbackCall"
-                  checked={formData.openToFeedbackCall === false}
-                  onChange={() => handleInputChange('openToFeedbackCall', false)}
-                  className="w-4 h-4 text-[#8FA8A3] bg-white border-zinc-300 focus:ring-[#8FA8A3] focus:ring-offset-0"
-                />
-                <span className="text-zinc-700">No</span>
-              </label>
-            </div>
           </div>
 
           {/* Error Message */}
