@@ -1,28 +1,24 @@
-// WaitlistPage.tsx - Waitlist signup page
-// Standalone page with dark theme and single column form
+// Waitlist.tsx - Early Access signup page
+// Simplified form with 4 questions
 
 import { useState, useEffect } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase.config';
-import { Loader2, CheckCircle, ChevronDown } from 'lucide-react';
+import { Loader2, CheckCircle } from 'lucide-react';
 
 // Form data interface
 interface WaitlistFormData {
   email: string;
-  name: string;
   role: string;
-  biggestInboxProblems: string[];
-  inboxStressSignals: string[];
-  currentEmailTool: string;
+  dailyEmailVolume: string;
+  biggestInboxProblem: string;
 }
 
 const initialFormData: WaitlistFormData = {
   email: '',
-  name: '',
   role: '',
-  biggestInboxProblems: [],
-  inboxStressSignals: [],
-  currentEmailTool: '',
+  dailyEmailVolume: '',
+  biggestInboxProblem: '',
 };
 
 // Dropdown options
@@ -34,29 +30,20 @@ const roleOptions = [
   'Other',
 ];
 
-const currentEmailToolOptions = [
-  'Default inbox only (Gmail / Outlook)',
-  'Rules, filters, or labels',
-  'Shared inbox or helpdesk tool',
-  'AI email tools',
-  'Manual system (folders, flags, reminders)',
-  'Other',
-  'Prefer not to say',
+const dailyEmailVolumeOptions = [
+  'Less than 20',
+  '20–50',
+  '50–100',
+  '100–300',
+  '300+',
 ];
 
 const biggestProblemOptions = [
-  'Too many emails to read',
-  'Writing the same replies again and again',
   'Missing important or urgent emails',
+  'Too many emails to read',
+  'Writing the same replies repeatedly',
   'Slow response times',
-  'Messy inbox with no clear system',
-];
-
-const stressSignalOptions = [
-  'I often miss important or urgent emails',
-  'I reply late even when emails are important',
-  'I feel stressed opening my inbox',
-  'Email is annoying but manageable',
+  'Messy inbox with no system',
 ];
 
 export default function WaitlistPage() {
@@ -64,17 +51,11 @@ export default function WaitlistPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Collapsible sections state (collapsed by default)
-  const [isProblemExpanded, setIsProblemExpanded] = useState(false);
-  const [isStressExpanded, setIsStressExpanded] = useState(false);
 
   // Block browser back button - prevent going back to index page
   useEffect(() => {
-    // Push current state to history
     window.history.pushState(null, '', window.location.href);
     
-    // Handle back button press
     const handlePopState = () => {
       window.history.pushState(null, '', window.location.href);
     };
@@ -86,46 +67,30 @@ export default function WaitlistPage() {
     };
   }, []);
 
-  const handleInputChange = (field: keyof WaitlistFormData, value: string | boolean) => {
+  const handleInputChange = (field: keyof WaitlistFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    setError(null);
-  };
-
-  // Handle multi-select checkbox toggle
-  const handleMultiSelectToggle = (field: 'biggestInboxProblems' | 'inboxStressSignals', value: string) => {
-    setFormData(prev => {
-      const currentValues = prev[field];
-      const newValues = currentValues.includes(value)
-        ? currentValues.filter(v => v !== value)
-        : [...currentValues, value];
-      return { ...prev, [field]: newValues };
-    });
     setError(null);
   };
 
   const validateForm = (): boolean => {
     if (!formData.email.trim()) {
-      setError('Email is required');
+      setError('Work email is required');
       return false;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       setError('Please enter a valid email address');
       return false;
     }
-    if (!formData.name.trim()) {
-      setError('Name is required');
-      return false;
-    }
     if (!formData.role) {
       setError('Please select your role');
       return false;
     }
-    if (formData.biggestInboxProblems.length === 0) {
-      setError('Please select at least one inbox problem');
+    if (!formData.dailyEmailVolume) {
+      setError('Please select your daily email volume');
       return false;
     }
-    if (formData.inboxStressSignals.length === 0) {
-      setError('Please select at least one statement that describes your situation');
+    if (!formData.biggestInboxProblem) {
+      setError('Please select your biggest inbox problem');
       return false;
     }
     return true;
@@ -189,30 +154,16 @@ export default function WaitlistPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Email */}
+          {/* Work Email */}
           <div>
             <label className="block text-zinc-900 text-sm font-medium mb-2">
-              Email address <span className="text-red-500">*</span>
+              Work email <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
-              placeholder="you@example.com"
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#8FA8A3] transition-colors"
-            />
-          </div>
-
-          {/* Name */}
-          <div>
-            <label className="block text-zinc-900 text-sm font-medium mb-2">
-              Your name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder="John Doe"
+              placeholder="you@company.com"
               className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#8FA8A3] transition-colors"
             />
           </div>
@@ -235,97 +186,37 @@ export default function WaitlistPage() {
             </select>
           </div>
 
-          {/* Biggest Inbox Problem - Collapsible Multi-select */}
-          <div className="border border-zinc-300 rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setIsProblemExpanded(!isProblemExpanded)}
-              className="w-full flex items-center justify-between p-4 bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
-            >
-              <span className="text-zinc-900 text-sm font-medium">
-                What is your biggest problem with email today? <span className="text-red-500">*</span>
-                {formData.biggestInboxProblems.length > 0 && (
-                  <span className="ml-2 text-[#8FA8A3]">({formData.biggestInboxProblems.length} selected)</span>
-                )}
-              </span>
-              <ChevronDown className={`w-5 h-5 text-zinc-500 transition-transform ${isProblemExpanded ? 'rotate-180' : ''}`} />
-            </button>
-            {isProblemExpanded && (
-              <div className="p-4 bg-white border-t border-zinc-300 space-y-3">
-                {biggestProblemOptions.map(option => (
-                  <label 
-                    key={option} 
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      formData.biggestInboxProblems.includes(option) 
-                        ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
-                        : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.biggestInboxProblems.includes(option)}
-                      onChange={() => handleMultiSelectToggle('biggestInboxProblems', option)}
-                      className="w-4 h-4 text-[#8FA8A3] bg-white border-zinc-300 rounded focus:ring-[#8FA8A3] focus:ring-offset-0"
-                    />
-                    <span className="text-zinc-700 text-sm">{option}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Inbox Stress Signal - Collapsible Multi-select */}
-          <div className="border border-zinc-300 rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setIsStressExpanded(!isStressExpanded)}
-              className="w-full flex items-center justify-between p-4 bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
-            >
-              <span className="text-zinc-900 text-sm font-medium">
-                Which statement best describes your situation? <span className="text-red-500">*</span>
-                {formData.inboxStressSignals.length > 0 && (
-                  <span className="ml-2 text-[#8FA8A3]">({formData.inboxStressSignals.length} selected)</span>
-                )}
-              </span>
-              <ChevronDown className={`w-5 h-5 text-zinc-500 transition-transform ${isStressExpanded ? 'rotate-180' : ''}`} />
-            </button>
-            {isStressExpanded && (
-              <div className="p-4 bg-white border-t border-zinc-300 space-y-3">
-                {stressSignalOptions.map(option => (
-                  <label 
-                    key={option} 
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      formData.inboxStressSignals.includes(option) 
-                        ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
-                        : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.inboxStressSignals.includes(option)}
-                      onChange={() => handleMultiSelectToggle('inboxStressSignals', option)}
-                      className="w-4 h-4 text-[#8FA8A3] bg-white border-zinc-300 rounded focus:ring-[#8FA8A3] focus:ring-offset-0"
-                    />
-                    <span className="text-zinc-700 text-sm">{option}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Current Email Tool - Dropdown */}
+          {/* Daily Email Volume */}
           <div>
             <label className="block text-zinc-900 text-sm font-medium mb-2">
-              What AI productive tool are you using?
+              About how many emails do you handle daily? <span className="text-red-500">*</span>
             </label>
             <select
-              value={formData.currentEmailTool}
-              onChange={(e) => handleInputChange('currentEmailTool', e.target.value)}
+              value={formData.dailyEmailVolume}
+              onChange={(e) => handleInputChange('dailyEmailVolume', e.target.value)}
               className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
               style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
             >
-              <option value="" className="bg-white">Select an option</option>
-              {currentEmailToolOptions.map(option => (
+              <option value="" className="bg-white">Select daily volume</option>
+              {dailyEmailVolumeOptions.map(option => (
+                <option key={option} value={option} className="bg-white">{option}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Biggest Inbox Problem */}
+          <div>
+            <label className="block text-zinc-900 text-sm font-medium mb-2">
+              What problem are you hoping Outpost will help with? <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={formData.biggestInboxProblem}
+              onChange={(e) => handleInputChange('biggestInboxProblem', e.target.value)}
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+            >
+              <option value="" className="bg-white">Select your biggest problem</option>
+              {biggestProblemOptions.map(option => (
                 <option key={option} value={option} className="bg-white">{option}</option>
               ))}
             </select>
