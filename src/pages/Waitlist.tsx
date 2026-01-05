@@ -150,16 +150,16 @@ export default function WaitlistPage() {
   // Thank you screen
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
         <div className="max-w-md w-full text-center">
           <div className="w-16 h-16 bg-[#8FA8A3]/20 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-8 h-8 text-[#8FA8A3]" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-4" style={{ fontFamily: "'Manrope', sans-serif" }}>
+          <h1 className="text-3xl font-bold text-zinc-900 mb-4" style={{ fontFamily: "'Manrope', sans-serif" }}>
             You're on the list!
           </h1>
-          <p className="text-zinc-400 text-lg mb-8">
-            Thank you for joining the Outpost waitlist. We'll notify you as soon as we're ready to welcome you aboard.
+          <p className="text-zinc-600 text-lg mb-8">
+            Thank you for signing up for early access. We'll notify you as soon as we're ready to welcome you aboard.
           </p>
           <a 
             href="/"
@@ -173,13 +173,13 @@ export default function WaitlistPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="py-6 px-4 border-b border-zinc-800">
+      <header className="py-6 px-4 border-b border-zinc-200">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <a href="/" className="flex items-center gap-2">
             <Mail className="w-6 h-6 text-[#8FA8A3]" />
-            <span className="text-white font-semibold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>
+            <span className="text-zinc-900 font-semibold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>
               Outpost
             </span>
           </a>
@@ -190,10 +190,10 @@ export default function WaitlistPage() {
       <div className="max-w-2xl mx-auto px-4 py-12">
         {/* Title Section */}
         <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-4" style={{ fontFamily: "'Manrope', sans-serif" }}>
-            Join the Waitlist
+          <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 mb-4" style={{ fontFamily: "'Manrope', sans-serif" }}>
+            Get early access to Outpost
           </h1>
-          <p className="text-zinc-400 text-lg">
+          <p className="text-zinc-600 text-lg">
             Be the first to experience AI-powered email management that actually works.
           </p>
         </div>
@@ -202,101 +202,101 @@ export default function WaitlistPage() {
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Email */}
           <div>
-            <label className="block text-white text-sm font-medium mb-2">
-              Email address <span className="text-red-400">*</span>
+            <label className="block text-zinc-900 text-sm font-medium mb-2">
+              Email address <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               placeholder="you@example.com"
-              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-[#8FA8A3] transition-colors"
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#8FA8A3] transition-colors"
             />
           </div>
 
           {/* Name */}
           <div>
-            <label className="block text-white text-sm font-medium mb-2">
-              Your name <span className="text-red-400">*</span>
+            <label className="block text-zinc-900 text-sm font-medium mb-2">
+              Your name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
               placeholder="John Doe"
-              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-[#8FA8A3] transition-colors"
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#8FA8A3] transition-colors"
             />
           </div>
 
           {/* Role */}
           <div>
-            <label className="block text-white text-sm font-medium mb-2">
-              What best describes your role? <span className="text-red-400">*</span>
+            <label className="block text-zinc-900 text-sm font-medium mb-2">
+              What best describes your role? <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.role}
               onChange={(e) => handleInputChange('role', e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
             >
-              <option value="" className="bg-zinc-900">Select your role</option>
+              <option value="" className="bg-white">Select your role</option>
               {roleOptions.map(option => (
-                <option key={option} value={option} className="bg-zinc-900">{option}</option>
+                <option key={option} value={option} className="bg-white">{option}</option>
               ))}
             </select>
           </div>
 
           {/* Daily Email Volume */}
           <div>
-            <label className="block text-white text-sm font-medium mb-2">
-              About how many emails do you handle daily? <span className="text-red-400">*</span>
+            <label className="block text-zinc-900 text-sm font-medium mb-2">
+              About how many emails do you handle daily? <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.dailyEmailVolume}
               onChange={(e) => handleInputChange('dailyEmailVolume', e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
             >
-              <option value="" className="bg-zinc-900">Select daily volume</option>
+              <option value="" className="bg-white">Select daily volume</option>
               {dailyEmailVolumeOptions.map(option => (
-                <option key={option} value={option} className="bg-zinc-900">{option}</option>
+                <option key={option} value={option} className="bg-white">{option}</option>
               ))}
             </select>
           </div>
 
           {/* Biggest Inbox Problem - Collapsible Multi-select */}
-          <div className="border border-zinc-700 rounded-lg overflow-hidden">
+          <div className="border border-zinc-300 rounded-lg overflow-hidden">
             <button
               type="button"
               onClick={() => setIsProblemExpanded(!isProblemExpanded)}
-              className="w-full flex items-center justify-between p-4 bg-zinc-900 hover:bg-zinc-800 transition-colors text-left"
+              className="w-full flex items-center justify-between p-4 bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
             >
-              <span className="text-white text-sm font-medium">
-                What is your biggest problem with email today? <span className="text-red-400">*</span>
+              <span className="text-zinc-900 text-sm font-medium">
+                What is your biggest problem with email today? <span className="text-red-500">*</span>
                 {formData.biggestInboxProblems.length > 0 && (
                   <span className="ml-2 text-[#8FA8A3]">({formData.biggestInboxProblems.length} selected)</span>
                 )}
               </span>
-              <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform ${isProblemExpanded ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-5 h-5 text-zinc-500 transition-transform ${isProblemExpanded ? 'rotate-180' : ''}`} />
             </button>
             {isProblemExpanded && (
-              <div className="p-4 bg-zinc-900/50 border-t border-zinc-700 space-y-3">
+              <div className="p-4 bg-white border-t border-zinc-300 space-y-3">
                 {biggestProblemOptions.map(option => (
                   <label 
                     key={option} 
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                       formData.biggestInboxProblems.includes(option) 
                         ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
-                        : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
+                        : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400'
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={formData.biggestInboxProblems.includes(option)}
                       onChange={() => handleMultiSelectToggle('biggestInboxProblems', option)}
-                      className="w-4 h-4 text-[#8FA8A3] bg-zinc-900 border-zinc-600 rounded focus:ring-[#8FA8A3] focus:ring-offset-0"
+                      className="w-4 h-4 text-[#8FA8A3] bg-white border-zinc-300 rounded focus:ring-[#8FA8A3] focus:ring-offset-0"
                     />
-                    <span className="text-zinc-300 text-sm">{option}</span>
+                    <span className="text-zinc-700 text-sm">{option}</span>
                   </label>
                 ))}
               </div>
@@ -304,38 +304,38 @@ export default function WaitlistPage() {
           </div>
 
           {/* Inbox Stress Signal - Collapsible Multi-select */}
-          <div className="border border-zinc-700 rounded-lg overflow-hidden">
+          <div className="border border-zinc-300 rounded-lg overflow-hidden">
             <button
               type="button"
               onClick={() => setIsStressExpanded(!isStressExpanded)}
-              className="w-full flex items-center justify-between p-4 bg-zinc-900 hover:bg-zinc-800 transition-colors text-left"
+              className="w-full flex items-center justify-between p-4 bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
             >
-              <span className="text-white text-sm font-medium">
-                Which statement best describes your situation? <span className="text-red-400">*</span>
+              <span className="text-zinc-900 text-sm font-medium">
+                Which statement best describes your situation? <span className="text-red-500">*</span>
                 {formData.inboxStressSignals.length > 0 && (
                   <span className="ml-2 text-[#8FA8A3]">({formData.inboxStressSignals.length} selected)</span>
                 )}
               </span>
-              <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform ${isStressExpanded ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-5 h-5 text-zinc-500 transition-transform ${isStressExpanded ? 'rotate-180' : ''}`} />
             </button>
             {isStressExpanded && (
-              <div className="p-4 bg-zinc-900/50 border-t border-zinc-700 space-y-3">
+              <div className="p-4 bg-white border-t border-zinc-300 space-y-3">
                 {stressSignalOptions.map(option => (
                   <label 
                     key={option} 
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                       formData.inboxStressSignals.includes(option) 
                         ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
-                        : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
+                        : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400'
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={formData.inboxStressSignals.includes(option)}
                       onChange={() => handleMultiSelectToggle('inboxStressSignals', option)}
-                      className="w-4 h-4 text-[#8FA8A3] bg-zinc-900 border-zinc-600 rounded focus:ring-[#8FA8A3] focus:ring-offset-0"
+                      className="w-4 h-4 text-[#8FA8A3] bg-white border-zinc-300 rounded focus:ring-[#8FA8A3] focus:ring-offset-0"
                     />
-                    <span className="text-zinc-300 text-sm">{option}</span>
+                    <span className="text-zinc-700 text-sm">{option}</span>
                   </label>
                 ))}
               </div>
@@ -344,7 +344,7 @@ export default function WaitlistPage() {
 
           {/* Current Tools or Methods - Text */}
           <div>
-            <label className="block text-white text-sm font-medium mb-2">
+            <label className="block text-zinc-900 text-sm font-medium mb-2">
               What tools or methods do you currently use to manage email?
             </label>
             <textarea
@@ -352,21 +352,21 @@ export default function WaitlistPage() {
               onChange={(e) => handleInputChange('currentToolsOrMethods', e.target.value)}
               placeholder="e.g., Labels, filters, Superhuman, SaneBox, etc."
               rows={3}
-              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-[#8FA8A3] transition-colors resize-none"
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#8FA8A3] transition-colors resize-none"
             />
           </div>
 
           {/* Feedback Call - Yes/No */}
           <div>
-            <label className="block text-white text-sm font-medium mb-3">
-              Would you be open to a 15-minute feedback call? <span className="text-red-400">*</span>
+            <label className="block text-zinc-900 text-sm font-medium mb-3">
+              Would you be open to a 15-minute feedback call? <span className="text-red-500">*</span>
             </label>
             <div className="flex gap-4">
               <label 
                 className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
                   formData.openToFeedbackCall === true 
                     ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
-                    : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
+                    : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400'
                 }`}
               >
                 <input
@@ -374,15 +374,15 @@ export default function WaitlistPage() {
                   name="openToFeedbackCall"
                   checked={formData.openToFeedbackCall === true}
                   onChange={() => handleInputChange('openToFeedbackCall', true)}
-                  className="w-4 h-4 text-[#8FA8A3] bg-zinc-900 border-zinc-600 focus:ring-[#8FA8A3] focus:ring-offset-0"
+                  className="w-4 h-4 text-[#8FA8A3] bg-white border-zinc-300 focus:ring-[#8FA8A3] focus:ring-offset-0"
                 />
-                <span className="text-zinc-300">Yes</span>
+                <span className="text-zinc-700">Yes</span>
               </label>
               <label 
                 className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
                   formData.openToFeedbackCall === false 
                     ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
-                    : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
+                    : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400'
                 }`}
               >
                 <input
@@ -390,17 +390,17 @@ export default function WaitlistPage() {
                   name="openToFeedbackCall"
                   checked={formData.openToFeedbackCall === false}
                   onChange={() => handleInputChange('openToFeedbackCall', false)}
-                  className="w-4 h-4 text-[#8FA8A3] bg-zinc-900 border-zinc-600 focus:ring-[#8FA8A3] focus:ring-offset-0"
+                  className="w-4 h-4 text-[#8FA8A3] bg-white border-zinc-300 focus:ring-[#8FA8A3] focus:ring-offset-0"
                 />
-                <span className="text-zinc-300">No</span>
+                <span className="text-zinc-700">No</span>
               </label>
             </div>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
-              <p className="text-red-400 text-sm">{error}</p>
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm">{error}</p>
             </div>
           )}
 
@@ -408,7 +408,7 @@ export default function WaitlistPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-4 bg-[#8FA8A3] hover:bg-[#7a9691] disabled:bg-zinc-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full py-4 bg-[#8FA8A3] hover:bg-[#7a9691] disabled:bg-zinc-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
               <>
@@ -416,7 +416,7 @@ export default function WaitlistPage() {
                 Submitting...
               </>
             ) : (
-              'Join Waitlist'
+              'Get Early Access'
             )}
           </button>
 
