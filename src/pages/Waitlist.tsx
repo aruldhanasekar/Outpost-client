@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase.config';
-import { Loader2, CheckCircle, Mail } from 'lucide-react';
+import { Loader2, CheckCircle, Mail, ChevronDown } from 'lucide-react';
 
 // Form data interface
 interface WaitlistFormData {
@@ -12,10 +12,8 @@ interface WaitlistFormData {
   name: string;
   role: string;
   dailyEmailVolume: string;
-  timeSpentOnInbox: string;
-  emailPlatform: string;
-  biggestInboxProblem: string;
-  inboxStressSignal: string;
+  biggestInboxProblems: string[];
+  inboxStressSignals: string[];
   currentToolsOrMethods: string;
   openToFeedbackCall: boolean | null;
 }
@@ -25,10 +23,8 @@ const initialFormData: WaitlistFormData = {
   name: '',
   role: '',
   dailyEmailVolume: '',
-  timeSpentOnInbox: '',
-  emailPlatform: '',
-  biggestInboxProblem: '',
-  inboxStressSignal: '',
+  biggestInboxProblems: [],
+  inboxStressSignals: [],
   currentToolsOrMethods: '',
   openToFeedbackCall: null,
 };
@@ -48,21 +44,6 @@ const dailyEmailVolumeOptions = [
   '50–100',
   '100–300',
   '300+',
-];
-
-const timeSpentOptions = [
-  'Less than 30 minutes',
-  '30–60 minutes',
-  '1–2 hours',
-  '2–4 hours',
-  '4+ hours',
-];
-
-const emailPlatformOptions = [
-  'Gmail',
-  'Google Workspace',
-  'Outlook',
-  'Other',
 ];
 
 const biggestProblemOptions = [
@@ -85,9 +66,25 @@ export default function WaitlistPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Collapsible sections state (collapsed by default)
+  const [isProblemExpanded, setIsProblemExpanded] = useState(false);
+  const [isStressExpanded, setIsStressExpanded] = useState(false);
 
   const handleInputChange = (field: keyof WaitlistFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    setError(null);
+  };
+
+  // Handle multi-select checkbox toggle
+  const handleMultiSelectToggle = (field: 'biggestInboxProblems' | 'inboxStressSignals', value: string) => {
+    setFormData(prev => {
+      const currentValues = prev[field];
+      const newValues = currentValues.includes(value)
+        ? currentValues.filter(v => v !== value)
+        : [...currentValues, value];
+      return { ...prev, [field]: newValues };
+    });
     setError(null);
   };
 
@@ -112,20 +109,12 @@ export default function WaitlistPage() {
       setError('Please select your daily email volume');
       return false;
     }
-    if (!formData.timeSpentOnInbox) {
-      setError('Please select time spent on inbox');
+    if (formData.biggestInboxProblems.length === 0) {
+      setError('Please select at least one inbox problem');
       return false;
     }
-    if (!formData.emailPlatform) {
-      setError('Please select your email platform');
-      return false;
-    }
-    if (!formData.biggestInboxProblem) {
-      setError('Please select your biggest inbox problem');
-      return false;
-    }
-    if (!formData.inboxStressSignal) {
-      setError('Please select your inbox stress signal');
+    if (formData.inboxStressSignals.length === 0) {
+      setError('Please select at least one statement that describes your situation');
       return false;
     }
     if (formData.openToFeedbackCall === null) {
@@ -275,98 +264,82 @@ export default function WaitlistPage() {
             </select>
           </div>
 
-          {/* Time Spent on Inbox */}
-          <div>
-            <label className="block text-white text-sm font-medium mb-2">
-              About how much time do you spend on email each day? <span className="text-red-400">*</span>
-            </label>
-            <select
-              value={formData.timeSpentOnInbox}
-              onChange={(e) => handleInputChange('timeSpentOnInbox', e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+          {/* Biggest Inbox Problem - Collapsible Multi-select */}
+          <div className="border border-zinc-700 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setIsProblemExpanded(!isProblemExpanded)}
+              className="w-full flex items-center justify-between p-4 bg-zinc-900 hover:bg-zinc-800 transition-colors text-left"
             >
-              <option value="" className="bg-zinc-900">Select time spent</option>
-              {timeSpentOptions.map(option => (
-                <option key={option} value={option} className="bg-zinc-900">{option}</option>
-              ))}
-            </select>
+              <span className="text-white text-sm font-medium">
+                What is your biggest problem with email today? <span className="text-red-400">*</span>
+                {formData.biggestInboxProblems.length > 0 && (
+                  <span className="ml-2 text-[#8FA8A3]">({formData.biggestInboxProblems.length} selected)</span>
+                )}
+              </span>
+              <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform ${isProblemExpanded ? 'rotate-180' : ''}`} />
+            </button>
+            {isProblemExpanded && (
+              <div className="p-4 bg-zinc-900/50 border-t border-zinc-700 space-y-3">
+                {biggestProblemOptions.map(option => (
+                  <label 
+                    key={option} 
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      formData.biggestInboxProblems.includes(option) 
+                        ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
+                        : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.biggestInboxProblems.includes(option)}
+                      onChange={() => handleMultiSelectToggle('biggestInboxProblems', option)}
+                      className="w-4 h-4 text-[#8FA8A3] bg-zinc-900 border-zinc-600 rounded focus:ring-[#8FA8A3] focus:ring-offset-0"
+                    />
+                    <span className="text-zinc-300 text-sm">{option}</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Email Platform */}
-          <div>
-            <label className="block text-white text-sm font-medium mb-2">
-              What email platform do you use? <span className="text-red-400">*</span>
-            </label>
-            <select
-              value={formData.emailPlatform}
-              onChange={(e) => handleInputChange('emailPlatform', e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+          {/* Inbox Stress Signal - Collapsible Multi-select */}
+          <div className="border border-zinc-700 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setIsStressExpanded(!isStressExpanded)}
+              className="w-full flex items-center justify-between p-4 bg-zinc-900 hover:bg-zinc-800 transition-colors text-left"
             >
-              <option value="" className="bg-zinc-900">Select platform</option>
-              {emailPlatformOptions.map(option => (
-                <option key={option} value={option} className="bg-zinc-900">{option}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Biggest Inbox Problem - Radio */}
-          <div>
-            <label className="block text-white text-sm font-medium mb-3">
-              What is your biggest problem with email today? <span className="text-red-400">*</span>
-            </label>
-            <div className="space-y-3">
-              {biggestProblemOptions.map(option => (
-                <label 
-                  key={option} 
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    formData.biggestInboxProblem === option 
-                      ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
-                      : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="biggestInboxProblem"
-                    value={option}
-                    checked={formData.biggestInboxProblem === option}
-                    onChange={(e) => handleInputChange('biggestInboxProblem', e.target.value)}
-                    className="w-4 h-4 text-[#8FA8A3] bg-zinc-900 border-zinc-600 focus:ring-[#8FA8A3] focus:ring-offset-0"
-                  />
-                  <span className="text-zinc-300 text-sm">{option}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Inbox Stress Signal - Radio */}
-          <div>
-            <label className="block text-white text-sm font-medium mb-3">
-              Which statement best describes your situation? <span className="text-red-400">*</span>
-            </label>
-            <div className="space-y-3">
-              {stressSignalOptions.map(option => (
-                <label 
-                  key={option} 
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    formData.inboxStressSignal === option 
-                      ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
-                      : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="inboxStressSignal"
-                    value={option}
-                    checked={formData.inboxStressSignal === option}
-                    onChange={(e) => handleInputChange('inboxStressSignal', e.target.value)}
-                    className="w-4 h-4 text-[#8FA8A3] bg-zinc-900 border-zinc-600 focus:ring-[#8FA8A3] focus:ring-offset-0"
-                  />
-                  <span className="text-zinc-300 text-sm">{option}</span>
-                </label>
-              ))}
-            </div>
+              <span className="text-white text-sm font-medium">
+                Which statement best describes your situation? <span className="text-red-400">*</span>
+                {formData.inboxStressSignals.length > 0 && (
+                  <span className="ml-2 text-[#8FA8A3]">({formData.inboxStressSignals.length} selected)</span>
+                )}
+              </span>
+              <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform ${isStressExpanded ? 'rotate-180' : ''}`} />
+            </button>
+            {isStressExpanded && (
+              <div className="p-4 bg-zinc-900/50 border-t border-zinc-700 space-y-3">
+                {stressSignalOptions.map(option => (
+                  <label 
+                    key={option} 
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      formData.inboxStressSignals.includes(option) 
+                        ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
+                        : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.inboxStressSignals.includes(option)}
+                      onChange={() => handleMultiSelectToggle('inboxStressSignals', option)}
+                      className="w-4 h-4 text-[#8FA8A3] bg-zinc-900 border-zinc-600 rounded focus:ring-[#8FA8A3] focus:ring-offset-0"
+                    />
+                    <span className="text-zinc-300 text-sm">{option}</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Current Tools or Methods - Text */}
