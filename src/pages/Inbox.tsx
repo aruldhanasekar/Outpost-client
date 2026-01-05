@@ -101,6 +101,18 @@ const InboxPage = () => {
     !backendUserData?.composio_connection_id &&
     !isComposioCallbackInProgress;
 
+  // ✅ Check if initial sync is in progress (show spinner instead of "No threads" message)
+  const isInitialSyncing = useMemo(() => {
+    if (!backendUserData) return false;
+    
+    // Check if initial sync is not yet completed
+    if (backendUserData.initial_sync_completed === false) return true;
+    
+    // Check sync_status for active syncing states
+    const syncStatus = backendUserData.sync_status;
+    return syncStatus === 'starting' || syncStatus === 'syncing_inbox';
+  }, [backendUserData]);
+
   const [activeCategory, setActiveCategory] = useState<Category>("urgent");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
@@ -1483,6 +1495,7 @@ const InboxPage = () => {
                   onThreadClick={handleThreadClick}
                   checkedThreadIds={checkedThreads}
                   onCheckChange={handleCheckChange}
+                  isInitialSyncing={isInitialSyncing}
                 />
               )}
               
@@ -1495,6 +1508,7 @@ const InboxPage = () => {
                   onThreadClick={handleThreadClick}
                   checkedThreadIds={checkedThreads}
                   onCheckChange={handleCheckChange}
+                  isInitialSyncing={isInitialSyncing}
                 />
               )}
               
@@ -1507,6 +1521,7 @@ const InboxPage = () => {
                   isCompact={hasThreadSelection && !isExpanded}
                   checkedThreadIds={checkedThreads}
                   isSelectionMode={isSelectionMode}
+                  isInitialSyncing={isInitialSyncing}
                   onThreadClick={handleThreadClick}
                   onCheckChange={handleCheckChange}
                   onLongPress={handleLongPress}

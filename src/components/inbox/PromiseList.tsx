@@ -14,6 +14,7 @@ interface PromiseListProps {
   // v2.1: Checkbox support
   checkedThreadIds?: Set<string>;
   onCheckChange?: (thread: Thread, checked: boolean) => void;
+  isInitialSyncing?: boolean; // Show spinner instead of empty message during initial sync
 }
 
 // Helper: Parse date from various formats
@@ -139,7 +140,8 @@ export function PromiseList({
   selectedThread, 
   onThreadClick,
   checkedThreadIds = new Set(),
-  onCheckChange
+  onCheckChange,
+  isInitialSyncing = false
 }: PromiseListProps) {
   // Loading state
   if (loading) {
@@ -163,6 +165,14 @@ export function PromiseList({
 
   // Empty state
   if (threads.length === 0) {
+    // Show spinner during initial sync instead of empty message
+    if (isInitialSyncing) {
+      return (
+        <div className="flex items-center justify-center h-48">
+          <Loader2 className="w-6 h-6 text-zinc-400 animate-spin" />
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-center h-48 px-4">
         <p className="text-zinc-500 text-sm text-center">

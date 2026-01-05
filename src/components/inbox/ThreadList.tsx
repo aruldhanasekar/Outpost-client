@@ -15,6 +15,7 @@ interface ThreadListProps {
   isCompact?: boolean;
   checkedThreadIds?: Set<string>;
   isSelectionMode?: boolean;  // Mobile selection mode
+  isInitialSyncing?: boolean; // Show spinner instead of empty message during initial sync
   onThreadClick: (thread: Thread) => void;
   onCheckChange?: (thread: Thread, checked: boolean) => void;
   onLongPress?: (thread: Thread) => void;  // Long-press to enter selection mode
@@ -40,6 +41,7 @@ export function ThreadList({
   isCompact = false,
   checkedThreadIds = new Set(),
   isSelectionMode = false,
+  isInitialSyncing = false,
   onThreadClick,
   onCheckChange,
   onLongPress,
@@ -78,6 +80,14 @@ export function ThreadList({
 
   // Empty state
   if (threads.length === 0) {
+    // Show spinner during initial sync instead of empty message
+    if (isInitialSyncing) {
+      return (
+        <div className="flex items-center justify-center h-48">
+          <Loader2 className="w-6 h-6 text-zinc-400 animate-spin" />
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-center h-48 px-4">
         <p className="text-zinc-500 text-sm text-center">
