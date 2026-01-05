@@ -11,16 +11,14 @@ interface WaitlistFormData {
   name: string;
   email: string;
   role: string;
-  dailyEmailVolume: string;
-  biggestInboxProblem: string;
+  helpWith: string;
 }
 
 const initialFormData: WaitlistFormData = {
   name: '',
   email: '',
   role: '',
-  dailyEmailVolume: '',
-  biggestInboxProblem: '',
+  helpWith: '',
 };
 
 // Dropdown options
@@ -30,22 +28,6 @@ const roleOptions = [
   'Agency / Consultant',
   'Recruiter',
   'Other',
-];
-
-const dailyEmailVolumeOptions = [
-  'Less than 20',
-  '20–50',
-  '50–100',
-  '100–300',
-  '300+',
-];
-
-const biggestProblemOptions = [
-  'Missing important or urgent emails',
-  'Too many emails to read',
-  'Writing the same replies repeatedly',
-  'Slow response times',
-  'Messy inbox with no system',
 ];
 
 export default function WaitlistPage() {
@@ -91,12 +73,8 @@ export default function WaitlistPage() {
       setError('Please select your role');
       return false;
     }
-    if (!formData.dailyEmailVolume) {
-      setError('Please select your daily email volume');
-      return false;
-    }
-    if (!formData.biggestInboxProblem) {
-      setError('Please select your biggest inbox problem');
+    if (!formData.helpWith.trim()) {
+      setError('Please tell us what you would like help with');
       return false;
     }
     return true;
@@ -206,40 +184,18 @@ export default function WaitlistPage() {
             </select>
           </div>
 
-          {/* Daily Email Volume */}
+          {/* Help With */}
           <div>
             <label className="block text-zinc-900 text-sm font-medium mb-2">
-              About how many emails do you handle daily? <span className="text-red-500">*</span>
+              What would you like Outpost to help you with? <span className="text-red-500">*</span>
             </label>
-            <select
-              value={formData.dailyEmailVolume}
-              onChange={(e) => handleInputChange('dailyEmailVolume', e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
-            >
-              <option value="" className="bg-white">Select daily volume</option>
-              {dailyEmailVolumeOptions.map(option => (
-                <option key={option} value={option} className="bg-white">{option}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Biggest Inbox Problem */}
-          <div>
-            <label className="block text-zinc-900 text-sm font-medium mb-2">
-              What problem are you hoping Outpost will help with? <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formData.biggestInboxProblem}
-              onChange={(e) => handleInputChange('biggestInboxProblem', e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
-            >
-              <option value="" className="bg-white">Select your biggest problem</option>
-              {biggestProblemOptions.map(option => (
-                <option key={option} value={option} className="bg-white">{option}</option>
-              ))}
-            </select>
+            <textarea
+              value={formData.helpWith}
+              onChange={(e) => handleInputChange('helpWith', e.target.value)}
+              placeholder="e.g., I want to stop missing important emails, spend less time on repetitive replies..."
+              rows={3}
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#8FA8A3] transition-colors resize-none"
+            />
           </div>
 
           {/* Error Message */}
