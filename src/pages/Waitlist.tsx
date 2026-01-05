@@ -1,7 +1,7 @@
 // WaitlistPage.tsx - Waitlist signup page
 // Standalone page with dark theme and single column form
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase.config';
 import { Loader2, CheckCircle, ChevronDown } from 'lucide-react';
@@ -70,6 +70,23 @@ export default function WaitlistPage() {
   // Collapsible sections state (collapsed by default)
   const [isProblemExpanded, setIsProblemExpanded] = useState(false);
   const [isStressExpanded, setIsStressExpanded] = useState(false);
+
+  // Block browser back button - prevent going back to index page
+  useEffect(() => {
+    // Push current state to history
+    window.history.pushState(null, '', window.location.href);
+    
+    // Handle back button press
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   const handleInputChange = (field: keyof WaitlistFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -158,15 +175,9 @@ export default function WaitlistPage() {
           <h1 className="text-3xl font-bold text-zinc-900 mb-4" style={{ fontFamily: "'Manrope', sans-serif" }}>
             You're on the list!
           </h1>
-          <p className="text-zinc-600 text-lg mb-8">
+          <p className="text-zinc-600 text-lg">
             Thank you for signing up for early access. We'll notify you as soon as we're ready to welcome you aboard.
           </p>
-          <a 
-            href="/"
-            className="inline-flex items-center gap-2 text-[#8FA8A3] hover:text-[#7a9691] transition-colors"
-          >
-            ← Back to home
-          </a>
         </div>
       </div>
     );
