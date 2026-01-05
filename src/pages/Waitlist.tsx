@@ -1,0 +1,461 @@
+// WaitlistPage.tsx - Waitlist signup page
+// Standalone page with dark theme and single column form
+
+import { useState } from 'react';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/firebase.config';
+import { Loader2, CheckCircle, Mail } from 'lucide-react';
+
+// Form data interface
+interface WaitlistFormData {
+  email: string;
+  name: string;
+  role: string;
+  dailyEmailVolume: string;
+  timeSpentOnInbox: string;
+  emailPlatform: string;
+  biggestInboxProblem: string;
+  inboxStressSignal: string;
+  currentToolsOrMethods: string;
+  openToFeedbackCall: boolean | null;
+}
+
+const initialFormData: WaitlistFormData = {
+  email: '',
+  name: '',
+  role: '',
+  dailyEmailVolume: '',
+  timeSpentOnInbox: '',
+  emailPlatform: '',
+  biggestInboxProblem: '',
+  inboxStressSignal: '',
+  currentToolsOrMethods: '',
+  openToFeedbackCall: null,
+};
+
+// Dropdown options
+const roleOptions = [
+  'Founder / Co-founder',
+  'Customer support / Operations',
+  'Agency / Consultant',
+  'Recruiter',
+  'Other',
+];
+
+const dailyEmailVolumeOptions = [
+  'Less than 20',
+  '20–50',
+  '50–100',
+  '100–300',
+  '300+',
+];
+
+const timeSpentOptions = [
+  'Less than 30 minutes',
+  '30–60 minutes',
+  '1–2 hours',
+  '2–4 hours',
+  '4+ hours',
+];
+
+const emailPlatformOptions = [
+  'Gmail',
+  'Google Workspace',
+  'Outlook',
+  'Other',
+];
+
+const biggestProblemOptions = [
+  'Too many emails to read',
+  'Writing the same replies again and again',
+  'Missing important or urgent emails',
+  'Slow response times',
+  'Messy inbox with no clear system',
+];
+
+const stressSignalOptions = [
+  'I often miss important or urgent emails',
+  'I reply late even when emails are important',
+  'I feel stressed opening my inbox',
+  'Email is annoying but manageable',
+];
+
+export default function WaitlistPage() {
+  const [formData, setFormData] = useState<WaitlistFormData>(initialFormData);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleInputChange = (field: keyof WaitlistFormData, value: string | boolean) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setError(null);
+  };
+
+  const validateForm = (): boolean => {
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    if (!formData.name.trim()) {
+      setError('Name is required');
+      return false;
+    }
+    if (!formData.role) {
+      setError('Please select your role');
+      return false;
+    }
+    if (!formData.dailyEmailVolume) {
+      setError('Please select your daily email volume');
+      return false;
+    }
+    if (!formData.timeSpentOnInbox) {
+      setError('Please select time spent on inbox');
+      return false;
+    }
+    if (!formData.emailPlatform) {
+      setError('Please select your email platform');
+      return false;
+    }
+    if (!formData.biggestInboxProblem) {
+      setError('Please select your biggest inbox problem');
+      return false;
+    }
+    if (!formData.inboxStressSignal) {
+      setError('Please select your inbox stress signal');
+      return false;
+    }
+    if (formData.openToFeedbackCall === null) {
+      setError('Please indicate if you are open to a feedback call');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await addDoc(collection(db, 'waitlist'), {
+        ...formData,
+        createdAt: serverTimestamp(),
+      });
+      
+      setIsSubmitted(true);
+    } catch (err) {
+      console.error('Error submitting waitlist form:', err);
+      setError('Failed to submit. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Thank you screen
+  if (isSubmitted) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">
+        <div className="max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-[#8FA8A3]/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-8 h-8 text-[#8FA8A3]" />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-4" style={{ fontFamily: "'Manrope', sans-serif" }}>
+            You're on the list!
+          </h1>
+          <p className="text-zinc-400 text-lg mb-8">
+            Thank you for joining the Outpost waitlist. We'll notify you as soon as we're ready to welcome you aboard.
+          </p>
+          <a 
+            href="/"
+            className="inline-flex items-center gap-2 text-[#8FA8A3] hover:text-[#7a9691] transition-colors"
+          >
+            ← Back to home
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a]">
+      {/* Header */}
+      <header className="py-6 px-4 border-b border-zinc-800">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <a href="/" className="flex items-center gap-2">
+            <Mail className="w-6 h-6 text-[#8FA8A3]" />
+            <span className="text-white font-semibold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>
+              Outpost
+            </span>
+          </a>
+        </div>
+      </header>
+
+      {/* Form Container */}
+      <div className="max-w-2xl mx-auto px-4 py-12">
+        {/* Title Section */}
+        <div className="text-center mb-10">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-4" style={{ fontFamily: "'Manrope', sans-serif" }}>
+            Join the Waitlist
+          </h1>
+          <p className="text-zinc-400 text-lg">
+            Be the first to experience AI-powered email management that actually works.
+          </p>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Email */}
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">
+              Email address <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              placeholder="you@example.com"
+              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-[#8FA8A3] transition-colors"
+            />
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">
+              Your name <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              placeholder="John Doe"
+              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-[#8FA8A3] transition-colors"
+            />
+          </div>
+
+          {/* Role */}
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">
+              What best describes your role? <span className="text-red-400">*</span>
+            </label>
+            <select
+              value={formData.role}
+              onChange={(e) => handleInputChange('role', e.target.value)}
+              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+            >
+              <option value="" className="bg-zinc-900">Select your role</option>
+              {roleOptions.map(option => (
+                <option key={option} value={option} className="bg-zinc-900">{option}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Daily Email Volume */}
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">
+              About how many emails do you handle daily? <span className="text-red-400">*</span>
+            </label>
+            <select
+              value={formData.dailyEmailVolume}
+              onChange={(e) => handleInputChange('dailyEmailVolume', e.target.value)}
+              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+            >
+              <option value="" className="bg-zinc-900">Select daily volume</option>
+              {dailyEmailVolumeOptions.map(option => (
+                <option key={option} value={option} className="bg-zinc-900">{option}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Time Spent on Inbox */}
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">
+              About how much time do you spend on email each day? <span className="text-red-400">*</span>
+            </label>
+            <select
+              value={formData.timeSpentOnInbox}
+              onChange={(e) => handleInputChange('timeSpentOnInbox', e.target.value)}
+              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+            >
+              <option value="" className="bg-zinc-900">Select time spent</option>
+              {timeSpentOptions.map(option => (
+                <option key={option} value={option} className="bg-zinc-900">{option}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Email Platform */}
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">
+              What email platform do you use? <span className="text-red-400">*</span>
+            </label>
+            <select
+              value={formData.emailPlatform}
+              onChange={(e) => handleInputChange('emailPlatform', e.target.value)}
+              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+            >
+              <option value="" className="bg-zinc-900">Select platform</option>
+              {emailPlatformOptions.map(option => (
+                <option key={option} value={option} className="bg-zinc-900">{option}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Biggest Inbox Problem - Radio */}
+          <div>
+            <label className="block text-white text-sm font-medium mb-3">
+              What is your biggest problem with email today? <span className="text-red-400">*</span>
+            </label>
+            <div className="space-y-3">
+              {biggestProblemOptions.map(option => (
+                <label 
+                  key={option} 
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    formData.biggestInboxProblem === option 
+                      ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
+                      : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="biggestInboxProblem"
+                    value={option}
+                    checked={formData.biggestInboxProblem === option}
+                    onChange={(e) => handleInputChange('biggestInboxProblem', e.target.value)}
+                    className="w-4 h-4 text-[#8FA8A3] bg-zinc-900 border-zinc-600 focus:ring-[#8FA8A3] focus:ring-offset-0"
+                  />
+                  <span className="text-zinc-300 text-sm">{option}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Inbox Stress Signal - Radio */}
+          <div>
+            <label className="block text-white text-sm font-medium mb-3">
+              Which statement best describes your situation? <span className="text-red-400">*</span>
+            </label>
+            <div className="space-y-3">
+              {stressSignalOptions.map(option => (
+                <label 
+                  key={option} 
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    formData.inboxStressSignal === option 
+                      ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
+                      : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="inboxStressSignal"
+                    value={option}
+                    checked={formData.inboxStressSignal === option}
+                    onChange={(e) => handleInputChange('inboxStressSignal', e.target.value)}
+                    className="w-4 h-4 text-[#8FA8A3] bg-zinc-900 border-zinc-600 focus:ring-[#8FA8A3] focus:ring-offset-0"
+                  />
+                  <span className="text-zinc-300 text-sm">{option}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Current Tools or Methods - Text */}
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">
+              What tools or methods do you currently use to manage email?
+            </label>
+            <textarea
+              value={formData.currentToolsOrMethods}
+              onChange={(e) => handleInputChange('currentToolsOrMethods', e.target.value)}
+              placeholder="e.g., Labels, filters, Superhuman, SaneBox, etc."
+              rows={3}
+              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-[#8FA8A3] transition-colors resize-none"
+            />
+          </div>
+
+          {/* Feedback Call - Yes/No */}
+          <div>
+            <label className="block text-white text-sm font-medium mb-3">
+              Would you be open to a 15-minute feedback call? <span className="text-red-400">*</span>
+            </label>
+            <div className="flex gap-4">
+              <label 
+                className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  formData.openToFeedbackCall === true 
+                    ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
+                    : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="openToFeedbackCall"
+                  checked={formData.openToFeedbackCall === true}
+                  onChange={() => handleInputChange('openToFeedbackCall', true)}
+                  className="w-4 h-4 text-[#8FA8A3] bg-zinc-900 border-zinc-600 focus:ring-[#8FA8A3] focus:ring-offset-0"
+                />
+                <span className="text-zinc-300">Yes</span>
+              </label>
+              <label 
+                className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  formData.openToFeedbackCall === false 
+                    ? 'border-[#8FA8A3] bg-[#8FA8A3]/10' 
+                    : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="openToFeedbackCall"
+                  checked={formData.openToFeedbackCall === false}
+                  onChange={() => handleInputChange('openToFeedbackCall', false)}
+                  className="w-4 h-4 text-[#8FA8A3] bg-zinc-900 border-zinc-600 focus:ring-[#8FA8A3] focus:ring-offset-0"
+                />
+                <span className="text-zinc-300">No</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-4 bg-[#8FA8A3] hover:bg-[#7a9691] disabled:bg-zinc-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              'Join Waitlist'
+            )}
+          </button>
+
+          {/* Privacy Note */}
+          <p className="text-zinc-500 text-xs text-center">
+            By joining, you agree to our{' '}
+            <a href="/privacy" className="text-[#8FA8A3] hover:underline">Privacy Policy</a>
+            {' '}and{' '}
+            <a href="/terms" className="text-[#8FA8A3] hover:underline">Terms of Service</a>.
+          </p>
+        </form>
+      </div>
+    </div>
+  );
+}

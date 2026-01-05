@@ -17,6 +17,7 @@ import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 // import Blogs from "@/pages/Blogs";
 import Payment from "@/pages/Payment";
+import Waitlist from "@/pages/Waitlist";
 import Label from "@/pages/Label";
 import { LabelsProvider } from '@/context/LabelsContext';
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/payment" element={<Payment />} />
+            <Route path="/waitlist" element={<Waitlist />} />
 
             {/* ✅ PROTECTED ROUTE: Inbox */}
             <Route path="/inbox" element={
