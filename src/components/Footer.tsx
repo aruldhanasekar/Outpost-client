@@ -1,4 +1,5 @@
 import { Linkedin } from "lucide-react";
+import { Link } from "react-router-dom";
 import OutpostLogo from "@/assets/OutpostMail_dark.png";
 
 const Footer = () => {
@@ -22,8 +23,8 @@ const Footer = () => {
         
         {/* Links - Center */}
         <div className="flex items-center gap-4 md:gap-6 order-1 md:order-2">
-          <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-          <a href="#" className="hover:text-white transition-colors">Terms of Use</a>
+          <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+          <Link to="/terms" className="hover:text-white transition-colors">Terms of Use</Link>
         </div>
         
         {/* Social Icons - Bottom Right */}
