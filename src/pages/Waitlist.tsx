@@ -8,6 +8,7 @@ import { Loader2, CheckCircle } from 'lucide-react';
 
 // Form data interface
 interface WaitlistFormData {
+  name: string;
   email: string;
   role: string;
   dailyEmailVolume: string;
@@ -15,6 +16,7 @@ interface WaitlistFormData {
 }
 
 const initialFormData: WaitlistFormData = {
+  name: '',
   email: '',
   role: '',
   dailyEmailVolume: '',
@@ -73,6 +75,10 @@ export default function WaitlistPage() {
   };
 
   const validateForm = (): boolean => {
+    if (!formData.name.trim()) {
+      setError('Name is required');
+      return false;
+    }
     if (!formData.email.trim()) {
       setError('Work email is required');
       return false;
@@ -148,12 +154,26 @@ export default function WaitlistPage() {
             Get early access to Outpost
           </h1>
           <p className="text-zinc-600 text-lg">
-            Be the first to experience AI-powered email management that actually works.
+            Early access is currently limited to a small group of users.
           </p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Name */}
+          <div>
+            <label className="block text-zinc-900 text-sm font-medium mb-2">
+              Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              placeholder="John Doe"
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#8FA8A3] transition-colors"
+            />
+          </div>
+
           {/* Work Email */}
           <div>
             <label className="block text-zinc-900 text-sm font-medium mb-2">
