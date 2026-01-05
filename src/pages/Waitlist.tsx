@@ -147,7 +147,6 @@ export default function WaitlistPage() {
               type="text"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder="John Doe"
               className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#8FA8A3] transition-colors"
             />
           </div>
@@ -161,7 +160,6 @@ export default function WaitlistPage() {
               type="email"
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
-              placeholder="you@company.com"
               className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#8FA8A3] transition-colors"
             />
           </div>
@@ -192,7 +190,6 @@ export default function WaitlistPage() {
             <textarea
               value={formData.helpWith}
               onChange={(e) => handleInputChange('helpWith', e.target.value)}
-              placeholder="e.g., I want to stop missing important emails, spend less time on repetitive replies..."
               rows={3}
               className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#8FA8A3] transition-colors resize-none"
             />
