@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase.config';
-import { Loader2, CheckCircle, Mail, ChevronDown } from 'lucide-react';
+import { Loader2, CheckCircle, ChevronDown } from 'lucide-react';
 
 // Form data interface
 interface WaitlistFormData {
@@ -174,18 +174,6 @@ export default function WaitlistPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="py-6 px-4 border-b border-zinc-200">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2">
-            <Mail className="w-6 h-6 text-[#8FA8A3]" />
-            <span className="text-zinc-900 font-semibold text-lg" style={{ fontFamily: "'Manrope', sans-serif" }}>
-              Outpost
-            </span>
-          </a>
-        </div>
-      </header>
-
       {/* Form Container */}
       <div className="max-w-2xl mx-auto px-4 py-12">
         {/* Title Section */}
