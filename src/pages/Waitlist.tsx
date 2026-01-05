@@ -1,7 +1,7 @@
 // Waitlist.tsx - Early Access signup page
 // Simplified form with 4 questions
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase.config';
 import { Loader2, CheckCircle } from 'lucide-react';
@@ -35,21 +35,6 @@ export default function WaitlistPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Block browser back button - prevent going back to index page
-  useEffect(() => {
-    window.history.pushState(null, '', window.location.href);
-    
-    const handlePopState = () => {
-      window.history.pushState(null, '', window.location.href);
-    };
-    
-    window.addEventListener('popstate', handlePopState);
-    
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
 
   const handleInputChange = (field: keyof WaitlistFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
