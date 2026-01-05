@@ -11,10 +11,9 @@ interface WaitlistFormData {
   email: string;
   name: string;
   role: string;
-  dailyEmailVolume: string;
   biggestInboxProblems: string[];
   inboxStressSignals: string[];
-  currentToolsOrMethods: string;
+  currentEmailTool: string;
   openToFeedbackCall: boolean | null;
 }
 
@@ -22,10 +21,9 @@ const initialFormData: WaitlistFormData = {
   email: '',
   name: '',
   role: '',
-  dailyEmailVolume: '',
   biggestInboxProblems: [],
   inboxStressSignals: [],
-  currentToolsOrMethods: '',
+  currentEmailTool: '',
   openToFeedbackCall: null,
 };
 
@@ -38,12 +36,14 @@ const roleOptions = [
   'Other',
 ];
 
-const dailyEmailVolumeOptions = [
-  'Less than 20',
-  '20–50',
-  '50–100',
-  '100–300',
-  '300+',
+const currentEmailToolOptions = [
+  'Default inbox only (Gmail / Outlook)',
+  'Rules, filters, or labels',
+  'Shared inbox or helpdesk tool',
+  'AI email tools',
+  'Manual system (folders, flags, reminders)',
+  'Other',
+  'Prefer not to say',
 ];
 
 const biggestProblemOptions = [
@@ -120,10 +120,6 @@ export default function WaitlistPage() {
     }
     if (!formData.role) {
       setError('Please select your role');
-      return false;
-    }
-    if (!formData.dailyEmailVolume) {
-      setError('Please select your daily email volume');
       return false;
     }
     if (formData.biggestInboxProblems.length === 0) {
@@ -245,24 +241,6 @@ export default function WaitlistPage() {
             </select>
           </div>
 
-          {/* Daily Email Volume */}
-          <div>
-            <label className="block text-zinc-900 text-sm font-medium mb-2">
-              About how many emails do you handle daily? <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formData.dailyEmailVolume}
-              onChange={(e) => handleInputChange('dailyEmailVolume', e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
-            >
-              <option value="" className="bg-white">Select daily volume</option>
-              {dailyEmailVolumeOptions.map(option => (
-                <option key={option} value={option} className="bg-white">{option}</option>
-              ))}
-            </select>
-          </div>
-
           {/* Biggest Inbox Problem - Collapsible Multi-select */}
           <div className="border border-zinc-300 rounded-lg overflow-hidden">
             <button
@@ -341,18 +319,22 @@ export default function WaitlistPage() {
             )}
           </div>
 
-          {/* Current Tools or Methods - Text */}
+          {/* Current Email Tool - Dropdown */}
           <div>
             <label className="block text-zinc-900 text-sm font-medium mb-2">
-              What tools or methods do you currently use to manage email?
+              What AI productive tool are you using?
             </label>
-            <textarea
-              value={formData.currentToolsOrMethods}
-              onChange={(e) => handleInputChange('currentToolsOrMethods', e.target.value)}
-              placeholder="e.g., Labels, filters, Superhuman, SaneBox, etc."
-              rows={3}
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#8FA8A3] transition-colors resize-none"
-            />
+            <select
+              value={formData.currentEmailTool}
+              onChange={(e) => handleInputChange('currentEmailTool', e.target.value)}
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:border-[#8FA8A3] transition-colors appearance-none cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+            >
+              <option value="" className="bg-white">Select an option</option>
+              {currentEmailToolOptions.map(option => (
+                <option key={option} value={option} className="bg-white">{option}</option>
+              ))}
+            </select>
           </div>
 
           {/* Feedback Call - Yes/No */}
