@@ -20,33 +20,33 @@ const Index = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Auth Modal States
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isAdminMode, setIsAdminMode] = useState(false);
-  const [waitlistEmail, setWaitlistEmail] = useState("");
-  const [waitlistLoading, setWaitlistLoading] = useState(false);
-  const [authMethod, setAuthMethod] = useState<'direct' | 'composio' | null>(null);
-  const [composioStep1Complete, setComposioStep1Complete] = useState(false);
-  const [composioUserEmail, setComposioUserEmail] = useState<string>("");
-  const [isLoadingDirect, setIsLoadingDirect] = useState(false);
-  const [isLoadingComposio, setIsLoadingComposio] = useState(false);
-  const [hoveredButton, setHoveredButton] = useState<'direct' | 'composio' | null>(null);
+  // Auth Modal States - COMMENTED OUT (using /waitlist page instead)
+  // const [showAuthModal, setShowAuthModal] = useState(false);
+  // const [isAdminMode, setIsAdminMode] = useState(false);
+  // const [waitlistEmail, setWaitlistEmail] = useState("");
+  // const [waitlistLoading, setWaitlistLoading] = useState(false);
+  // const [authMethod, setAuthMethod] = useState<'direct' | 'composio' | null>(null);
+  // const [composioStep1Complete, setComposioStep1Complete] = useState(false);
+  // const [composioUserEmail, setComposioUserEmail] = useState<string>("");
+  // const [isLoadingDirect, setIsLoadingDirect] = useState(false);
+  // const [isLoadingComposio, setIsLoadingComposio] = useState(false);
+  // const [hoveredButton, setHoveredButton] = useState<'direct' | 'composio' | null>(null);
   
-  // Payment States
-  const [paymentComplete, setPaymentComplete] = useState(false);
-  const [isLoadingPayment, setIsLoadingPayment] = useState(false);
+  // Payment States - COMMENTED OUT (using /waitlist page instead)
+  // const [paymentComplete, setPaymentComplete] = useState(false);
+  // const [isLoadingPayment, setIsLoadingPayment] = useState(false);
 
-  // Modal body scroll lock
-  useEffect(() => {
-    if (showAuthModal) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [showAuthModal]);
+  // Modal body scroll lock - COMMENTED OUT (using /waitlist page instead)
+  // useEffect(() => {
+  //   if (showAuthModal) {
+  //     document.body.style.overflow = "hidden";
+  //   } else {
+  //     document.body.style.overflow = "unset";
+  //   }
+  //   return () => {
+  //     document.body.style.overflow = "unset";
+  //   };
+  // }, [showAuthModal]);
 
   // Check for OAuth errors in URL
   useEffect(() => {
@@ -92,23 +92,23 @@ const Index = () => {
       return;
     }
 
-    // Composio users without connection: check payment status
-    if (backendUserData?.auth_method === 'composio' && !backendUserData?.composio_connection_id) {
-      // If paid, redirect to inbox (Inbox will show ComposioConnectionOverlay)
-      if (backendUserData?.paid === true) {
-        console.log("✅ Composio user paid → Redirecting to inbox");
-        hasCheckedAuth.current = true;
-        navigate("/inbox", { replace: true });
-        return;
-      }
-      
-      // If not paid, show payment modal
-      console.log("🔵 Composio user needs to complete payment");
-      setComposioStep1Complete(true);
-      setComposioUserEmail(currentUser.email || "");
-      setShowAuthModal(true);
-      return;
-    }
+    // Composio users without connection: check payment status - COMMENTED OUT (using /waitlist page instead)
+    // if (backendUserData?.auth_method === 'composio' && !backendUserData?.composio_connection_id) {
+    //   // If paid, redirect to inbox (Inbox will show ComposioConnectionOverlay)
+    //   if (backendUserData?.paid === true) {
+    //     console.log("✅ Composio user paid → Redirecting to inbox");
+    //     hasCheckedAuth.current = true;
+    //     navigate("/inbox", { replace: true });
+    //     return;
+    //   }
+    //   
+    //   // If not paid, show payment modal
+    //   console.log("🔵 Composio user needs to complete payment");
+    //   setComposioStep1Complete(true);
+    //   setComposioUserEmail(currentUser.email || "");
+    //   setShowAuthModal(true);
+    //   return;
+    // }
 
   }, [currentUser, loading, navigate, backendUserData]);
 
@@ -122,349 +122,347 @@ const Index = () => {
     }
   }, [successMessage]);
 
-  // Load Razorpay script
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
+  // Load Razorpay script - COMMENTED OUT (using /waitlist page instead)
+  // useEffect(() => {
+  //   const script = document.createElement('script');
+  //   script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+  //   script.async = true;
+  //   document.body.appendChild(script);
+  //   return () => {
+  //     document.body.removeChild(script);
+  //   };
+  // }, []);
 
-  // Handle Payment
-  const handlePayment = async () => {
-    try {
-      setIsLoadingPayment(true);
-      setErrorMessage(null);
+  // Handle Payment - COMMENTED OUT (using /waitlist page instead)
+  // const handlePayment = async () => {
+  //   try {
+  //     setIsLoadingPayment(true);
+  //     setErrorMessage(null);
+  //
+  //     if (!currentUser) {
+  //       throw new Error('User not authenticated. Please sign in again.');
+  //     }
+  //
+  //     console.log("💳 Starting payment process...");
+  //
+  //     // Create order on backend
+  //     const idToken = await getIdToken();
+  //     const orderResponse = await fetch(`${BACKEND_URL}/api/payment/create-order`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Authorization': `Bearer ${idToken}`,
+  //         'Content-Type': 'application/json'
+  //       },
+  //       body: JSON.stringify({
+  //         user_id: currentUser.uid,
+  //         email: currentUser.email
+  //       })
+  //     });
+  //
+  //     if (!orderResponse.ok) {
+  //       const errorData = await orderResponse.json();
+  //       throw new Error(errorData.detail || 'Failed to create payment order');
+  //     }
+  //
+  //     const orderData = await orderResponse.json();
+  //
+  //     // Check if already paid
+  //     if (orderData.status === 'already_paid') {
+  //       console.log("✅ User already paid, redirecting to inbox");
+  //       setShowAuthModal(false);
+  //       setIsLoadingPayment(false);
+  //       navigate("/inbox", { replace: true });
+  //       return;
+  //     }
+  //
+  //     console.log("📦 Order created:", orderData.order_id);
+  //
+  //     // Open Razorpay checkout
+  //     const options = {
+  //       key: orderData.key_id,
+  //       amount: orderData.amount,
+  //       currency: orderData.currency,
+  //       name: 'Outpost',
+  //       description: 'Early Access Payment',
+  //       order_id: orderData.order_id,
+  //       prefill: {
+  //         email: currentUser.email,
+  //         name: currentUser.displayName || ''
+  //       },
+  //       theme: {
+  //         color: '#000000'
+  //       },
+  //       handler: async function(response: any) {
+  //         console.log("💳 Payment successful, verifying...");
+  //         
+  //         try {
+  //           // Verify payment on backend
+  //           const verifyResponse = await fetch(`${BACKEND_URL}/api/payment/verify`, {
+  //             method: 'POST',
+  //             headers: {
+  //               'Authorization': `Bearer ${idToken}`,
+  //               'Content-Type': 'application/json'
+  //             },
+  //             body: JSON.stringify({
+  //               razorpay_payment_id: response.razorpay_payment_id,
+  //               razorpay_order_id: response.razorpay_order_id,
+  //               razorpay_signature: response.razorpay_signature,
+  //               user_id: currentUser.uid
+  //             })
+  //           });
+  //
+  //           if (!verifyResponse.ok) {
+  //             throw new Error('Payment verification failed');
+  //           }
+  //
+  //           console.log("✅ Payment verified successfully");
+  //           setShowAuthModal(false);
+  //           setIsLoadingPayment(false);
+  //           navigate("/inbox", { replace: true });
+  //           
+  //         } catch (error: any) {
+  //           console.error("❌ Payment verification failed:", error);
+  //           setErrorMessage('Payment verification failed. Please try again.');
+  //           setIsLoadingPayment(false);
+  //         }
+  //       },
+  //       modal: {
+  //         ondismiss: function() {
+  //           console.log("❌ Payment popup closed by user");
+  //           setIsLoadingPayment(false);
+  //         }
+  //       }
+  //     };
+  //
+  //     const razorpay = new (window as any).Razorpay(options);
+  //     razorpay.open();
+  //
+  //   } catch (error: any) {
+  //     console.error("❌ Payment error:", error);
+  //     setErrorMessage(error.message || 'Payment failed. Please try again.');
+  //     setIsLoadingPayment(false);
+  //   }
+  // };
 
-      if (!currentUser) {
-        throw new Error('User not authenticated. Please sign in again.');
-      }
+  // Handle Go Back from payment step - COMMENTED OUT (using /waitlist page instead)
+  // const handlePaymentGoBack = () => {
+  //   setShowAuthModal(false);
+  //   setComposioStep1Complete(false);
+  //   setPaymentComplete(false);
+  //   setIsAdminMode(false);
+  //   setErrorMessage(null);
+  // };
 
-      console.log("💳 Starting payment process...");
-
-      // Create order on backend
-      const idToken = await getIdToken();
-      const orderResponse = await fetch(`${BACKEND_URL}/api/payment/create-order`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${idToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          user_id: currentUser.uid,
-          email: currentUser.email
-        })
-      });
-
-      if (!orderResponse.ok) {
-        const errorData = await orderResponse.json();
-        throw new Error(errorData.detail || 'Failed to create payment order');
-      }
-
-      const orderData = await orderResponse.json();
-
-      // Check if already paid
-      if (orderData.status === 'already_paid') {
-        console.log("✅ User already paid, redirecting to inbox");
-        setShowAuthModal(false);
-        setIsLoadingPayment(false);
-        navigate("/inbox", { replace: true });
-        return;
-      }
-
-      console.log("📦 Order created:", orderData.order_id);
-
-      // Open Razorpay checkout
-      const options = {
-        key: orderData.key_id,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: 'Outpost',
-        description: 'Early Access Payment',
-        order_id: orderData.order_id,
-        prefill: {
-          email: currentUser.email,
-          name: currentUser.displayName || ''
-        },
-        theme: {
-          color: '#000000'
-        },
-        handler: async function(response: any) {
-          console.log("💳 Payment successful, verifying...");
-          
-          try {
-            // Verify payment on backend
-            const verifyResponse = await fetch(`${BACKEND_URL}/api/payment/verify`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${idToken}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-                user_id: currentUser.uid
-              })
-            });
-
-            if (!verifyResponse.ok) {
-              throw new Error('Payment verification failed');
-            }
-
-            console.log("✅ Payment verified successfully");
-            setShowAuthModal(false);
-            setIsLoadingPayment(false);
-            navigate("/inbox", { replace: true });
-            
-          } catch (error: any) {
-            console.error("❌ Payment verification failed:", error);
-            setErrorMessage('Payment verification failed. Please try again.');
-            setIsLoadingPayment(false);
-          }
-        },
-        modal: {
-          ondismiss: function() {
-            console.log("❌ Payment popup closed by user");
-            setIsLoadingPayment(false);
-          }
-        }
-      };
-
-      const razorpay = new (window as any).Razorpay(options);
-      razorpay.open();
-
-    } catch (error: any) {
-      console.error("❌ Payment error:", error);
-      setErrorMessage(error.message || 'Payment failed. Please try again.');
-      setIsLoadingPayment(false);
-    }
-  };
-
-  // Handle Go Back from payment step
-  const handlePaymentGoBack = () => {
-    setShowAuthModal(false);
-    setComposioStep1Complete(false);
-    setPaymentComplete(false);
-    setIsAdminMode(false);
-    setErrorMessage(null);
-  };
-
-  // Handle "Get Started Free" button click
+  // Handle "Get Started Free" button click - Navigate to /waitlist
   const handleGetStarted = () => {
-    setShowAuthModal(true);
-    setIsAdminMode(false);
-    setWaitlistEmail("");
+    navigate("/waitlist");
   };
 
-  // Handle waitlist form submission in modal
-  const handleWaitlistSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!waitlistEmail || waitlistLoading) return;
+  // Handle waitlist form submission in modal - COMMENTED OUT (using /waitlist page instead)
+  // const handleWaitlistSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   if (!waitlistEmail || waitlistLoading) return;
+  //
+  //   const ADMIN_EMAIL = "arul@outpostmail.com";
+  //
+  //   // Check for admin email - switch to admin mode
+  //   if (waitlistEmail.toLowerCase().trim() === ADMIN_EMAIL) {
+  //     console.log("🔐 Admin access detected");
+  //     setIsAdminMode(true);
+  //     setWaitlistEmail("");
+  //     return;
+  //   }
+  //
+  //   setWaitlistLoading(true);
+  //   setErrorMessage(null);
+  //
+  //   try {
+  //     const response = await fetch(`${BACKEND_URL}/api/waitlist/check`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({ email: waitlistEmail }),
+  //     });
+  //
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.detail || "Failed to join waitlist");
+  //     }
+  //
+  //     const data = await response.json();
+  //     console.log("Waitlist response:", data);
+  //
+  //     // Check if user already exists
+  //     if (data.status === "existing") {
+  //       setErrorMessage("This email is already on the waitlist. We'll notify you via Gmail!");
+  //       return;
+  //     }
+  //
+  //     // Success - close modal and show toast
+  //     setShowAuthModal(false);
+  //     setWaitlistEmail("");
+  //     setSuccessMessage("Thank you for joining the waitlist! You will receive an email soon.");
+  //
+  //   } catch (error: any) {
+  //     console.error("Waitlist signup failed:", error);
+  //     setErrorMessage(error.message || "Failed to join waitlist. Please try again.");
+  //   } finally {
+  //     setWaitlistLoading(false);
+  //   }
+  // };
 
-    const ADMIN_EMAIL = "arul@outpostmail.com";
+  // Handle Direct Login - COMMENTED OUT (using /waitlist page instead)
+  // const handleDirectLogin = async () => {
+  //   try {
+  //     setAuthMethod('direct');
+  //     setIsLoadingDirect(true);
+  //     setErrorMessage(null);
+  //
+  //     console.log("🔐 Starting Direct Login...");
+  //
+  //     const width = 500;
+  //     const height = 600;
+  //     const left = window.screenX + (window.outerWidth - width) / 2;
+  //     const top = window.screenY + (window.outerHeight - height) / 2;
+  //
+  //     const popup = window.open(
+  //       `${BACKEND_URL}/auth/gmail/login`,
+  //       'gmail-oauth',
+  //       `width=${width},height=${height},left=${left},top=${top}`
+  //     );
+  //
+  //     if (!popup) {
+  //       throw new Error('Popup was blocked. Please allow popups for this site.');
+  //     }
+  //
+  //     const checkClosed = setInterval(() => {
+  //       if (popup.closed) {
+  //         console.log("👍 Popup closed");
+  //         clearInterval(checkClosed);
+  //         setIsLoadingDirect(false);
+  //         setShowAuthModal(false);
+  //       }
+  //     }, 500);
+  //
+  //   } catch (error: any) {
+  //     console.error("❌ Direct login failed:", error);
+  //     setErrorMessage(error.message || "Failed to sign in. Please try again.");
+  //     setIsLoadingDirect(false);
+  //   }
+  // };
 
-    // Check for admin email - switch to admin mode
-    if (waitlistEmail.toLowerCase().trim() === ADMIN_EMAIL) {
-      console.log("🔐 Admin access detected");
-      setIsAdminMode(true);
-      setWaitlistEmail("");
-      return;
-    }
+  // Handle Composio Step 1 (Firebase Identity OAuth) - COMMENTED OUT (using /waitlist page instead)
+  // const handleComposioStep1 = async () => {
+  //   try {
+  //     setAuthMethod('composio');
+  //     setIsLoadingComposio(true);
+  //     setErrorMessage(null);
+  //
+  //     console.log("🔵 Starting Composio Step 1 (Firebase Identity OAuth)...");
+  //
+  //     const width = 500;
+  //     const height = 600;
+  //     const left = window.screenX + (window.outerWidth - width) / 2;
+  //     const top = window.screenY + (window.outerHeight - height) / 2;
+  //
+  //     const popup = window.open(
+  //       `${BACKEND_URL}/auth/firebase/login`,
+  //       'firebase-oauth',
+  //       `width=${width},height=${height},left=${left},top=${top}`
+  //     );
+  //
+  //     if (!popup) {
+  //       throw new Error('Popup was blocked. Please allow popups for this site.');
+  //     }
+  //
+  //     const checkClosed = setInterval(() => {
+  //       if (popup.closed) {
+  //         console.log("👍 Popup closed");
+  //         clearInterval(checkClosed);
+  //         setIsLoadingComposio(false);
+  //       }
+  //     }, 500);
+  //
+  //   } catch (error: any) {
+  //     console.error("❌ Composio Step 1 failed:", error);
+  //     setErrorMessage(error.message || "Failed to sign in. Please try again.");
+  //     setIsLoadingComposio(false);
+  //   }
+  // };
 
-    setWaitlistLoading(true);
-    setErrorMessage(null);
+  // Handle Composio Step 2 (Connect Gmail) - COMMENTED OUT (using /waitlist page instead)
+  // const handleComposioStep2 = async () => {
+  //   try {
+  //     setIsLoadingComposio(true);
+  //     setErrorMessage(null);
+  //
+  //     console.log("🔵 Starting Composio Step 2 (Connect Gmail)...");
+  //
+  //     const idToken = await getIdToken();
+  //
+  //     if (!idToken) {
+  //       throw new Error('Authentication token not found. Please try again.');
+  //     }
+  //
+  //     const response = await fetch(`${BACKEND_URL}/auth/composio/connect`, {
+  //       method: 'GET',
+  //       headers: {
+  //         'Authorization': `Bearer ${idToken}`,
+  //         'Content-Type': 'application/json'
+  //       }
+  //     });
+  //
+  //     if (!response.ok) {
+  //       throw new Error('Failed to create Composio connection');
+  //     }
+  //
+  //     const data = await response.json();
+  //     const { redirect_url } = data;
+  //
+  //     console.log("🔵 Opening Composio OAuth popup...");
+  //
+  //     const width = 500;
+  //     const height = 600;
+  //     const left = window.screenX + (window.outerWidth - width) / 2;
+  //     const top = window.screenY + (window.outerHeight - height) / 2;
+  //
+  //     const popup = window.open(
+  //       redirect_url,
+  //       'composio-oauth',
+  //       `width=${width},height=${height},left=${left},top=${top}`
+  //     );
+  //
+  //     if (!popup) {
+  //       throw new Error('Popup was blocked. Please allow popups for this site.');
+  //     }
+  //
+  //     const checkClosed = setInterval(() => {
+  //       if (popup.closed) {
+  //         console.log("👍 Composio popup closed - redirecting to inbox");
+  //         clearInterval(checkClosed);
+  //         setIsLoadingComposio(false);
+  //         setShowAuthModal(false);
+  //         navigate("/inbox", { replace: true });
+  //       }
+  //     }, 500);
+  //
+  //   } catch (error: any) {
+  //     console.error("❌ Composio Step 2 failed:", error);
+  //     setErrorMessage(error.message || "Failed to connect Gmail. Please try again.");
+  //     setIsLoadingComposio(false);
+  //   }
+  // };
 
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/waitlist/check`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: waitlistEmail }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to join waitlist");
-      }
-
-      const data = await response.json();
-      console.log("Waitlist response:", data);
-
-      // Check if user already exists
-      if (data.status === "existing") {
-        setErrorMessage("This email is already on the waitlist. We'll notify you via Gmail!");
-        return;
-      }
-
-      // Success - close modal and show toast
-      setShowAuthModal(false);
-      setWaitlistEmail("");
-      setSuccessMessage("Thank you for joining the waitlist! You will receive an email soon.");
-
-    } catch (error: any) {
-      console.error("Waitlist signup failed:", error);
-      setErrorMessage(error.message || "Failed to join waitlist. Please try again.");
-    } finally {
-      setWaitlistLoading(false);
-    }
-  };
-
-  // Handle Direct Login
-  const handleDirectLogin = async () => {
-    try {
-      setAuthMethod('direct');
-      setIsLoadingDirect(true);
-      setErrorMessage(null);
-
-      console.log("🔐 Starting Direct Login...");
-
-      const width = 500;
-      const height = 600;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
-
-      const popup = window.open(
-        `${BACKEND_URL}/auth/gmail/login`,
-        'gmail-oauth',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
-
-      if (!popup) {
-        throw new Error('Popup was blocked. Please allow popups for this site.');
-      }
-
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          console.log("👍 Popup closed");
-          clearInterval(checkClosed);
-          setIsLoadingDirect(false);
-          setShowAuthModal(false);
-        }
-      }, 500);
-
-    } catch (error: any) {
-      console.error("❌ Direct login failed:", error);
-      setErrorMessage(error.message || "Failed to sign in. Please try again.");
-      setIsLoadingDirect(false);
-    }
-  };
-
-  // Handle Composio Step 1 (Firebase Identity OAuth)
-  const handleComposioStep1 = async () => {
-    try {
-      setAuthMethod('composio');
-      setIsLoadingComposio(true);
-      setErrorMessage(null);
-
-      console.log("🔵 Starting Composio Step 1 (Firebase Identity OAuth)...");
-
-      const width = 500;
-      const height = 600;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
-
-      const popup = window.open(
-        `${BACKEND_URL}/auth/firebase/login`,
-        'firebase-oauth',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
-
-      if (!popup) {
-        throw new Error('Popup was blocked. Please allow popups for this site.');
-      }
-
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          console.log("👍 Popup closed");
-          clearInterval(checkClosed);
-          setIsLoadingComposio(false);
-        }
-      }, 500);
-
-    } catch (error: any) {
-      console.error("❌ Composio Step 1 failed:", error);
-      setErrorMessage(error.message || "Failed to sign in. Please try again.");
-      setIsLoadingComposio(false);
-    }
-  };
-
-  // Handle Composio Step 2 (Connect Gmail)
-  const handleComposioStep2 = async () => {
-    try {
-      setIsLoadingComposio(true);
-      setErrorMessage(null);
-
-      console.log("🔵 Starting Composio Step 2 (Connect Gmail)...");
-
-      const idToken = await getIdToken();
-
-      if (!idToken) {
-        throw new Error('Authentication token not found. Please try again.');
-      }
-
-      const response = await fetch(`${BACKEND_URL}/auth/composio/connect`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${idToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create Composio connection');
-      }
-
-      const data = await response.json();
-      const { redirect_url } = data;
-
-      console.log("🔵 Opening Composio OAuth popup...");
-
-      const width = 500;
-      const height = 600;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
-
-      const popup = window.open(
-        redirect_url,
-        'composio-oauth',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
-
-      if (!popup) {
-        throw new Error('Popup was blocked. Please allow popups for this site.');
-      }
-
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          console.log("👍 Composio popup closed - redirecting to inbox");
-          clearInterval(checkClosed);
-          setIsLoadingComposio(false);
-          setShowAuthModal(false);
-          navigate("/inbox", { replace: true });
-        }
-      }, 500);
-
-    } catch (error: any) {
-      console.error("❌ Composio Step 2 failed:", error);
-      setErrorMessage(error.message || "Failed to connect Gmail. Please try again.");
-      setIsLoadingComposio(false);
-    }
-  };
-
-  // Close modal handler
-  const handleCloseModal = () => {
-    if (!composioStep1Complete) {
-      setShowAuthModal(false);
-      setIsAdminMode(false);
-      setWaitlistEmail("");
-      setErrorMessage(null);
-    }
-  };
+  // Close modal handler - COMMENTED OUT (using /waitlist page instead)
+  // const handleCloseModal = () => {
+  //   if (!composioStep1Complete) {
+  //     setShowAuthModal(false);
+  //     setIsAdminMode(false);
+  //     setWaitlistEmail("");
+  //     setErrorMessage(null);
+  //   }
+  // };
 
   // Loading state
   if (loading) {
@@ -523,7 +521,7 @@ const Index = () => {
       )}
 
       {/* Error Toast */}
-      {errorMessage && !showAuthModal && (
+      {errorMessage && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
           <div className="bg-red-500/90 backdrop-blur-sm text-white px-5 py-3 rounded-lg flex items-center gap-3 shadow-lg">
             <span className="text-lg">⚠️</span>
@@ -571,7 +569,7 @@ const Index = () => {
 
       <Footer />
 
-      {/* Auth Modal */}
+      {/* Auth Modal - COMMENTED OUT (using /waitlist page instead)
       {showAuthModal && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
@@ -581,9 +579,7 @@ const Index = () => {
             className="bg-white rounded-2xl w-full max-w-md md:max-w-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Left Panel */}
             <div className="flex-1 px-6 py-6 md:px-8 md:py-8">
-              {/* Close Button - Mobile */}
               <button
                 onClick={handleCloseModal}
                 className="absolute top-4 right-4 md:hidden p-2 hover:bg-gray-100 rounded-full"
@@ -592,7 +588,6 @@ const Index = () => {
               </button>
 
               {composioStep1Complete && paymentComplete ? (
-                // Composio Step 3: Connect Gmail (after payment)
                 <div className="space-y-4">
                   <div className="text-center mb-6">
                     <div className="inline-flex items-center gap-2 text-green-600 mb-2">
@@ -629,7 +624,6 @@ const Index = () => {
                   </button>
                 </div>
               ) : composioStep1Complete && !paymentComplete ? (
-                // Composio Step 2: Payment
                 <div className="space-y-4">
                   <div className="text-center mb-6">
                     <div className="inline-flex items-center gap-2 text-green-600 mb-2">
@@ -646,20 +640,17 @@ const Index = () => {
                     </p>
                   </div>
 
-                  {/* Error Message */}
                   {errorMessage && (
                     <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm">
                       {errorMessage}
                     </div>
                   )}
 
-                  {/* Amount Display */}
                   <div className="bg-gray-50 rounded-lg p-4 text-center">
                     <p className="text-sm text-gray-500 mb-1" style={{ fontFamily: "'Inter', sans-serif" }}>Amount</p>
                     <p className="text-3xl font-bold text-gray-900" style={{ fontFamily: "'Inter', sans-serif" }}>$5.00</p>
                   </div>
 
-                  {/* Pay Now Button */}
                   <button
                     onClick={handlePayment}
                     disabled={isLoadingPayment}
@@ -676,7 +667,6 @@ const Index = () => {
                     )}
                   </button>
 
-                  {/* Go Back Button */}
                   <button
                     onClick={handlePaymentGoBack}
                     disabled={isLoadingPayment}
@@ -687,7 +677,6 @@ const Index = () => {
                   </button>
                 </div>
               ) : isAdminMode ? (
-                // Admin Mode: Show both auth buttons
                 <div className="space-y-4">
                   <div className="text-center mb-6">
                     <h3 className="text-xl font-semibold text-gray-900 mb-2" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -698,7 +687,6 @@ const Index = () => {
                     </p>
                   </div>
 
-                  {/* Direct Login Button */}
                   <button
                     onClick={handleDirectLogin}
                     onMouseEnter={() => setHoveredButton('direct')}
@@ -727,14 +715,12 @@ const Index = () => {
                     )}
                   </button>
 
-                  {/* Or Divider */}
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-px bg-gray-200"></div>
                     <span className="text-sm text-gray-400" style={{ fontFamily: "'Inter', sans-serif" }}>or</span>
                     <div className="flex-1 h-px bg-gray-200"></div>
                   </div>
 
-                  {/* Composio Login Button */}
                   <button
                     onClick={handleComposioStep1}
                     onMouseEnter={() => setHoveredButton('composio')}
@@ -764,7 +750,6 @@ const Index = () => {
                   </button>
                 </div>
               ) : (
-                // Initial: Waitlist form + greyed Composio button
                 <div className="space-y-4">
                   <div className="text-center mb-6">
                     <h3 className="text-xl font-semibold text-gray-900 mb-2" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -775,14 +760,12 @@ const Index = () => {
                     </p>
                   </div>
 
-                  {/* Error Message in Modal */}
                   {errorMessage && (
                     <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm">
                       {errorMessage}
                     </div>
                   )}
 
-                  {/* Waitlist Form */}
                   <form onSubmit={handleWaitlistSubmit} className="space-y-3">
                     <input
                       type="email"
@@ -810,14 +793,12 @@ const Index = () => {
                     </button>
                   </form>
 
-                  {/* Or Divider */}
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-px bg-gray-200"></div>
                     <span className="text-sm text-gray-400" style={{ fontFamily: "'Inter', sans-serif" }}>or</span>
                     <div className="flex-1 h-px bg-gray-200"></div>
                   </div>
 
-                  {/* Composio Login Button - Active */}
                   <button
                     onClick={handleComposioStep1}
                     onMouseEnter={() => setHoveredButton('composio')}
@@ -849,12 +830,10 @@ const Index = () => {
               )}
             </div>
 
-            {/* Right Panel - Info */}
             <div
               className="hidden md:flex w-80 bg-black text-white p-8 relative overflow-hidden items-center"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
-              {/* Waitlist Info - Initial state (not admin) */}
               {!isAdminMode && !composioStep1Complete && (
                 <div className={`space-y-4 transition-opacity duration-200 ${hoveredButton === 'composio' ? 'opacity-0' : 'opacity-100'}`}>
                   <p className="text-sm leading-relaxed">
@@ -872,7 +851,6 @@ const Index = () => {
                 </div>
               )}
 
-              {/* Direct Auth Info - Admin mode */}
               {isAdminMode && (
                 <div className={`space-y-4 transition-opacity duration-200 ${hoveredButton === 'direct' || !hoveredButton ? 'opacity-100' : 'opacity-0'}`}>
                   <p className="text-sm leading-relaxed">
@@ -890,7 +868,6 @@ const Index = () => {
                 </div>
               )}
 
-              {/* Composio Info - Overlay */}
               <div className={`space-y-4 transition-opacity duration-200 absolute top-0 left-0 right-0 bottom-0 flex flex-col justify-center p-8 ${hoveredButton === 'composio' && !composioStep1Complete ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <p className="text-sm leading-relaxed">
                   Get instant access to Outpost with Composio authentication.
@@ -900,7 +877,6 @@ const Index = () => {
                 </p>
               </div>
 
-              {/* Payment Step Info */}
               {composioStep1Complete && !paymentComplete && (
                 <div className="space-y-4">
                   <p className="text-sm leading-relaxed">
@@ -915,7 +891,6 @@ const Index = () => {
                 </div>
               )}
 
-              {/* Connect Gmail Step Info */}
               {composioStep1Complete && paymentComplete && (
                 <div className="space-y-4">
                   <p className="text-sm leading-relaxed">
@@ -929,7 +904,7 @@ const Index = () => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 };
