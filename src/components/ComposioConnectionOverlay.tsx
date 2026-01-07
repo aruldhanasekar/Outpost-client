@@ -88,13 +88,13 @@ const ComposioConnectionOverlay = ({
           <div className="text-center mb-6">
             <h3 
               className="text-xl font-semibold text-gray-900 mb-2" 
-              style={{ fontFamily: "'Inter', sans-serif" }}
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
             >
               Connect your Gmail
             </h3>
             <p 
               className="text-sm text-gray-600" 
-              style={{ fontFamily: "'Inter', sans-serif" }}
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
             >
               Signed in as {userEmail}
             </p>
@@ -125,7 +125,7 @@ const ComposioConnectionOverlay = ({
                 </svg>
                 <span 
                   className="font-medium text-gray-700" 
-                  style={{ fontFamily: "'Inter', sans-serif" }}
+                  style={{ fontFamily: "'Google Sans', sans-serif" }}
                 >
                   Connect Gmail
                 </span>
@@ -137,7 +137,7 @@ const ComposioConnectionOverlay = ({
         {/* Right Panel - Dark */}
         <div 
           className="hidden md:flex w-72 bg-black text-white p-8 items-center"
-          style={{ fontFamily: "'Inter', sans-serif" }}
+          style={{ fontFamily: "'Google Sans', sans-serif" }}
         >
           <div className="space-y-4">
             <p className="text-sm leading-relaxed">
