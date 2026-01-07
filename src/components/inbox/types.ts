@@ -4,6 +4,7 @@
 // v2.2: Added message_id for email tracking in inbox threads
 // v2.3: Added Attachment interface and attachments field for email attachments
 // v2.4: Added user_category fields for manual category override
+// v2.5: Added sender_photo_url for sender profile photos
 
 // Category type
 export type Category = "urgent" | "important" | "promises" | "awaiting" | "others";
@@ -56,6 +57,8 @@ export interface Email {
   user_category?: string;      // User override category (URGENT/IMPORTANT/OTHERS)
   user_category_at?: string;   // When user changed it
   category_source?: string;    // 'ai' | 'user' | 'sender_rule'
+  // v2.5: Sender profile photo
+  sender_photo_url?: string | null;  // Sender's profile photo URL from Google People API
 }
 
 // Tracking status for sent emails within inbox threads
