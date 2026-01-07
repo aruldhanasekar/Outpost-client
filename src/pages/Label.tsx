@@ -917,6 +917,16 @@ const LabelPage = () => {
             >
               {hasThreadSelection && selectedThread && (
                 <div className="p-6 pt-8">
+                  {/* Outpost User Photo - v2.6 */}
+                  {threadEmails.length > 0 && threadEmails[0].outpost_user_photo && (
+                    <div className="flex justify-center mb-6">
+                      <img
+                        src={threadEmails[0].outpost_user_photo}
+                        alt="Sender"
+                        className="w-16 h-16 rounded-full object-cover"
+                      />
+                    </div>
+                  )}
                   <div className="mb-4">
                     <p className="text-zinc-500 text-xs uppercase tracking-wider mb-2">Participants</p>
                     <div className="space-y-1.5">

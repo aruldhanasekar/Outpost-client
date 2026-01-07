@@ -422,6 +422,16 @@ const DonePage = () => {
             >
               {selectedEmail && (
                 <div className="p-6 pt-8">
+                  {/* Outpost User Photo - v2.6 */}
+                  {threadEmails.length > 0 && threadEmails[0].outpost_user_photo && (
+                    <div className="flex justify-center mb-6">
+                      <img
+                        src={threadEmails[0].outpost_user_photo}
+                        alt="Sender"
+                        className="w-16 h-16 rounded-full object-cover"
+                      />
+                    </div>
+                  )}
                   <p className="text-zinc-500 text-xs uppercase tracking-wider mb-2">Thread</p>
                   <p className="text-zinc-300 text-sm">{threadEmails.length} emails</p>
                   <p className="text-zinc-500 text-xs mt-4 uppercase tracking-wider mb-2">From</p>

@@ -347,7 +347,7 @@ const SentPage = () => {
               className={`
                 hidden lg:flex flex-col bg-[#252525] overflow-hidden
                 transition-[width,opacity] duration-300 ease-out will-change-[width,opacity]
-                ${selectedEmail ? 'w-[70%] opacity-100' : 'w-0 opacity-0'}
+                ${selectedEmail ? 'w-[55%] opacity-100' : 'w-0 opacity-0'}
               `}
             >
               {selectedEmail && (
@@ -358,6 +358,35 @@ const SentPage = () => {
                   userEmail={currentUser?.email || ""}
                   onClose={handleCloseDetail}
                 />
+              )}
+            </div>
+
+            {/* Profile Panel - Desktop Only */}
+            <div 
+              className={`
+                hidden lg:flex flex-col bg-[#2d2d2d] border-l border-zinc-700/50 overflow-hidden
+                ${selectedEmail ? 'w-[15%]' : 'w-0'}
+              `}
+            >
+              {selectedEmail && (
+                <div className="p-6 pt-8">
+                  {/* Outpost User Photo - v2.6 */}
+                  {threadEmails.length > 0 && threadEmails[0].outpost_user_photo && (
+                    <div className="flex justify-center mb-6">
+                      <img
+                        src={threadEmails[0].outpost_user_photo}
+                        alt="Sender"
+                        className="w-16 h-16 rounded-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <p className="text-zinc-500 text-xs uppercase tracking-wider mb-2">Thread</p>
+                  <p className="text-zinc-300 text-sm">{threadEmails.length} emails</p>
+                  <p className="text-zinc-500 text-xs mt-4 uppercase tracking-wider mb-2">To</p>
+                  <p className="text-zinc-400 text-xs truncate">
+                    {selectedEmail.to?.[0] || selectedEmail.senderEmail}
+                  </p>
+                </div>
               )}
             </div>
 
