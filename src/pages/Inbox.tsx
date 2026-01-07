@@ -82,6 +82,9 @@ const InboxPage = () => {
   
   // ✅ Unified check for Gmail connection (works for both auth methods)
   const isGmailConnected = useMemo(() => {
+    // If Composio callback is in progress, consider connected (listener starts immediately)
+    if (isComposioCallbackInProgress) return true;
+    
     // If Composio was just connected this session, consider Gmail connected immediately
     if (composioJustConnected) return true;
     
@@ -96,7 +99,7 @@ const InboxPage = () => {
       // Direct auth users are connected after OAuth (have tokens)
       return backendUserData.initial_sync_completed !== undefined;
     }
-  }, [currentUser, backendUserData, composioJustConnected]);
+  }, [currentUser, backendUserData, composioJustConnected, isComposioCallbackInProgress]);
   
   // Check if Composio user needs to connect Gmail
   // ✅ Don't show overlay if callback is in progress
