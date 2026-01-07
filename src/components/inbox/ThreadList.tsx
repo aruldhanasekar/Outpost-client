@@ -78,16 +78,8 @@ export function ThreadList({
     );
   }
 
-  // Empty state
-  if (threads.length === 0) {
-    // Show spinner during initial sync instead of empty message
-    if (isInitialSyncing) {
-      return (
-        <div className="flex items-center justify-center h-48">
-          <Loader2 className="w-6 h-6 text-zinc-400 animate-spin" />
-        </div>
-      );
-    }
+  // Empty state - only show when NOT syncing
+  if (threads.length === 0 && !isInitialSyncing) {
     return (
       <div className="flex items-center justify-center h-48 px-4">
         <p className="text-zinc-500 text-sm text-center">
@@ -97,9 +89,17 @@ export function ThreadList({
     );
   }
 
-  // Render threads directly without date grouping
+  // Render threads with optional syncing banner
   return (
     <div>
+      {/* Syncing indicator - shows at top while initial sync in progress */}
+      {isInitialSyncing && (
+        <div className="flex items-center justify-center gap-2 py-3 text-zinc-400 text-sm">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Syncing your emails...</span>
+        </div>
+      )}
+      
       {threads.map((thread) => (
         <ThreadListItem
           key={thread.thread_id}
