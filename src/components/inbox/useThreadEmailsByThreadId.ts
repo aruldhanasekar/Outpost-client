@@ -138,6 +138,7 @@ export function useThreadEmailsByThreadId(
               // v2.6: Outpost user photos
               outpost_user_photo: data.outpost_user_photo || null,
               outpost_recipient_photo: data.outpost_recipient_photo || null,
+              unsubscribe_url: data.unsubscribe_url || null,
             });
           });
 
