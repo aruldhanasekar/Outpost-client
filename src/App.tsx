@@ -21,6 +21,7 @@ import Waitlist from "@/pages/Waitlist";
 import Exclusive from "@/pages/Exclusive";
 import Label from "@/pages/Label";
 import { LabelsProvider } from '@/context/LabelsContext';
+import NotAllowed from "@/pages/NotAllowed";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/payment" element={<Payment />} />
             <Route path="/waitlist" element={<Waitlist />} />
             <Route path="/exclusive" element={<Exclusive />} />
+            <Route path="/not-allowed" element={<NotAllowed />} />
 
             {/* ✅ PROTECTED ROUTE: Inbox */}
             <Route path="/inbox" element={
