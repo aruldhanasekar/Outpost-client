@@ -42,7 +42,6 @@ import { CategoryMoveToast } from "@/components/ui/CategoryMoveToast";
 import { Sidebar } from "@/components/layout";
 import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import ComposioConnectionOverlay from "@/components/ComposioConnectionOverlay";
-import SyncLoadingOverlay from "@/components/SyncLoadingOverlay";
 import { useCategoryMoveNotifications } from "@/hooks/useCategoryMoveNotifications";
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
@@ -1333,11 +1332,6 @@ const InboxPage = () => {
       {/* Composio Connection Overlay */}
       {needsComposioConnection && (
         <ComposioConnectionOverlay userEmail={currentUser?.email || ""} />
-      )}
-
-      {/* Sync Loading Overlay */}
-      {showSyncLoading && (
-        <SyncLoadingOverlay onHide={() => setShowSyncLoading(false)} />
       )}
 
       <div 
