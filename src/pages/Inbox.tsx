@@ -103,10 +103,10 @@ const InboxPage = () => {
 
   // ✅ Check if initial sync is in progress (show spinner instead of "No threads" message)
   const isInitialSyncing = useMemo(() => {
-    if (!backendUserData) return false;
+    if (!backendUserData) return true;
     
     // Check if initial sync is not yet completed
-    if (backendUserData.initial_sync_completed === false) return true;
+    if (backendUserData.initial_sync_completed !== true) return true;
     
     // Check sync_status for active syncing states
     const syncStatus = backendUserData.sync_status;
