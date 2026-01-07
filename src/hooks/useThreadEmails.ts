@@ -171,6 +171,7 @@ export function useThreadEmails(
               // v2.1: Add Gmail message ID for tracking lookup
               message_id: data.message_id || null,
               outpost_user_photo: data.outpost_user_photo || null,
+              outpost_recipient_photo: data.outpost_recipient_photo || null,
             });
           });
         }

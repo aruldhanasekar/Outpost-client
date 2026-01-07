@@ -157,6 +157,7 @@ export function useSentEmails(userId: string | undefined): UseSentEmailsReturn {
               hasAttachment: data.gmail_labels?.includes('ATTACHMENT') || false,
               timestamp: getTimestamp(internalDate),
               thread_id: data.thread_id || '', // Include thread_id for thread view
+              outpost_recipient_photo: data.outpost_recipient_photo || null,
             });
           });
 

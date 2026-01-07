@@ -370,12 +370,12 @@ const SentPage = () => {
             >
               {selectedEmail && (
                 <div className="p-6 pt-8">
-                  {/* Outpost User Photo - v2.6 */}
-                  {threadEmails.length > 0 && threadEmails[0].outpost_user_photo && (
+                  {/* Outpost Recipient Photo - v2.6 */}
+                  {threadEmails.length > 0 && threadEmails[0].outpost_recipient_photo && (
                     <div className="flex justify-center mb-6">
                       <img
-                        src={threadEmails[0].outpost_user_photo}
-                        alt="Sender"
+                        src={threadEmails[0].outpost_recipient_photo}
+                        alt="Recipient"
                         className="w-16 h-16 rounded-full object-cover"
                       />
                     </div>
