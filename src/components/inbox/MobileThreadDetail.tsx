@@ -428,9 +428,22 @@ export function MobileThreadDetail({
               <path d="m15 18-6-6 6-6"/>
             </svg>
           </button>
-          <h2 className="text-base font-semibold text-white truncate">
-            {thread.gmail_subject}
-          </h2>
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-white truncate">
+              {thread.gmail_subject}
+            </h2>
+            {/* Unsubscribe Link - v2.7 */}
+            {emails.length > 0 && emails[0].unsubscribe_url && (
+              <a
+                href={emails[0].unsubscribe_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-zinc-500 hover:text-zinc-300 hover:underline transition-colors"
+              >
+                Unsubscribe
+              </a>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Mark as Done Button */}

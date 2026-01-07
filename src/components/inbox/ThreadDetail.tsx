@@ -889,9 +889,22 @@ export function ThreadDetail({
     <>
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4">
-        <h2 className="text-lg font-medium text-white truncate pr-4" style={{ fontFamily: "'Manrope', sans-serif" }}>
-          {thread.gmail_subject}
-        </h2>
+        <div className="min-w-0 pr-4">
+          <h2 className="text-lg font-medium text-white truncate" style={{ fontFamily: "'Manrope', sans-serif" }}>
+            {thread.gmail_subject}
+          </h2>
+          {/* Unsubscribe Link - v2.7 */}
+          {emails.length > 0 && emails[0].unsubscribe_url && (
+            <a
+              href={emails[0].unsubscribe_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-zinc-500 hover:text-zinc-300 hover:underline transition-colors"
+            >
+              Unsubscribe
+            </a>
+          )}
+        </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Category Dropdown */}
           {mode === 'inbox' && (

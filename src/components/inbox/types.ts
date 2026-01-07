@@ -59,6 +59,7 @@ export interface Email {
   category_source?: string;    // 'ai' | 'user' | 'sender_rule'
   outpost_user_photo?: string | null;
   outpost_recipient_photo?: string | null;
+  unsubscribe_url?: string | null;
 }
 
 // Tracking status for sent emails within inbox threads
