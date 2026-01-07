@@ -26,6 +26,8 @@ import { SearchModal } from "@/components/search";
 import { CreateLabelModal } from "@/components/labels/CreateLabelModal";
 import { UndoEmailData } from "@/components/inbox/ComposeModal";
 import { useThreads } from "@/hooks/useThreads";
+import { EmailProfile } from "@/components/inbox/EmailProfile";
+
 import { 
   batchMarkAsDone, 
   batchMarkAsRead,
@@ -1589,6 +1591,25 @@ const InboxPage = () => {
             >
               {hasThreadSelection && selectedThread && (
                 <div className="p-6 pt-8">
+                  {/* Profile Photo - v2.5 */}
+                  {threadEmails.length > 0 && (
+                    <div className="flex justify-center mb-6">
+                      {threadEmails[0].sender_photo_url ? (
+                        <img
+                          src={threadEmails[0].sender_photo_url}
+                          alt="Sender"
+                          className="w-16 h-16 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-zinc-600 flex items-center justify-center">
+                          <span className="text-white text-xl font-medium">
+                            {threadEmails[0].senderEmail?.charAt(0).toUpperCase() || '?'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   <div className="mb-4">
                     <p className="text-zinc-500 text-xs uppercase tracking-wider mb-2">Participants</p>
                     <div className="space-y-1.5">
