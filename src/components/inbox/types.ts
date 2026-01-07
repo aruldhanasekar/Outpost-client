@@ -57,8 +57,7 @@ export interface Email {
   user_category?: string;      // User override category (URGENT/IMPORTANT/OTHERS)
   user_category_at?: string;   // When user changed it
   category_source?: string;    // 'ai' | 'user' | 'sender_rule'
-  // v2.5: Sender profile photo
-  sender_photo_url?: string | null;  // Sender's profile photo URL from Google People API
+  outpost_user_photo?: string | null;
 }
 
 // Tracking status for sent emails within inbox threads
