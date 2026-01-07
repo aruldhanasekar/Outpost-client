@@ -77,93 +77,78 @@ const ComposioConnectionOverlay = ({
     );
   }
 
-  // Main overlay with "Connect Gmail" prompt
+  // Main overlay with two-panel design
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
-        {/* Header */}
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h2
-            className="text-2xl font-semibold text-black"
-            style={{ fontFamily: "'Sora', sans-serif" }}
-          >
-            📧 Connect Your Gmail
-          </h2>
-        </div>
-
-        {/* Body */}
-        <div className="px-6 py-6 space-y-4">
-          {/* Success - Signed In */}
-          <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
-            <svg
-              className="w-5 h-5 text-green-600 flex-shrink-0"
-              fill="currentColor"
-              viewBox="0 0 20 20"
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 flex overflow-hidden">
+        
+        {/* Left Panel - White */}
+        <div className="flex-1 p-8">
+          {/* Heading */}
+          <div className="text-center mb-6">
+            <h3 
+              className="text-xl font-semibold text-gray-900 mb-2" 
+              style={{ fontFamily: "'Inter', sans-serif" }}
             >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-green-800">Signed in as</p>
-              <p className="text-sm text-green-700">{userEmail}</p>
-            </div>
-          </div>
-
-          {/* Instruction */}
-          <div className="text-center py-2">
-            <p className="text-gray-700 leading-relaxed">
-              To use Outpost, you need to connect your Gmail account through our
-              verified OAuth provider.
+              Connect your Gmail
+            </h3>
+            <p 
+              className="text-sm text-gray-600" 
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              Signed in as {userEmail}
             </p>
           </div>
 
           {/* Error Message */}
           {errorMessage && (
-            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-              <div className="flex items-start gap-2">
-                <span className="text-red-600">⚠️</span>
-                <p className="text-sm text-red-800">{errorMessage}</p>
-              </div>
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm mb-4">
+              {errorMessage}
             </div>
           )}
 
-          {/* Connect Button */}
+          {/* Connect Gmail Button */}
           <button
             onClick={handleConnectGmail}
             disabled={isConnecting}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-black text-white rounded-lg hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
-              <path
-                fill="#EA4335"
-                d="M5.26620003,9.76452941 C6.19878754,6.93863203 8.85444915,4.90909091 12,4.90909091 C13.6909091,4.90909091 15.2181818,5.50909091 16.4181818,6.49090909 L19.9090909,3 C17.7818182,1.14545455 15.0545455,0 12,0 C7.27006974,0 3.1977497,2.69829785 1.23999023,6.65002441 L5.26620003,9.76452941 Z"
-              />
-              <path
-                fill="#34A853"
-                d="M16.0407269,18.0125889 C14.9509167,18.7163016 13.5660892,19.0909091 12,19.0909091 C8.86648613,19.0909091 6.21911939,17.076871 5.27698177,14.2678769 L1.23746264,17.3349879 C3.19279051,21.2936293 7.26500293,24 12,24 C14.9328362,24 17.7353462,22.9573905 19.834192,20.9995801 L16.0407269,18.0125889 Z"
-              />
-              <path
-                fill="#4A90E2"
-                d="M19.834192,20.9995801 C22.0291676,18.9520994 23.4545455,15.903663 23.4545455,12 C23.4545455,11.2909091 23.3454545,10.5818182 23.1818182,9.90909091 L12,9.90909091 L12,14.4545455 L18.4363636,14.4545455 C18.1187732,16.013626 17.2662994,17.2212117 16.0407269,18.0125889 L19.834192,20.9995801 Z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.27698177,14.2678769 C5.03832634,13.556323 4.90909091,12.7937589 4.90909091,12 C4.90909091,11.2182781 5.03443647,10.4668121 5.26620003,9.76452941 L1.23999023,6.65002441 C0.43658717,8.26043162 0,10.0753848 0,12 C0,13.9195484 0.444780743,15.7301709 1.23746264,17.3349879 L5.27698177,14.2678769 Z"
-              />
-            </svg>
-            <span>Connect Gmail with Composio</span>
+            {isConnecting ? (
+              <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-800 rounded-full animate-spin" />
+            ) : (
+              <>
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                <span 
+                  className="font-medium text-gray-700" 
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                >
+                  Connect Gmail
+                </span>
+              </>
+            )}
           </button>
+        </div>
 
-          {/* Info */}
-          <div className="text-center pt-2">
-            <p className="text-xs text-gray-500">
-              ✅ Verified OAuth • No "unverified app" warning
+        {/* Right Panel - Dark */}
+        <div 
+          className="hidden md:flex w-72 bg-black text-white p-8 items-center"
+          style={{ fontFamily: "'Inter', sans-serif" }}
+        >
+          <div className="space-y-4">
+            <p className="text-sm leading-relaxed">
+              Get instant access to Outpost with Composio authentication.
+            </p>
+            <p className="text-sm leading-relaxed text-gray-400">
+              Your OAuth access and limited profile data are securely accessed and managed by <span className="text-white">Composio</span>.
             </p>
           </div>
         </div>
+
       </div>
     </div>
   );
