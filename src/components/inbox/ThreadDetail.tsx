@@ -893,17 +893,20 @@ export function ThreadDetail({
           <h2 className="text-lg font-medium text-white truncate" style={{ fontFamily: "'Manrope', sans-serif" }}>
             {thread.gmail_subject}
           </h2>
-          {/* Unsubscribe Link - v2.7 */}
-          {emails.length > 0 && emails[0].unsubscribe_url && (
-            <a
-              href={emails[0].unsubscribe_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-zinc-500 hover:text-zinc-300 hover:underline transition-colors"
-            >
-              Unsubscribe
-            </a>
-          )}
+          {/* Unsubscribe Link - v2.8: Check ALL emails in thread for unsubscribe_url */}
+          {(() => {
+            const unsubscribeUrl = emails.find(e => e.unsubscribe_url)?.unsubscribe_url;
+            return unsubscribeUrl ? (
+              <a
+                href={unsubscribeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-zinc-500 hover:text-zinc-300 hover:underline transition-colors"
+              >
+                Unsubscribe
+              </a>
+            ) : null;
+          })()}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Category Dropdown */}

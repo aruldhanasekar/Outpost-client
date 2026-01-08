@@ -301,7 +301,7 @@ function EmailCard({
               padding: 0;
               height: auto !important;
               min-height: 0 !important;
-              overflow-x: hidden;
+              overflow: hidden;
             }
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
