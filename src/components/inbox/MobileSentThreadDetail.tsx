@@ -1,29 +1,36 @@
-import { Loader2, Trash2, Reply, Forward, Paperclip, Download } from 'lucide-react';
+import { Loader2, Check, Trash2, Reply, Forward, Paperclip, Download } from 'lucide-react';
 import { useRef, useEffect, useState } from 'react';
+import { Thread } from './promiseTypes';
 import { Email } from './types';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
 import { stripQuotedReply } from '@/utils/emailHelpers';
 
-interface MobileSentThreadDetailProps {
-  subject: string;
+
+type ThreadMode = 'promise' | 'awaiting' | 'inbox';
+
+interface MobileThreadDetailProps {
+  thread: Thread;
   emails: Email[];
   loading: boolean;
   userEmail: string;
   onClose: () => void;
+  onMarkDone?: () => void;
   onDelete?: () => void;
-  onReply?: (email: Email) => void;      // v2.0: Reply handler
+  mode?: ThreadMode;
+  getAuthToken?: () => Promise<string>; // For tracking API calls
+  onReply?: (email: Email) => void;      // v3.0: Reply handler
   onReplyAll?: (email: Email) => void;   // v4.0: Reply All handler
-  onForward?: (email: Email) => void;    // v2.0: Forward handler
+  onForward?: (email: Email) => void;    // v3.0: Forward handler
 }
 
-// Collapsed email row component for mobile sent view
-interface MobileCollapsedSentEmailCardProps {
+// Collapsed email row component for mobile
+interface MobileCollapsedEmailCardProps {
   email: Email;
   userEmail: string;
   onClick: () => void;
 }
 
-function MobileCollapsedSentEmailCard({ email, userEmail, onClick }: MobileCollapsedSentEmailCardProps) {
+function MobileCollapsedEmailCard({ email, userEmail, onClick }: MobileCollapsedEmailCardProps) {
   const isUserSender = email.senderEmail?.toLowerCase() === userEmail?.toLowerCase();
   const displayName = isUserSender ? 'You' : email.sender;
   const hasAttachment = email.hasAttachment || (email.attachments && email.attachments.length > 0);
@@ -51,35 +58,37 @@ function MobileCollapsedSentEmailCard({ email, userEmail, onClick }: MobileColla
   );
 }
 
-// Animated email item with smooth expand/collapse (Mobile Sent)
-interface AnimatedMobileSentEmailItemProps {
+// Animated email item with smooth expand/collapse (Mobile)
+interface AnimatedMobileEmailItemProps {
   email: Email;
   isExpanded: boolean;
   isLatest: boolean;
   isLast: boolean;
   userEmail: string;
   onToggle: () => void;
+  getAuthToken?: () => Promise<string>;
   onReply?: (email: Email) => void;
   onForward?: (email: Email) => void;
 }
 
-function AnimatedMobileSentEmailItem({ 
+function AnimatedMobileEmailItem({ 
   email, 
   isExpanded, 
   isLatest, 
   isLast,
   userEmail, 
   onToggle,
+  getAuthToken,
   onReply,
   onForward
-}: AnimatedMobileSentEmailItemProps) {
+}: AnimatedMobileEmailItemProps) {
   const isUserSender = email.senderEmail?.toLowerCase() === userEmail?.toLowerCase();
   const displayName = isUserSender ? 'You' : email.sender;
   const hasAttachment = email.hasAttachment || (email.attachments && email.attachments.length > 0);
 
   return (
     <div 
-      id={`mobile-sent-email-${email.id}`}
+      id={`mobile-email-${email.id}`}
       className="mb-2"
     >
       {isExpanded ? (
@@ -91,6 +100,7 @@ function AnimatedMobileSentEmailItem({
             email={email} 
             isLast={isLast}
             userEmail={userEmail}
+            getAuthToken={getAuthToken}
             onReply={onReply}
             onForward={onForward}
           />
@@ -120,17 +130,18 @@ function AnimatedMobileSentEmailItem({
   );
 }
 
-// Individual email card props
+
+// Individual email card
 interface MobileEmailCardProps {
   email: Email;
   isLast: boolean;
   userEmail: string;
+  getAuthToken?: () => Promise<string>;
   onReply?: (email: Email) => void;
   onForward?: (email: Email) => void;
 }
 
-// Individual email card
-function MobileEmailCard({ email, isLast, userEmail, onReply, onForward }: MobileEmailCardProps) {
+function MobileEmailCard({ email, isLast, userEmail, getAuthToken, onReply, onForward }: MobileEmailCardProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeHeight, setIframeHeight] = useState<number>(60);
   
@@ -147,12 +158,13 @@ function MobileEmailCard({ email, isLast, userEmail, onReply, onForward }: Mobil
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
-          * { box-sizing: border-box; }
+          * { box-sizing: border-box; -ms-overflow-style: none; scrollbar-width: none; }
+          *::-webkit-scrollbar { display: none; }
           html, body {
             margin: 0;
             padding: 0;
             height: auto !important;
-            overflow: hidden;
+            overflow-x: hidden;
           }
           body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
@@ -197,7 +209,7 @@ function MobileEmailCard({ email, isLast, userEmail, onReply, onForward }: Mobil
     };
   }, [cleanBody, isHtml]);
 
-  // v2.0: Handle reply click
+  // v3.0: Handle reply click
   const handleReplyClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onReply) {
@@ -207,7 +219,7 @@ function MobileEmailCard({ email, isLast, userEmail, onReply, onForward }: Mobil
     }
   };
 
-  // v2.0: Handle forward click
+  // v3.0: Handle forward click
   const handleForwardClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onForward) {
@@ -218,130 +230,137 @@ function MobileEmailCard({ email, isLast, userEmail, onReply, onForward }: Mobil
   };
 
   return (
-    <div className={`bg-white rounded-lg overflow-hidden ${!isLast ? 'mb-3' : ''}`}>
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <span className="text-sm font-medium text-gray-800">{displayName}</span>
-        
-        {/* Right side: Reply/Forward icons (always visible on mobile) + Time */}
-        <div className="flex items-center gap-2">
-          {/* Reply/Forward icons - always visible on mobile */}
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={handleReplyClick}
-              className="p-1.5 active:bg-gray-100 rounded-md transition-colors text-gray-400"
-              aria-label="Reply"
-            >
-              <Reply className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleForwardClick}
-              className="p-1.5 active:bg-gray-100 rounded-md transition-colors text-gray-400"
-              aria-label="Forward"
-            >
-              <Forward className="w-4 h-4" />
-            </button>
+    <div className={`${!isLast ? 'mb-3' : ''}`}>
+      <div className="bg-white rounded-lg overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-800">{displayName}</span>
           </div>
           
-          <span className="text-xs text-gray-400">{email.time}</span>
+          {/* Right side: Reply/Forward icons (always visible on mobile) + Time */}
+          <div className="flex items-center gap-2">
+            {/* Reply/Forward icons - always visible on mobile */}
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={handleReplyClick}
+                className="p-1.5 active:bg-gray-100 rounded-md transition-colors text-gray-400"
+                aria-label="Reply"
+              >
+                <Reply className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleForwardClick}
+                className="p-1.5 active:bg-gray-100 rounded-md transition-colors text-gray-400"
+                aria-label="Forward"
+              >
+                <Forward className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <span className="text-xs text-gray-400">{email.time}</span>
+          </div>
         </div>
-      </div>
-      
-      <div className="px-4 py-3">
-        {isHtml ? (
-          <iframe
-            ref={iframeRef}
-            srcDoc={htmlContent}
-            sandbox="allow-same-origin"
-            className="w-full border-0 transition-[height] duration-200 ease-out"
-            style={{ height: `${iframeHeight}px`, background: 'transparent' }}
-            title="Email content"
-          />
-        ) : (
-          <div className="text-[15px] font-medium text-gray-700 leading-relaxed whitespace-pre-wrap">
-            {cleanBody}
+        
+        <div className="px-4 py-3">
+          {isHtml ? (
+            <iframe
+              ref={iframeRef}
+              srcDoc={htmlContent}
+              sandbox="allow-same-origin"
+              className="w-full border-0 transition-[height] duration-200 ease-out"
+              style={{ height: `${iframeHeight}px`, background: 'transparent' }}
+              title="Email content"
+            />
+          ) : (
+            <div className="text-[15px] font-medium text-gray-700 leading-relaxed whitespace-pre-wrap">
+              {cleanBody}
+            </div>
+          )}
+        </div>
+        
+        {/* v3.3: Attachments Section */}
+        {email.hasAttachment && (
+          <div className="px-4 pb-3">
+            {/* Image Attachments - Grid Preview */}
+            {email.attachments && email.attachments.filter(a => a.content_type?.startsWith('image/')).length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {email.attachments
+                  .filter(a => a.content_type?.startsWith('image/'))
+                  .map((attachment, idx) => (
+                    <a
+                      key={attachment.id || `img-${idx}`}
+                      href={attachment.url || '#'}
+                      download={attachment.filename}
+                      className="relative group rounded-lg overflow-hidden bg-gray-100 active:opacity-90 transition-opacity"
+                      title={`${attachment.filename} (${formatFileSize(attachment.size)}) - Tap to download`}
+                    >
+                      <img
+                        src={attachment.url}
+                        alt={attachment.filename}
+                        className="max-h-40 max-w-56 object-cover rounded-lg"
+                        loading="lazy"
+                      />
+                      {/* Download icon overlay */}
+                      <div className="absolute bottom-2 right-2 p-1.5 bg-black/50 rounded-full">
+                        <Download className="w-4 h-4 text-white" />
+                      </div>
+                    </a>
+                  ))}
+              </div>
+            )}
+            
+            {/* Non-Image Attachments - Link Style */}
+            {email.attachments && email.attachments.filter(a => !a.content_type?.startsWith('image/')).length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {email.attachments
+                  .filter(a => !a.content_type?.startsWith('image/'))
+                  .map((attachment, idx) => (
+                    <a
+                      key={attachment.id || `file-${idx}`}
+                      href={attachment.url || '#'}
+                      download={attachment.filename}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 active:bg-gray-200 rounded-lg transition-colors text-sm text-gray-700"
+                      title={`${attachment.filename} (${formatFileSize(attachment.size)})`}
+                    >
+                      <Paperclip className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                      <span className="max-w-[140px] truncate">{attachment.filename}</span>
+                      <span className="text-gray-400 text-xs flex-shrink-0">{formatFileSize(attachment.size)}</span>
+                      {attachment.url && (
+                        <Download className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      )}
+                    </a>
+                  ))}
+              </div>
+            )}
+            
+            {/* Fallback when no attachment data */}
+            {(!email.attachments || email.attachments.length === 0) && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg text-sm text-gray-500">
+                <Paperclip className="w-4 h-4" />
+                <span>Attachment</span>
+              </div>
+            )}
           </div>
         )}
       </div>
-      
-      {/* v3.0: Attachments Section */}
-      {email.hasAttachment && (
-        <div className="px-4 pb-3">
-          {/* Image Attachments - Grid Preview */}
-          {email.attachments && email.attachments.filter(a => a.content_type?.startsWith('image/')).length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-2">
-              {email.attachments
-                .filter(a => a.content_type?.startsWith('image/'))
-                .map((attachment, idx) => (
-                  <a
-                    key={attachment.id || `img-${idx}`}
-                    href={attachment.url || '#'}
-                    download={attachment.filename}
-                    className="relative group rounded-lg overflow-hidden bg-gray-100 active:opacity-90 transition-opacity"
-                    title={`${attachment.filename} (${formatFileSize(attachment.size)}) - Tap to download`}
-                  >
-                    <img
-                      src={attachment.url}
-                      alt={attachment.filename}
-                      className="max-h-40 max-w-56 object-cover rounded-lg"
-                      loading="lazy"
-                    />
-                    {/* Download icon overlay */}
-                    <div className="absolute bottom-2 right-2 p-1.5 bg-black/50 rounded-full">
-                      <Download className="w-4 h-4 text-white" />
-                    </div>
-                  </a>
-                ))}
-            </div>
-          )}
-          
-          {/* Non-Image Attachments - Link Style */}
-          {email.attachments && email.attachments.filter(a => !a.content_type?.startsWith('image/')).length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {email.attachments
-                .filter(a => !a.content_type?.startsWith('image/'))
-                .map((attachment, idx) => (
-                  <a
-                    key={attachment.id || `file-${idx}`}
-                    href={attachment.url || '#'}
-                    download={attachment.filename}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 active:bg-gray-200 rounded-lg transition-colors text-sm text-gray-700"
-                    title={`${attachment.filename} (${formatFileSize(attachment.size)})`}
-                  >
-                    <Paperclip className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                    <span className="max-w-[140px] truncate">{attachment.filename}</span>
-                    <span className="text-gray-400 text-xs flex-shrink-0">{formatFileSize(attachment.size)}</span>
-                    {attachment.url && (
-                      <Download className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                    )}
-                  </a>
-                ))}
-            </div>
-          )}
-          
-          {/* Fallback when no attachment data */}
-          {(!email.attachments || email.attachments.length === 0) && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg text-sm text-gray-500">
-              <Paperclip className="w-4 h-4" />
-              <span>Attachment</span>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
 
-export function MobileSentThreadDetail({ 
-  subject, 
+export function MobileThreadDetail({ 
+  thread, 
   emails, 
   loading, 
   userEmail, 
   onClose, 
+  onMarkDone, 
   onDelete,
+  mode = 'inbox',
+  getAuthToken,
   onReply,
   onReplyAll,
   onForward
-}: MobileSentThreadDetailProps) {
+}: MobileThreadDetailProps) {
   // State for tracking which emails are expanded (by email id)
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
   const emailListRef = useRef<HTMLDivElement>(null);
@@ -369,7 +388,7 @@ export function MobileSentThreadDetail({
         newSet.add(emailId);
         // Scroll to the expanded email after a short delay
         setTimeout(() => {
-          const emailElement = document.getElementById(`mobile-sent-email-${emailId}`);
+          const emailElement = document.getElementById(`mobile-email-${emailId}`);
           if (emailElement && emailListRef.current) {
             emailElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }
@@ -384,6 +403,19 @@ export function MobileSentThreadDetail({
     return emails.length > 0 && emails[emails.length - 1].id === emailId;
   };
   
+  // Determine which summary to show based on mode
+  const summaryText = mode === 'awaiting' 
+    ? thread.ui_summary_awaiting 
+    : mode === 'promise'
+      ? thread.ui_summary_promise
+      : null; // 'inbox' mode - no summary
+  
+  const summaryLabel = mode === 'awaiting' 
+    ? 'Waiting For' 
+    : mode === 'promise'
+      ? 'AI Summary'
+      : null;
+
   return (
     <div className="lg:hidden fixed inset-0 bg-[#2d2d2d] z-30 flex flex-col">
       {/* Header */}
@@ -397,21 +429,59 @@ export function MobileSentThreadDetail({
               <path d="m15 18-6-6 6-6"/>
             </svg>
           </button>
-          <h2 className="text-base font-semibold text-white truncate">
-            {subject}
-          </h2>
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-white truncate">
+              {thread.gmail_subject}
+            </h2>
+            {/* Unsubscribe Link - v2.8: Check ALL emails in thread for unsubscribe_url */}
+            {(() => {
+              const unsubscribeUrl = emails.find(e => e.unsubscribe_url)?.unsubscribe_url;
+              return unsubscribeUrl ? (
+                <a
+                  href={unsubscribeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-zinc-500 hover:text-zinc-300 hover:underline transition-colors"
+                >
+                  Unsubscribe
+                </a>
+              ) : null;
+            })()}
+          </div>
         </div>
-        {/* Delete Button */}
-        {onDelete && (
-          <button 
-            onClick={onDelete}
-            className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white flex-shrink-0"
-            aria-label="Delete"
-          >
-            <Trash2 className="w-5 h-5" />
-          </button>
-        )}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Mark as Done Button */}
+          {onMarkDone && (
+            <button 
+              onClick={onMarkDone}
+              className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
+              title="Mark as done"
+            >
+              <Check className="w-5 h-5" />
+            </button>
+          )}
+          {/* Delete Button */}
+          {onDelete && (
+            <button 
+              onClick={onDelete}
+              className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-white"
+              title="Delete"
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Summary Banner - Only for promise/awaiting modes */}
+      {summaryText && summaryLabel && (
+        <div className="mx-4 mt-3 px-3 py-2.5 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
+          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">{summaryLabel}</p>
+          <p className="text-sm text-zinc-300 italic">
+            "{summaryText}"
+          </p>
+        </div>
+      )}
 
       {/* Emails */}
       <div ref={emailListRef} className="flex-1 overflow-y-auto hide-scrollbar p-4">
@@ -429,7 +499,7 @@ export function MobileSentThreadDetail({
             const isLatest = isLatestEmail(email.id);
             
             return (
-              <AnimatedMobileSentEmailItem
+              <AnimatedMobileEmailItem
                 key={email.id}
                 email={email}
                 isExpanded={isExpanded}
@@ -437,6 +507,7 @@ export function MobileSentThreadDetail({
                 isLast={index === emails.length - 1}
                 userEmail={userEmail}
                 onToggle={() => handleToggleEmail(email.id)}
+                getAuthToken={getAuthToken}
                 onReply={onReply}
                 onForward={onForward}
               />

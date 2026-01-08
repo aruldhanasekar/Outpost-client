@@ -295,7 +295,8 @@ function EmailCard({
             font-src https: data:;
           ">
           <style>
-            * { box-sizing: border-box; }
+            * { box-sizing: border-box; -ms-overflow-style: none; scrollbar-width: none; }
+            *::-webkit-scrollbar { display: none; }
             html, body {
               margin: 0;
               padding: 0;
