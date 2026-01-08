@@ -146,7 +146,8 @@ export function useSentEmails(userId: string | undefined): UseSentEmailsReturn {
             sentEmails.push({
               id: doc.id,
               // For sent emails, show recipient instead of sender
-              sender: extractRecipientName(data.to || ''),
+              // Use to_names if available, otherwise extract from to field
+              sender: (data.to_names && data.to_names[0]) ? data.to_names[0] : extractRecipientName(data.to || ''),
               senderEmail: extractRecipientEmail(data.to || ''),
               subject: data.subject || '(No Subject)',
               preview: data.snippet || '',
