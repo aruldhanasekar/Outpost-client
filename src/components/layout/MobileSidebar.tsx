@@ -181,18 +181,18 @@ export const MobileSidebar = ({
             onClick={() => setIsSenderRulesOpen(true)}
             className="group p-2 rounded-lg hover:bg-white transition-all"
           >
-            <div className="relative w-7 h-7">
+            <div className="relative w-8 h-8">
               {/* Default: white logo (visible on dark bg) */}
               <img 
                 src={OutpostLogoWhite} 
                 alt="Outpost" 
-                className="w-7 h-7 absolute inset-0 opacity-100 group-hover:opacity-0 transition-opacity"
+                className="w-8 h-8 absolute inset-0 opacity-100 group-hover:opacity-0 transition-opacity"
               />
               {/* Hover: dark logo (visible on white bg) */}
               <img 
                 src={OutpostLogoDark} 
                 alt="Outpost" 
-                className="w-7 h-7 absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="w-8 h-8 absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
               />
             </div>
           </button>
