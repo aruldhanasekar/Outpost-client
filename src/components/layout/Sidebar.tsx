@@ -16,7 +16,7 @@ import { SenderRulesModal } from "@/components/rules/SenderRulesModal";
 import { deleteLabel } from "@/services/emailApi";
 
 // Outpost logo for sender rules button
-import OutpostLogo from "@/assets/Outpost.png";
+import OutpostLogo from "@/assets/OutpostMail_dark.png";
 
 export type PageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'trash' | 'label';
 
