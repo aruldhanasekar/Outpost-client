@@ -3,6 +3,7 @@
 // v2.0: Uses LabelsContext for persistent labels state across navigation
 // ✅ Updated to use emailApi.ts for automatic Direct Auth / Composio routing
 // ✅ Added Sender Rules modal (accessible via Outpost logo)
+// v2.1: Added avatarUrl support for profile picture
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -35,6 +36,7 @@ interface SidebarProps {
   userEmail?: string;
   userName?: string;
   avatarLetter?: string;
+  avatarUrl?: string;
 }
 
 // Menu items configuration
@@ -47,9 +49,12 @@ const menuItems: { id: PageType; label: string; path: string }[] = [
   { id: 'trash', label: 'Trash', path: '/trash' },
 ];
 
-export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLetter }: SidebarProps) => {
+export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLetter, avatarUrl }: SidebarProps) => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  
+  // Get avatar URL from prop or from currentUser (Firebase Auth photoURL)
+  const resolvedAvatarUrl = avatarUrl || currentUser?.photoURL || undefined;
   const { labels, loading: labelsLoading, fetchLabels, refreshLabels, removeLabel } = useLabels();
   
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -169,6 +174,7 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
             userEmail={userEmail || ""}
             userName={userName}
             avatarLetter={avatarLetter || "U"}
+            avatarUrl={resolvedAvatarUrl}
           />
         </div>
 

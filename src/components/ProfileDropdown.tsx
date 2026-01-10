@@ -2,6 +2,7 @@
 // Reusable profile avatar dropdown for all pages
 // v2.0: Light theme with brand green hover
 // v2.1: Add account - Coming soon tooltip
+// v2.2: Support for profile picture (avatarUrl)
 
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,9 +13,10 @@ interface ProfileDropdownProps {
   userEmail: string;
   userName?: string;
   avatarLetter: string;
+  avatarUrl?: string;
 }
 
-const ProfileDropdown = ({ userEmail, userName, avatarLetter }: ProfileDropdownProps) => {
+const ProfileDropdown = ({ userEmail, userName, avatarLetter, avatarUrl }: ProfileDropdownProps) => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -57,9 +59,17 @@ const ProfileDropdown = ({ userEmail, userName, avatarLetter }: ProfileDropdownP
         onClick={() => setIsOpen(!isOpen)}
         className="p-2 transition-colors"
       >
-        <div className="w-8 h-8 rounded-full bg-[#8FA8A3] flex items-center justify-center text-sm font-medium text-black hover:ring-2 hover:ring-gray-300 transition-all">
-          {avatarLetter}
-        </div>
+        {avatarUrl ? (
+          <img 
+            src={avatarUrl} 
+            alt={userName || "User"} 
+            className="w-8 h-8 rounded-full object-cover hover:ring-2 hover:ring-gray-300 transition-all"
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-[#8FA8A3] flex items-center justify-center text-sm font-medium text-black hover:ring-2 hover:ring-gray-300 transition-all">
+            {avatarLetter}
+          </div>
+        )}
       </button>
 
       {/* Dropdown Menu */}
@@ -71,9 +81,17 @@ const ProfileDropdown = ({ userEmail, userName, avatarLetter }: ProfileDropdownP
           {/* Profile Info */}
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#8FA8A3] flex items-center justify-center text-base font-semibold text-black flex-shrink-0">
-                {avatarLetter}
-              </div>
+              {avatarUrl ? (
+                <img 
+                  src={avatarUrl} 
+                  alt={userName || "User"} 
+                  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[#8FA8A3] flex items-center justify-center text-base font-semibold text-black flex-shrink-0">
+                  {avatarLetter}
+                </div>
+              )}
               <div className="flex flex-col min-w-0">
                 <span className="text-black text-sm font-medium truncate">
                   {userName || "User"}

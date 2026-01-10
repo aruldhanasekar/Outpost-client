@@ -1,6 +1,7 @@
 // components/layout/MobileSidebar.tsx
 // Mobile sidebar component with navigation, labels, and profile
 // v1.0: Extracted from Inbox.tsx with added Labels section and profile at bottom
+// v1.1: Added avatarUrl support for profile picture
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -155,6 +156,9 @@ export const MobileSidebar = ({
   // Get avatar letter
   const avatarLetter = userProfile?.firstName?.[0]?.toUpperCase() || 
                        currentUser?.email?.[0]?.toUpperCase() || 'U';
+
+  // Get avatar URL from currentUser (Firebase Auth photoURL)
+  const avatarUrl = currentUser?.photoURL || undefined;
 
   return (
     <>
@@ -358,9 +362,17 @@ export const MobileSidebar = ({
           className="p-4 cursor-pointer hover:bg-zinc-800/30 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#f7ac5c] flex items-center justify-center text-base font-semibold text-black flex-shrink-0">
-              {avatarLetter}
-            </div>
+            {avatarUrl ? (
+              <img 
+                src={avatarUrl} 
+                alt={displayName} 
+                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-[#f7ac5c] flex items-center justify-center text-base font-semibold text-black flex-shrink-0">
+                {avatarLetter}
+              </div>
+            )}
             <div className="flex flex-col min-w-0">
               <span className="text-white text-sm font-medium truncate">
                 {displayName}
