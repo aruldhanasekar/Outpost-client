@@ -1,5 +1,6 @@
 // EditorToolbar.tsx - Formatting toolbar for TiptapEditor
 // Icons-based toolbar with dark theme and brand tooltips
+// Updated: Added GIF and Emoji picker buttons
 
 import { useState, useRef } from 'react';
 import { Editor } from '@tiptap/react';
@@ -11,9 +12,13 @@ import {
   ListOrdered, 
   Link2,
   Link2Off,
-  Paperclip
+  Paperclip,
+  Smile,
+  ImageIcon
 } from 'lucide-react';
 import { LinkPopover } from './LinkPopover';
+import { GifPickerModal } from './GifPickerModal';
+import { EmojiPickerPopover } from './EmojiPickerPopover';
 import { AttachedFile } from './TiptapEditor';
 
 interface EditorToolbarProps {
@@ -69,7 +74,10 @@ export function EditorToolbar({
   attachments = []
 }: EditorToolbarProps) {
   const [showLinkPopover, setShowLinkPopover] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const emojiButtonRef = useRef<HTMLDivElement>(null);
   
   // Detect Mac vs Windows for shortcut display
   const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -133,6 +141,36 @@ export function EditorToolbar({
     
     // Reset input so same file can be selected again
     e.target.value = '';
+  };
+  
+  // Handle GIF selection - insert as image in editor
+  const handleGifSelect = (gifUrl: string, gifAlt: string) => {
+    if (!editor) return;
+    
+    // Insert GIF as HTML image tag
+    // Using a styled div to contain the GIF with max-width
+    const gifHtml = `<img src="${gifUrl}" alt="${gifAlt}" style="max-width: 300px; height: auto; border-radius: 8px; margin: 8px 0;" />`;
+    
+    editor
+      .chain()
+      .focus()
+      .insertContent(gifHtml)
+      .run();
+    
+    setShowGifPicker(false);
+  };
+  
+  // Handle emoji selection - insert at cursor
+  const handleEmojiSelect = (emoji: string) => {
+    if (!editor) return;
+    
+    editor
+      .chain()
+      .focus()
+      .insertContent(emoji)
+      .run();
+    
+    setShowEmojiPicker(false);
   };
   
   const isLinkActive = editor.isActive('link');
@@ -232,7 +270,39 @@ export function EditorToolbar({
           className="hidden"
           accept="*/*"
         />
+        
+        {/* GIF Picker */}
+        <ToolbarButton
+          onClick={() => setShowGifPicker(true)}
+          tooltip="Insert GIF"
+        >
+          <span className="text-xs font-bold">GIF</span>
+        </ToolbarButton>
+        
+        {/* Emoji Picker */}
+        <div className="relative" ref={emojiButtonRef}>
+          <ToolbarButton
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            isActive={showEmojiPicker}
+            tooltip="Insert Emoji"
+          >
+            <Smile className="w-4 h-4" />
+          </ToolbarButton>
+          
+          <EmojiPickerPopover
+            isOpen={showEmojiPicker}
+            onClose={() => setShowEmojiPicker(false)}
+            onSelect={handleEmojiSelect}
+          />
+        </div>
       </div>
+      
+      {/* GIF Picker Modal */}
+      <GifPickerModal
+        isOpen={showGifPicker}
+        onClose={() => setShowGifPicker(false)}
+        onSelect={handleGifSelect}
+      />
     </div>
   );
 }

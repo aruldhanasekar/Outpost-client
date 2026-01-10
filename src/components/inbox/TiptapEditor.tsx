@@ -1,5 +1,6 @@
 // TiptapEditor.tsx - Rich text editor component using Tiptap
 // Phase 5: S3 attachment support with upload progress
+// Phase 6: GIF and Emoji support
 // Provides HTML and plain text output for email composition
 
 import { useEffect, useImperativeHandle, forwardRef, useState } from 'react';
@@ -8,6 +9,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
+import TiptapImage from '@tiptap/extension-image';
 import { EditorToolbar } from './EditorToolbar';
 import { X, Paperclip, FileText, Image, File, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { formatFileSize } from '@/utils/formatters';
@@ -96,6 +98,14 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
         Placeholder.configure({
           placeholder,
           emptyEditorClass: 'is-editor-empty',
+        }),
+        // Image extension for GIF support
+        TiptapImage.configure({
+          inline: true,
+          allowBase64: false,
+          HTMLAttributes: {
+            style: 'max-width: 300px; height: auto; border-radius: 8px; margin: 8px 0;',
+          },
         }),
       ],
       content: initialContent,
@@ -509,6 +519,15 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
           
           .tiptap u {
             text-decoration: underline;
+          }
+          
+          /* Image/GIF styling */
+          .tiptap img {
+            max-width: 300px;
+            height: auto;
+            border-radius: 8px;
+            margin: 8px 0;
+            display: inline-block;
           }
           
           /* Focus state */
