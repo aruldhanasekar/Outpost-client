@@ -235,13 +235,13 @@ function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: C
         <img 
           src={OutpostLogoWhite} 
           alt="Outpost" 
-          className="w-5 h-5 object-contain absolute group-hover:opacity-0 transition-opacity" 
+          className="w-6 h-6 object-contain absolute group-hover:opacity-0 transition-opacity" 
         />
         {/* Hover: dark logo (visible on white bg) */}
         <img 
           src={OutpostLogoDark} 
           alt="Outpost" 
-          className="w-5 h-5 object-contain absolute opacity-0 group-hover:opacity-100 transition-opacity" 
+          className="w-6 h-6 object-contain absolute opacity-0 group-hover:opacity-100 transition-opacity" 
         />
       </button>
       
