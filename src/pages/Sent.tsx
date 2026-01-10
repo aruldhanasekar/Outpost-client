@@ -1,6 +1,7 @@
 // pages/Sent.tsx - Sent Emails Page with Tracking Display
 // Shows sent emails with open tracking statistics
 // v2.0: Added ComposeModal support
+// v3.0: Added Reply/Forward modal support
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -11,6 +12,8 @@ import {
   useSentEmails,
   EmailList,
   MobileSelectionBar,
+  ReplyModal,
+  ForwardModal,
 } from "@/components/inbox";
 import { SearchModal } from "@/components/search";
 import { useThreadEmailsByThreadId } from "@/components/inbox/useThreadEmailsByThreadId";
@@ -34,6 +37,15 @@ const SentPage = () => {
 
   // Search modal state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Reply modal state
+  const [isReplyOpen, setIsReplyOpen] = useState(false);
+  const [replyMode, setReplyMode] = useState<'reply' | 'replyAll'>('reply');
+  const [replyToEmail, setReplyToEmail] = useState<Email | null>(null);
+
+  // Forward modal state
+  const [isForwardOpen, setIsForwardOpen] = useState(false);
+  const [forwardEmail, setForwardEmail] = useState<Email | null>(null);
 
   // Email send undo toast state
   const [emailUndoToast, setEmailUndoToast] = useState<{
@@ -73,7 +85,7 @@ const SentPage = () => {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
       if (target.closest('[data-modal]')) return;
-      if (isComposeOpen || isSearchOpen) return;
+      if (isComposeOpen || isReplyOpen || isForwardOpen || isSearchOpen) return;
       
       if (e.key === '/' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
@@ -83,7 +95,7 @@ const SentPage = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isComposeOpen, isSearchOpen]);
+  }, [isComposeOpen, isReplyOpen, isForwardOpen, isSearchOpen]);
 
   // Handle email click
   const handleEmailClick = (email: Email) => {
@@ -150,6 +162,21 @@ const SentPage = () => {
     }
   }, [checkedEmails]);
 
+  // Handle reply
+  const handleReply = useCallback((email: Email, mode: 'reply' | 'replyAll' = 'reply') => {
+    console.log('📧 Opening reply modal for:', email.senderEmail, 'mode:', mode);
+    setReplyToEmail(email);
+    setReplyMode(mode);
+    setIsReplyOpen(true);
+  }, []);
+
+  // Handle forward
+  const handleForward = useCallback((email: Email) => {
+    console.log('📧 Opening forward modal for:', email.subject);
+    setForwardEmail(email);
+    setIsForwardOpen(true);
+  }, []);
+
   // Handle email sent - show undo toast
   const handleEmailSent = useCallback((emailId: string, recipients: string[], emailData: UndoEmailData) => {
     console.log('📧 Email queued, showing undo toast:', emailId);
@@ -179,17 +206,32 @@ const SentPage = () => {
 
   // Open modal AFTER undoComposeData is set (fixes timing issue)
   useEffect(() => {
-    if (undoComposeData && undoComposeData.type === 'compose') {
-      console.log('📧 Opening compose modal with undo data');
-      openCompose({
-        initialTo: undoComposeData.to,
-        initialCc: undoComposeData.cc,
-        initialBcc: undoComposeData.bcc,
-        initialSubject: undoComposeData.subject,
-        initialBody: undoComposeData.body_html,
-        initialAttachments: undoComposeData.attachments,
-      });
-      setUndoComposeData(null);
+    if (undoComposeData) {
+      console.log('📧 Opening modal with undo data, type:', undoComposeData.type);
+      if (undoComposeData.type === 'compose') {
+        openCompose({
+          initialTo: undoComposeData.to,
+          initialCc: undoComposeData.cc,
+          initialBcc: undoComposeData.bcc,
+          initialSubject: undoComposeData.subject,
+          initialBody: undoComposeData.body_html,
+          initialAttachments: undoComposeData.attachments,
+        });
+        setUndoComposeData(null);
+      } else if (undoComposeData.type === 'reply') {
+        // For reply undo, we need to restore the replyToEmail
+        if (undoComposeData.originalEmail) {
+          setReplyToEmail(undoComposeData.originalEmail as Email);
+          setReplyMode(undoComposeData.replyMode || 'reply');
+          setIsReplyOpen(true);
+        }
+      } else if (undoComposeData.type === 'forward') {
+        // For forward undo, we need to restore the forwardEmail
+        if (undoComposeData.originalEmail) {
+          setForwardEmail(undoComposeData.originalEmail as Email);
+          setIsForwardOpen(true);
+        }
+      }
     }
   }, [undoComposeData, openCompose]);
 
@@ -232,7 +274,7 @@ const SentPage = () => {
         />
 
         {/* ==================== MAIN CONTAINER ==================== */}
-        <div className={`fixed inset-0 lg:top-0 lg:right-0 lg:left-16 bg-[#2d2d2d] lg:rounded-bl-2xl flex flex-col ${isComposeOpen ? 'lg:bottom-12' : 'lg:bottom-8'}`}>
+        <div className={`fixed inset-0 lg:top-0 lg:right-0 lg:left-16 bg-[#2d2d2d] lg:rounded-bl-2xl flex flex-col ${isComposeOpen || isReplyOpen || isForwardOpen ? 'lg:bottom-12' : 'lg:bottom-8'}`}>
           
           {/* ==================== MOBILE SELECTION BAR ==================== */}
           <MobileSelectionBar
@@ -371,6 +413,9 @@ const SentPage = () => {
                   loading={threadEmailsLoading}
                   userEmail={currentUser?.email || ""}
                   onClose={handleCloseDetail}
+                  onReply={(email) => handleReply(email, 'reply')}
+                  onReplyAll={(email) => handleReply(email, 'replyAll')}
+                  onForward={handleForward}
                 />
               )}
             </div>
@@ -412,11 +457,60 @@ const SentPage = () => {
                 loading={threadEmailsLoading}
                 userEmail={currentUser?.email || ""}
                 onClose={handleCloseDetail}
+                onReply={(email) => handleReply(email, 'reply')}
+                onReplyAll={(email) => handleReply(email, 'replyAll')}
+                onForward={handleForward}
               />
             )}
           </div>
           
         </div>
+        
+        {/* Reply Modal */}
+        {isReplyOpen && replyToEmail && (
+          <ReplyModal
+            key={undoComposeData?.type === 'reply' ? 'undo' : 'normal'}
+            isOpen={isReplyOpen}
+            onClose={() => {
+              setIsReplyOpen(false);
+              setUndoComposeData(null);
+            }}
+            mode={replyMode}
+            originalEmail={replyToEmail}
+            threadId={selectedEmail?.thread_id || undoComposeData?.threadId || ''}
+            threadSubject={selectedEmail?.subject || ''}
+            messageId={replyToEmail?.message_id || undoComposeData?.messageId}
+            userEmail={currentUser?.email || ''}
+            userTimezone={backendUserData?.timezone}
+            onEmailSent={handleEmailSent}
+            initialTo={undoComposeData?.type === 'reply' ? undoComposeData.to : undefined}
+            initialCc={undoComposeData?.type === 'reply' ? undoComposeData.cc : undefined}
+            initialBody={undoComposeData?.type === 'reply' ? undoComposeData.body_html : undefined}
+            initialAttachments={undoComposeData?.type === 'reply' ? undoComposeData.attachments : undefined}
+          />
+        )}
+        
+        {/* Forward Modal */}
+        {isForwardOpen && forwardEmail && (
+          <ForwardModal
+            key={undoComposeData?.type === 'forward' ? 'undo' : 'normal'}
+            isOpen={isForwardOpen}
+            onClose={() => {
+              setIsForwardOpen(false);
+              setUndoComposeData(null);
+            }}
+            originalEmail={forwardEmail}
+            threadId={selectedEmail?.thread_id || undoComposeData?.threadId || ''}
+            threadSubject={selectedEmail?.subject || ''}
+            userEmail={currentUser?.email || ''}
+            userTimezone={backendUserData?.timezone}
+            onEmailSent={handleEmailSent}
+            initialTo={undoComposeData?.type === 'forward' ? undoComposeData.to : undefined}
+            initialCc={undoComposeData?.type === 'forward' ? undoComposeData.cc : undefined}
+            initialBody={undoComposeData?.type === 'forward' ? undoComposeData.body_html : undefined}
+            initialAttachments={undoComposeData?.type === 'forward' ? undoComposeData.attachments : undefined}
+          />
+        )}
         
         {/* Email Send Undo Toast */}
         {emailUndoToast && emailUndoToast.show && (
