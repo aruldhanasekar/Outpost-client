@@ -517,7 +517,13 @@ const DraftPage = () => {
           initialBcc={composeDraft?.bcc || (undoComposeData?.type === 'compose' ? undoComposeData.bcc : undefined)}
           initialSubject={composeDraft?.subject || (undoComposeData?.type === 'compose' ? undoComposeData.subject : undefined)}
           initialBody={composeDraft?.body_html || (undoComposeData?.type === 'compose' ? undoComposeData.body_html : undefined)}
-          initialAttachments={undoComposeData?.type === 'compose' ? undoComposeData.attachments : undefined}
+          initialAttachments={composeDraft?.attachments ? composeDraft.attachments.map(a => ({
+            id: a.id,
+            name: a.name,
+            size: a.size,
+            type: a.type,
+            status: 'uploaded' as const
+          })) : (undoComposeData?.type === 'compose' ? undoComposeData.attachments : undefined)}
         />
 
         {/* Reply Modal */}
