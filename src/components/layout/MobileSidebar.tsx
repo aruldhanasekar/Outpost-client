@@ -179,22 +179,20 @@ export const MobileSidebar = ({
         <div className="p-4">
           <button 
             onClick={() => setIsSenderRulesOpen(true)}
-            className="group p-2 rounded-lg hover:bg-white transition-all"
+            className="group w-11 h-11 rounded-lg active:bg-white transition-all flex items-center justify-center"
           >
-            <div className="relative w-8 h-8">
-              {/* Default: white logo (visible on dark bg) */}
-              <img 
-                src={OutpostLogoWhite} 
-                alt="Outpost" 
-                className="w-8 h-8 absolute inset-0 opacity-100 group-hover:opacity-0 transition-opacity"
-              />
-              {/* Hover: dark logo (visible on white bg) */}
-              <img 
-                src={OutpostLogoDark} 
-                alt="Outpost" 
-                className="w-8 h-8 absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              />
-            </div>
+            {/* Default: white logo (visible on dark bg) */}
+            <img 
+              src={OutpostLogoWhite} 
+              alt="Outpost" 
+              className="w-9 h-9 object-contain absolute group-active:opacity-0 transition-opacity"
+            />
+            {/* Active/Pressed: dark logo (visible on white bg) */}
+            <img 
+              src={OutpostLogoDark} 
+              alt="Outpost" 
+              className="w-9 h-9 object-contain absolute opacity-0 group-active:opacity-100 transition-opacity"
+            />
           </button>
         </div>
 

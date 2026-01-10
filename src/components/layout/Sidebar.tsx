@@ -142,22 +142,20 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
         <div className="relative mb-3">
           <button 
             onClick={() => setIsSenderRulesOpen(true)}
-            className="group p-2 rounded-lg hover:bg-white transition-all"
+            className="group w-10 h-10 rounded-lg hover:bg-white transition-all flex items-center justify-center"
           >
-            <div className="relative w-8 h-8">
-              {/* Default: white logo (visible on dark bg) */}
-              <img 
-                src={OutpostLogoWhite} 
-                alt="Sender Rules" 
-                className="w-8 h-8 absolute inset-0 opacity-100 group-hover:opacity-0 transition-opacity"
-              />
-              {/* Hover: dark logo (visible on white bg) */}
-              <img 
-                src={OutpostLogoDark} 
-                alt="Sender Rules" 
-                className="w-8 h-8 absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              />
-            </div>
+            {/* Default: white logo (visible on dark bg) */}
+            <img 
+              src={OutpostLogoWhite} 
+              alt="Sender Rules" 
+              className="w-8 h-8 object-contain absolute group-hover:opacity-0 transition-opacity"
+            />
+            {/* Hover: dark logo (visible on white bg) */}
+            <img 
+              src={OutpostLogoDark} 
+              alt="Sender Rules" 
+              className="w-8 h-8 object-contain absolute opacity-0 group-hover:opacity-100 transition-opacity"
+            />
           </button>
           {/* Tooltip */}
           <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-zinc-700 text-white text-xs rounded whitespace-nowrap opacity-0 hover:opacity-0 pointer-events-none">
