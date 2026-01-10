@@ -8,6 +8,7 @@ import { Loader2, Menu, Trash2 } from "lucide-react";
 import {
   Email,
   EmailList,
+  ComposeModal,
   ReplyModal,
   ForwardModal,
   MobileSelectionBar,
@@ -20,7 +21,6 @@ import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
 import { UndoEmailData } from "@/components/inbox/ComposeModal";
 import { batchDelete } from "@/services/emailApi";
-import { useCompose } from "@/context/ComposeContext";
 
 // Draft data for compose editing
 interface ComposeDraftData {
@@ -112,10 +112,8 @@ const DraftPage = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Compose modal state - uses global context
-  const { isComposeOpen, openCompose, closeCompose, setOnEmailSent } = useCompose();
-  
-  // Reply/Forward modal states (stay local)
+  // Modal states
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [isReplyOpen, setIsReplyOpen] = useState(false);
   const [isForwardOpen, setIsForwardOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -235,28 +233,19 @@ const DraftPage = () => {
             body_html: cleanBody,
             attachments: draft.attachments || [],
           });
-          // Open global compose modal with draft data
-          openCompose({
-            draftId: email.id,
-            initialTo: cleanTo,
-            initialCc: cleanCc,
-            initialBcc: cleanBcc,
-            initialSubject: draft.subject || '',
-            initialBody: cleanBody,
-            // Don't pass initialAttachments - ComposeModal handles draft attachments via draftId
-          });
+          setIsComposeOpen(true);
           break;
       }
     } catch (error) {
       console.error('Failed to load draft:', error);
     }
-  }, [openCompose]);
+  }, []);
 
   // Handle compose modal close
   const handleComposeClose = useCallback(() => {
-    closeCompose();
+    setIsComposeOpen(false);
     setEditingDraft(null);
-  }, [closeCompose]);
+  }, []);
 
   // Handle reply modal close
   const handleReplyClose = useCallback(() => {
@@ -273,8 +262,8 @@ const DraftPage = () => {
   // Handle new compose (not editing)
   const handleNewCompose = useCallback(() => {
     setEditingDraft(null);
-    openCompose();
-  }, [openCompose]);
+    setIsComposeOpen(true);
+  }, []);
 
   // Handle email sent - show undo toast
   const handleEmailSent = useCallback((emailId: string, recipients: string[], emailData: UndoEmailData) => {
@@ -286,12 +275,6 @@ const DraftPage = () => {
       emailData
     });
   }, []);
-
-  // Register email sent callback with global compose context
-  useEffect(() => {
-    setOnEmailSent(() => handleEmailSent);
-    return () => setOnEmailSent(null);
-  }, [handleEmailSent, setOnEmailSent]);
 
   // Handle email undone - just store data, useEffect will open modal
   const handleEmailUndone = useCallback(() => {
@@ -308,22 +291,14 @@ const DraftPage = () => {
     if (undoComposeData) {
       console.log('📧 Opening modal with undo data, type:', undoComposeData.type);
       if (undoComposeData.type === 'compose') {
-        openCompose({
-          initialTo: undoComposeData.to,
-          initialCc: undoComposeData.cc,
-          initialBcc: undoComposeData.bcc,
-          initialSubject: undoComposeData.subject,
-          initialBody: undoComposeData.body_html,
-          initialAttachments: undoComposeData.attachments,
-        });
-        setUndoComposeData(null);
+        setIsComposeOpen(true);
       } else if (undoComposeData.type === 'reply') {
         setIsReplyOpen(true);
       } else if (undoComposeData.type === 'forward') {
         setIsForwardOpen(true);
       }
     }
-  }, [undoComposeData, openCompose]);
+  }, [undoComposeData]);
 
   // Handle close undo toast
   const handleCloseEmailUndoToast = useCallback(() => {
@@ -395,7 +370,8 @@ const DraftPage = () => {
 
   if (!currentUser) return null;
 
-  // Get draft data if editing (for reply/forward modals only now)
+  // Get compose draft data if editing
+  const composeDraft = editingDraft?.draft_type === 'compose' ? editingDraft : null;
   const replyDraft = editingDraft?.draft_type === 'reply' ? editingDraft : null;
   const forwardDraft = editingDraft?.draft_type === 'forward' ? editingDraft : null;
 
@@ -524,8 +500,27 @@ const DraftPage = () => {
           </div>
         </div>
         
-        {/* ComposeModal is now rendered globally in App.tsx via GlobalComposeModal */}
+        {/* Compose Modal */}
+        <ComposeModal
+          key={composeDraft?.id || (undoComposeData?.type === 'compose' ? 'undo' : 'new')}
+          isOpen={isComposeOpen}
+          onClose={() => {
+            handleComposeClose();
+            setUndoComposeData(null);
+          }}
+          userEmail={currentUser?.email || ''}
+          userTimezone={backendUserData?.timezone}
+          onEmailSent={handleEmailSent}
+          draftId={composeDraft?.id}
+          initialTo={composeDraft?.to || (undoComposeData?.type === 'compose' ? undoComposeData.to : undefined)}
+          initialCc={composeDraft?.cc || (undoComposeData?.type === 'compose' ? undoComposeData.cc : undefined)}
+          initialBcc={composeDraft?.bcc || (undoComposeData?.type === 'compose' ? undoComposeData.bcc : undefined)}
+          initialSubject={composeDraft?.subject || (undoComposeData?.type === 'compose' ? undoComposeData.subject : undefined)}
+          initialBody={composeDraft?.body_html || (undoComposeData?.type === 'compose' ? undoComposeData.body_html : undefined)}
+          initialAttachments={undoComposeData?.type === 'compose' ? undoComposeData.attachments : undefined}
+        />
 
+        {/* Reply Modal */}
         {/* Reply Modal - from draft */}
         {isReplyOpen && replyDraft && (
           <ReplyModal
