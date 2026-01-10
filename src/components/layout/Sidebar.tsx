@@ -16,7 +16,8 @@ import { SenderRulesModal } from "@/components/rules/SenderRulesModal";
 import { deleteLabel } from "@/services/emailApi";
 
 // Outpost logo for sender rules button
-import OutpostLogo from "@/assets/OutpostMail_dark.png";
+import OutpostLogoWhite from "@/assets/OutpostMail_white_no_background.png";
+import OutpostLogoDark from "@/assets/OutpostMail_dark_no_background.png";
 
 export type PageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'trash' | 'label';
 
@@ -141,13 +142,22 @@ export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLe
         <div className="relative group mb-3">
           <button 
             onClick={() => setIsSenderRulesOpen(true)}
-            className="p-1.5 bg-white rounded-lg hover:bg-zinc-100 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-white transition-all"
           >
-            <img 
-              src={OutpostLogo} 
-              alt="Sender Rules" 
-              className="w-6 h-6"
-            />
+            <div className="relative w-6 h-6">
+              {/* Default: white logo (visible on dark bg) */}
+              <img 
+                src={OutpostLogoWhite} 
+                alt="Sender Rules" 
+                className="w-6 h-6 absolute inset-0 opacity-100 group-hover:opacity-0 transition-opacity"
+              />
+              {/* Hover: dark logo (visible on white bg) */}
+              <img 
+                src={OutpostLogoDark} 
+                alt="Sender Rules" 
+                className="w-6 h-6 absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+            </div>
           </button>
           {/* Tooltip */}
           <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-zinc-700 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">

@@ -14,7 +14,8 @@ import { deleteLabel } from "@/services/emailApi";
 import { UserProfile } from "@/types/user.types";
 
 // Outpost logo
-import OutpostLogo from "@/assets/Outpost.png";
+import OutpostLogoWhite from "@/assets/OutpostMail_white_no_background.png";
+import OutpostLogoDark from "@/assets/OutpostMail_dark_no_background.png";
 
 export type MobilePageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'trash' | 'label';
 
@@ -178,13 +179,22 @@ export const MobileSidebar = ({
         <div className="p-4">
           <button 
             onClick={() => setIsSenderRulesOpen(true)}
-            className="p-2 bg-white rounded-lg hover:bg-zinc-100 transition-colors"
+            className="group p-2 rounded-lg hover:bg-white transition-all"
           >
-            <img 
-              src={OutpostLogo} 
-              alt="Outpost" 
-              className="w-7 h-7"
-            />
+            <div className="relative w-7 h-7">
+              {/* Default: white logo (visible on dark bg) */}
+              <img 
+                src={OutpostLogoWhite} 
+                alt="Outpost" 
+                className="w-7 h-7 absolute inset-0 opacity-100 group-hover:opacity-0 transition-opacity"
+              />
+              {/* Hover: dark logo (visible on white bg) */}
+              <img 
+                src={OutpostLogoDark} 
+                alt="Outpost" 
+                className="w-7 h-7 absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+            </div>
           </button>
         </div>
 
