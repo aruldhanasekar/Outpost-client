@@ -12,7 +12,6 @@ import {
   ThreadList,
   ThreadDetail,
   MobileThreadDetail,
-  ComposeModal,
   ReplyModal,
   ForwardModal,
   MobileSelectionBar,
@@ -32,6 +31,7 @@ import { EmailSendUndoToast } from "@/components/ui/EmailSendUndoToast";
 import { Sidebar } from "@/components/layout";
 import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { EditLabelModal } from "@/components/labels/EditLabelModal";
+import { useCompose } from "@/context/ComposeContext";
 
 // Hook to fetch threads by label - uses emailApi for automatic routing
 function useLabelThreads(userId: string | undefined, labelName: string | undefined) {
@@ -106,8 +106,8 @@ const LabelPage = () => {
     timeoutId: NodeJS.Timeout | null;
   }>({ show: false, message: '', threadIds: [], emailIds: [], timeoutId: null });
 
-  // Compose modal state
-  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  // Compose modal state - uses global context
+  const { isComposeOpen, openCompose, setOnEmailSent } = useCompose();
 
   // Search modal state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -541,6 +541,12 @@ const LabelPage = () => {
       emailData
     });
   }, []);
+
+  // Register email sent callback with global compose context
+  useEffect(() => {
+    setOnEmailSent(() => handleEmailSent);
+    return () => setOnEmailSent(null);
+  }, [handleEmailSent, setOnEmailSent]);
   
   const handleEmailUndone = useCallback(() => {
     const emailData = emailUndoToast?.emailData;
@@ -561,14 +567,22 @@ const LabelPage = () => {
   useEffect(() => {
     if (undoComposeData) {
       if (undoComposeData.type === 'compose') {
-        setIsComposeOpen(true);
+        openCompose({
+          initialTo: undoComposeData.to,
+          initialCc: undoComposeData.cc,
+          initialBcc: undoComposeData.bcc,
+          initialSubject: undoComposeData.subject,
+          initialBody: undoComposeData.body_html,
+          initialAttachments: undoComposeData.attachments,
+        });
+        setUndoComposeData(null);
       } else if (undoComposeData.type === 'reply') {
         setIsReplyOpen(true);
       } else if (undoComposeData.type === 'forward') {
         setIsForwardOpen(true);
       }
     }
-  }, [undoComposeData]);
+  }, [undoComposeData, openCompose]);
   
   const handleCloseEmailUndoToast = useCallback(() => {
     setEmailUndoToast(null);
@@ -748,7 +762,7 @@ const LabelPage = () => {
                   </svg>
                 </button>
                 <button 
-                  onClick={() => setIsComposeOpen(true)}
+                  onClick={() => openCompose()}
                   className="p-2 bg-[#8FA8A3] hover:bg-[#7a9691] rounded-lg transition-colors text-white"
                   title="Compose"
                 >
@@ -833,7 +847,7 @@ const LabelPage = () => {
                   </svg>
                 </button>
                 <button 
-                  onClick={() => setIsComposeOpen(true)}
+                  onClick={() => openCompose()}
                   className="p-2 bg-[#8FA8A3] hover:bg-[#7a9691] rounded-lg transition-colors text-white"
                   title="Compose"
                 >
@@ -1150,25 +1164,6 @@ const LabelPage = () => {
             onClose={handleCloseToast}
           />
         )}
-        
-        {/* Compose Modal */}
-        <ComposeModal
-          key={undoComposeData?.type === 'compose' ? 'undo' : 'normal'}
-          isOpen={isComposeOpen}
-          onClose={() => {
-            setIsComposeOpen(false);
-            setUndoComposeData(null);
-          }}
-          userEmail={currentUser?.email || ''}
-          userTimezone={backendUserData?.timezone}
-          onEmailSent={handleEmailSent}
-          initialTo={undoComposeData?.type === 'compose' ? undoComposeData.to : undefined}
-          initialCc={undoComposeData?.type === 'compose' ? undoComposeData.cc : undefined}
-          initialBcc={undoComposeData?.type === 'compose' ? undoComposeData.bcc : undefined}
-          initialSubject={undoComposeData?.type === 'compose' ? undoComposeData.subject : undefined}
-          initialBody={undoComposeData?.type === 'compose' ? undoComposeData.body_html : undefined}
-          initialAttachments={undoComposeData?.type === 'compose' ? undoComposeData.attachments : undefined}
-        />
         
         {/* Reply Modal */}
         {isReplyOpen && replyToEmail && (
