@@ -21,6 +21,8 @@ import Waitlist from "@/pages/Waitlist";
 import Exclusive from "@/pages/Exclusive";
 import Label from "@/pages/Label";
 import { LabelsProvider } from '@/context/LabelsContext';
+import { ComposeProvider } from '@/context/ComposeContext';
+import { GlobalComposeModal } from '@/components/GlobalComposeModal';
 import NotAllowed from "@/pages/NotAllowed";
 
 const queryClient = new QueryClient();
@@ -29,6 +31,7 @@ const App = () => (
 
     <QueryClientProvider client={queryClient}>
       <LabelsProvider>
+      <ComposeProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -139,8 +142,12 @@ const App = () => (
             {/* Catch-all: 404 page */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          
+          {/* Global Compose Modal - persists across navigation */}
+          <GlobalComposeModal />
         </BrowserRouter>
       </TooltipProvider>
+      </ComposeProvider>
       </LabelsProvider>
     </QueryClientProvider>
 );
