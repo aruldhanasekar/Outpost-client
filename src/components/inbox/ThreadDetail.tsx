@@ -229,17 +229,17 @@ function CategoryDropdownMenu({ thread, emails, userEmail, onCategoryChange }: C
       {/* Logo trigger button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="group w-8 h-8 hover:bg-zinc-800 rounded-lg transition-all flex items-center justify-center"
+        className="group w-8 h-8 hover:bg-white rounded-lg transition-all flex items-center justify-center"
       >
-        {/* Default: dark logo (visible on light bg) */}
+        {/* Default: white logo */}
         <img 
-          src={OutpostLogoDark} 
+          src={OutpostLogoWhite} 
           alt="Outpost" 
           className="w-5 h-5 object-contain absolute group-hover:opacity-0 transition-opacity" 
         />
-        {/* Hover: white logo (visible on dark bg) */}
+        {/* Hover: dark logo (visible on white bg) */}
         <img 
-          src={OutpostLogoWhite} 
+          src={OutpostLogoDark} 
           alt="Outpost" 
           className="w-5 h-5 object-contain absolute opacity-0 group-hover:opacity-100 transition-opacity" 
         />
