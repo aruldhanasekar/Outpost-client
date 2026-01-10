@@ -1,6 +1,7 @@
 // components/ProfileDropdown.tsx
 // Reusable profile avatar dropdown for all pages
 // v2.0: Light theme with brand green hover
+// v2.1: Add account - Coming soon tooltip
 
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -49,12 +50,6 @@ const ProfileDropdown = ({ userEmail, userName, avatarLetter }: ProfileDropdownP
     navigate("/settings");
   };
 
-  const handleAddAccount = () => {
-    // TODO: Implement add account functionality
-    console.log("Add account clicked - feature coming soon");
-    setIsOpen(false);
-  };
-
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Avatar Button */}
@@ -92,14 +87,21 @@ const ProfileDropdown = ({ userEmail, userName, avatarLetter }: ProfileDropdownP
 
           {/* Menu Items */}
           <div className="p-2">
-            {/* Add Account */}
-            <button
-              onClick={handleAddAccount}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:text-black hover:bg-[#e1f7f0] transition-colors"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span className="text-sm">Add account</span>
-            </button>
+            {/* Add Account - Coming Soon */}
+            <div className="relative group/add">
+              <button
+                disabled
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 cursor-not-allowed"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span className="text-sm">Add account</span>
+              </button>
+              {/* Coming Soon Tooltip */}
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2.5 py-1.5 bg-zinc-900 text-white text-xs rounded-lg opacity-0 group-hover/add:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
+                Coming soon
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-zinc-900" />
+              </div>
+            </div>
 
             {/* Settings */}
             <button
