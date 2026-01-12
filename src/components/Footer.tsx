@@ -29,15 +29,31 @@ const Footer = () => {
         
         {/* Social Icons - Bottom Right */}
         <div className="flex items-center gap-4 order-2 md:order-3">
-          <a href="https://www.linkedin.com/company/outpostmail" className="hover:text-white transition-colors">
+          <a
+            href="https://www.linkedin.com/company/outpostmail"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-white transition-colors"
+          >
             <Linkedin size={18} className="md:w-5 md:h-5" />
           </a>
-          <a href="https://x.com/Outpostmail_" className="hover:text-white transition-colors">
-            <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] md:w-5 md:h-5" fill="currentColor">
+
+          <a
+            href="https://x.com/Outpostmail_"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-white transition-colors"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="w-[18px] h-[18px] md:w-5 md:h-5"
+              fill="currentColor"
+            >
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
             </svg>
           </a>
         </div>
+
       </div>
     </footer>
   );
