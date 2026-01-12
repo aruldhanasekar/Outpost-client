@@ -540,10 +540,10 @@ const Index = () => {
       <div className="flex flex-col items-center justify-center px-6 pt-20 pb-10">
         <div className="max-w-4xl text-center">
           <h1 className="mt-8 mb-6 font-display text-5xl font-black leading-tight tracking-tight text-black md:text-6xl lg:text-7xl">
-            Never miss what matters<br />most in the Inbox
+           Never miss an urgent reply<br />or a promise you made.
           </h1>
           <p className="mx-auto mb-10 max-w-xl md:max-w-none font-body text-lg text-muted-foreground md:text-xl">
-            Stop forgetting replies you're waiting for. Outpost keeps track for you.
+            Outpost automatically sorts your inbox by urgency, tracks the promises you make, and shows which replies you are waiting on.
           </p>
           <Button
             size="lg"
