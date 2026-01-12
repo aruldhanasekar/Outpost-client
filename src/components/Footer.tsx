@@ -1,6 +1,6 @@
 import { Linkedin } from "lucide-react";
 import { Link } from "react-router-dom";
-import OutpostLogo from "@/assets/OutpostMail_dark.png";
+import OutpostLogo from "@/assets/OutpostMail_white_no_background.png";
 
 const Footer = () => {
   return (
