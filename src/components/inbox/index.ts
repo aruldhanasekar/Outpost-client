@@ -36,3 +36,8 @@ export { LinkPopover } from './LinkPopover';
 export type { TiptapEditorRef, AttachedFile } from './TiptapEditor';
 export type { Email } from './types';
 export type { Thread } from './promiseTypes';
+// Spam components
+export { useSpamEmails } from '../../hooks/useSpamEmails';
+export type { SpamEmail } from '../../hooks/useSpamEmails';
+export { SpamThreadDetail } from './SpamThreadDetail';
+export { MobileSpamThreadDetail } from './MobileSpamThreadDetail';

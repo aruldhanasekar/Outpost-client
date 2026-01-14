@@ -4,6 +4,7 @@
 // ✅ Updated to use emailApi.ts for automatic Direct Auth / Composio routing
 // ✅ Added Sender Rules modal (accessible via Outpost logo)
 // v2.1: Added avatarUrl support for profile picture
+// v2.2: Added Spam page to navigation
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -20,7 +21,7 @@ import { deleteLabel } from "@/services/emailApi";
 import OutpostLogoWhite from "@/assets/OutpostMail_white_no_background.png";
 import OutpostLogoDark from "@/assets/OutpostMail_dark_no_background.png";
 
-export type PageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'trash' | 'label';
+export type PageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'trash' | 'spam' | 'label';
 
 interface Label {
   id: string;
@@ -47,6 +48,7 @@ const menuItems: { id: PageType; label: string; path: string }[] = [
   { id: 'done', label: 'Done', path: '/done' },
   { id: 'scheduled', label: 'Scheduled', path: '/scheduled' },
   { id: 'trash', label: 'Trash', path: '/trash' },
+  { id: 'spam', label: 'Spam', path: '/spam' },
 ];
 
 export const Sidebar = ({ activePage, activeLabel, userEmail, userName, avatarLetter, avatarUrl }: SidebarProps) => {

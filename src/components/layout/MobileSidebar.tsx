@@ -2,6 +2,7 @@
 // Mobile sidebar component with navigation, labels, and profile
 // v1.0: Extracted from Inbox.tsx with added Labels section and profile at bottom
 // v1.1: Added avatarUrl support for profile picture
+// v1.2: Added Spam page to navigation
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -18,7 +19,7 @@ import { UserProfile } from "@/types/user.types";
 import OutpostLogoWhite from "@/assets/OutpostMail_white_no_background.png";
 import OutpostLogoDark from "@/assets/OutpostMail_dark_no_background.png";
 
-export type MobilePageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'trash' | 'label';
+export type MobilePageType = 'inbox' | 'sent' | 'drafts' | 'done' | 'scheduled' | 'trash' | 'spam' | 'label';
 
 interface Label {
   id: string;
@@ -278,6 +279,18 @@ export const MobileSidebar = ({
                 }`}
               >
                 <span className="text-sm font-medium">Trash</span>
+              </button>
+
+              {/* Spam */}
+              <button 
+                onClick={() => handleNavigate('/spam')}
+                className={`px-3 py-2.5 rounded-lg w-full text-left transition-colors ${
+                  activePage === 'spam' 
+                    ? 'text-white bg-zinc-800/50' 
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'
+                }`}
+              >
+                <span className="text-sm font-medium">Spam</span>
               </button>
             </div>
           </div>
