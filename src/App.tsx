@@ -12,6 +12,7 @@ import Done from "./pages/Done";
 import Settings from "./pages/Settings";
 import Drafts from "@/pages/Drafts";
 import Trash from "@/pages/Trash";
+import Spam from "@/pages/spam";
 import Scheduled from "@/pages/Scheduled";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
@@ -122,6 +123,19 @@ const App = () => (
             <Route path="/trash/:messageId" element={
               <ProtectedRoute>
                 <Trash />
+              </ProtectedRoute>
+            } />
+
+            {/* ✅ PROTECTED ROUTE: Spam */}
+            <Route path="/spam" element={
+              <ProtectedRoute>
+                <Spam />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/spam/:messageId" element={
+              <ProtectedRoute>
+                <Spam />
               </ProtectedRoute>
             } />
 
