@@ -12,7 +12,7 @@ import Done from "./pages/Done";
 import Settings from "./pages/Settings";
 import Drafts from "@/pages/Drafts";
 import Trash from "@/pages/Trash";
-import Spam from "@/pages/spam";
+import Spam from "@/pages/Spam";
 import Scheduled from "@/pages/Scheduled";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
