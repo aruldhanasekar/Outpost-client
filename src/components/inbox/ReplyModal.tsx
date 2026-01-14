@@ -89,8 +89,24 @@ function getInitialRecipients(
 ): { to: string[]; cc: string[] } {
   const userEmailLower = userEmail.toLowerCase();
   
+  // Check if user is the sender (sent email)
+  const isSentByUser = originalEmail.senderEmail?.toLowerCase() === userEmailLower;
+  
   if (mode === 'reply') {
-    // Reply to sender only
+    if (isSentByUser) {
+      // Sent email: Reply to the original recipients
+      const toRecipients: string[] = [];
+      if (originalEmail.to && Array.isArray(originalEmail.to)) {
+        originalEmail.to.forEach(recipient => {
+          const email = extractEmailAddress(recipient);
+          if (email && email.toLowerCase() !== userEmailLower) {
+            toRecipients.push(email);
+          }
+        });
+      }
+      return { to: toRecipients, cc: [] };
+    }
+    // Inbox email: Reply to sender only
     return {
       to: originalEmail.senderEmail ? [originalEmail.senderEmail] : [],
       cc: []
