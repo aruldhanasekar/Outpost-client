@@ -25,4 +25,4 @@ dist-ssr
 
 .env
 
-src/firbase.config
+src/firbase.config.ts
